@@ -28,10 +28,28 @@ function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
-function buildOptions(correct, allCards, count) {
+function buildWordOptions(correct, allCards, count) {
   const others = allCards.filter(c => c.id !== correct.id).map(c => c.meaning);
   const wrong = shuffle(others).slice(0, count - 1);
   return shuffle([correct.meaning, ...wrong]);
+}
+
+function buildSentenceOptions(correctSentence, allSentences, currentWordId, count) {
+  // Aynı kelimeye ait diğer cümlelerin Türkçelerini bul
+  const sameWordSentences = allSentences.filter(s => s.word_id === currentWordId && s.sentence_en !== correctSentence.sentence_en);
+  const sameWordMeanings = sameWordSentences.map(s => s.sentence_tr).filter(Boolean);
+  
+  // Eğer aynı kelimeden yeterli çeldirici yoksa diğer kelimelerin cümlelerinden al
+  let wrong = [...sameWordMeanings];
+  if (wrong.length < count - 1) {
+    const otherSentences = allSentences.filter(s => s.word_id !== currentWordId && s.sentence_tr);
+    const otherMeanings = shuffle(otherSentences.map(s => s.sentence_tr));
+    wrong = [...wrong, ...otherMeanings].slice(0, count - 1);
+  } else {
+    wrong = shuffle(wrong).slice(0, count - 1);
+  }
+  
+  return shuffle([correctSentence.sentence_tr, ...wrong]);
 }
 
 const SpeakerIcon = () => (
@@ -79,6 +97,7 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   const [mode, setMode] = useState("word");
   const [tab, setTab] = useState("quiz");
   const [allCards, setAllCards] = useState([]);
+  const [allSentences, setAllSentences] = useState([]);
   const [examplesMap, setExamplesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,55 +118,79 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   const choiceCount = LEVEL_CHOICES[userLevel];
   const levelColor = LEVEL_COLOR[userLevel];
 
+  // Yeni soru gelince telaffuz et (kelime modunda kelimeyi, cümle modunda cümleyi)
   useEffect(() => {
     if (queue.length && !answered) {
-      const currentCard = queue[qIdx % queue.length];
+      const current = queue[qIdx % queue.length];
       setTimeout(() => {
-        speak(currentCard.word);
+        if (mode === "word") {
+          speak(current.word);
+        } else {
+          speak(current.sentence_en);
+        }
       }, 100);
     }
-  }, [qIdx, queue, answered]);
+  }, [qIdx, queue, answered, mode]);
 
   useEffect(() => {
-    async function fetchWords() {
+    async function fetchData() {
       setLoading(true);
       setError(null);
       try {
-        const { data: words, error: wordError } = await supabase
-          .from("en_words")
-          .select("*")
-          .eq("type", mode);
-        if (wordError) throw wordError;
-        
-        const cards = words || [];
-        setAllCards(cards);
-        
-        if (cards.length > 0) {
-          const wordIds = cards.map(c => c.id);
-          const { data: examples, error: exampleError } = await supabase
-            .from("en_example_sentences")
+        if (mode === "word") {
+          const { data: words, error: wordError } = await supabase
+            .from("en_words")
             .select("*")
-            .in("word_id", wordIds)
-            .order("order_index");
+            .eq("type", "word");
+          if (wordError) throw wordError;
+          const cards = words || [];
+          setAllCards(cards);
           
-          if (!exampleError && examples) {
-            const map = {};
-            examples.forEach(ex => {
-              if (!map[ex.word_id]) map[ex.word_id] = [];
-              map[ex.word_id].push(ex);
-            });
-            setExamplesMap(map);
+          if (cards.length > 0) {
+            const wordIds = cards.map(c => c.id);
+            const { data: examples, error: exampleError } = await supabase
+              .from("en_example_sentences")
+              .select("*")
+              .in("word_id", wordIds)
+              .order("order_index");
+            
+            if (!exampleError && examples) {
+              const map = {};
+              examples.forEach(ex => {
+                if (!map[ex.word_id]) map[ex.word_id] = [];
+                map[ex.word_id].push(ex);
+              });
+              setExamplesMap(map);
+            }
           }
+          setQueue(shuffle(cards));
+        } else {
+          // Cümle modu: en_example_sentences tablosundan cümleleri çek
+          const { data: sentences, error: sentenceError } = await supabase
+            .from("en_example_sentences")
+            .select("*, en_words(word, meaning, level, part_of_speech)")
+            .eq("is_approved", true);
+          if (sentenceError) throw sentenceError;
+          
+          const validSentences = (sentences || []).filter(s => s.sentence_en && s.sentence_tr && s.en_words);
+          setAllSentences(validSentences);
+          
+          // Kelime bilgilerini de çek (istatistik için)
+          const { data: words } = await supabase
+            .from("en_words")
+            .select("*")
+            .eq("type", "word");
+          setAllCards(words || []);
+          
+          setQueue(shuffle(validSentences));
         }
-        
-        setQueue(shuffle(cards));
       } catch (err) {
-        setError("Kelimeler yüklenemedi. Supabase bağlantısını kontrol et.");
+        setError("Veriler yüklenemedi. Supabase bağlantısını kontrol et.");
       } finally {
         setLoading(false);
       }
     }
-    fetchWords();
+    fetchData();
     setQIdx(0);
     setSelected(null);
     setAnswered(false);
@@ -156,11 +199,16 @@ function QuizScreen({ userLevel, onChangeLevel }) {
 
   useEffect(() => {
     if (!queue.length) return;
-    const card = queue[qIdx % queue.length];
-    setOptions(buildOptions(card, allCards, choiceCount));
+    const current = queue[qIdx % queue.length];
+    
+    if (mode === "word") {
+      setOptions(buildWordOptions(current, allCards, choiceCount));
+    } else {
+      setOptions(buildSentenceOptions(current, allSentences, current.word_id, choiceCount));
+    }
     setSelected(null);
     setAnswered(false);
-  }, [qIdx, queue]);
+  }, [qIdx, queue, mode]);
 
   const generatePrompt = (word) => `Aşağıdaki kelime için A1-A2 seviyesinde 10 tane İngilizce örnek cümle hazırla. Her cümle için Türkçe anlamını da ekle. SADECE JSON array döndür, başka hiçbir şey yazma.
 
@@ -215,6 +263,17 @@ Kelime: ${word}`;
         [selectedWordForExample.id]: newExamples || []
       }));
       
+      // Cümle modundaysak queue'yu yenile
+      if (mode === "sentence") {
+        const { data: sentences } = await supabase
+          .from("en_example_sentences")
+          .select("*, en_words(word, meaning, level, part_of_speech)")
+          .eq("is_approved", true);
+        const validSentences = (sentences || []).filter(s => s.sentence_en && s.sentence_tr && s.en_words);
+        setAllSentences(validSentences);
+        setQueue(shuffle(validSentences));
+      }
+      
       setExampleStatus("success");
       setTimeout(() => {
         setShowExampleModal(false);
@@ -232,7 +291,7 @@ Kelime: ${word}`;
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, fontFamily: "Inter, sans-serif" }}>
       <div style={{ fontSize: 36 }}>📚</div>
-      <div style={{ color: "#64748b", fontSize: 14 }}>Kelimeler yükleniyor...</div>
+      <div style={{ color: "#64748b", fontSize: 14 }}>Veriler yükleniyor...</div>
     </div>
   );
 
@@ -247,13 +306,24 @@ Kelime: ${word}`;
   if (!queue.length) return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, fontFamily: "Inter, sans-serif", padding: 24 }}>
       <div style={{ fontSize: 36 }}>🗂️</div>
-      <div style={{ color: "#64748b", fontSize: 14, textAlign: "center" }}>Bu seviyede henüz kelime yok.<br />Supabase'e kelime ekle!</div>
+      <div style={{ color: "#64748b", fontSize: 14, textAlign: "center" }}>
+        {mode === "word" 
+          ? "Bu seviyede henüz kelime yok.\nSupabase'e kelime ekle!"
+          : "Henüz örnek cümle yok.\nÖnce kelimelere cümle ekle!"}
+      </div>
       <button onClick={onChangeLevel} style={{ background: "#1e293b", border: "none", borderRadius: 10, padding: "10px 20px", color: "#e2e8f0", cursor: "pointer", fontWeight: 600 }}>← Seviye Değiştir</button>
     </div>
   );
 
-  const card = queue[qIdx % queue.length];
-  const cardExamples = examplesMap[card.id] || [];
+  const current = queue[qIdx % queue.length];
+  const cardExamples = mode === "word" ? (examplesMap[current.id] || []) : [];
+  
+  const getCurrentWord = () => {
+    if (mode === "word") return current;
+    return current.en_words;
+  };
+  
+  const currentWord = getCurrentWord();
 
   const handleSpeak = (text) => {
     setSpeaking(true);
@@ -265,10 +335,13 @@ Kelime: ${word}`;
     if (answered) return;
     setSelected(opt);
     setAnswered(true);
-    const isCorrect = opt === card.meaning;
+    const correctAnswer = mode === "word" ? current.meaning : current.sentence_tr;
+    const isCorrect = opt === correctAnswer;
+    
+    const itemId = mode === "word" ? current.id : current.id;
     setStats(prev => {
-      const cur = prev[card.id] || { correct: 0, wrong: 0 };
-      return { ...prev, [card.id]: { correct: cur.correct + (isCorrect ? 1 : 0), wrong: cur.wrong + (isCorrect ? 0 : 1) } };
+      const cur = prev[itemId] || { correct: 0, wrong: 0 };
+      return { ...prev, [itemId]: { correct: cur.correct + (isCorrect ? 1 : 0), wrong: cur.wrong + (isCorrect ? 0 : 1) } };
     });
   };
 
@@ -291,18 +364,20 @@ Kelime: ${word}`;
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button 
-            onClick={() => {
-              setSelectedWordForExample(card);
-              setShowExampleModal(true);
-              setExampleJsonInput("");
-              setExampleParseError(null);
-              setExampleStatus(null);
-            }}
-            style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}
-          >
-            ✏️ Cümle Ekle
-          </button>
+          {mode === "word" && currentWord && (
+            <button 
+              onClick={() => {
+                setSelectedWordForExample(currentWord);
+                setShowExampleModal(true);
+                setExampleJsonInput("");
+                setExampleParseError(null);
+                setExampleStatus(null);
+              }}
+              style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}
+            >
+              ✏️ Cümle Ekle
+            </button>
+          )}
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : totalAnswered === 0 ? "#475569" : "#ef4444" }}>
@@ -313,7 +388,7 @@ Kelime: ${word}`;
       </div>
 
       <div style={{ padding: "0 20px 10px", display: "flex", gap: 8 }}>
-        {[{ id: "word", label: "📖 Kelimeler" }, { id: "phrase", label: "💬 Deyimler" }].map(m => (
+        {[{ id: "word", label: "📖 Kelimeler" }, { id: "sentence", label: "📝 Cümleler" }].map(m => (
           <button key={m.id} onClick={() => setMode(m.id)} style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, background: mode === m.id ? "#6366f1" : "#1e1e30", color: mode === m.id ? "#fff" : "#64748b" }}>{m.label}</button>
         ))}
       </div>
@@ -329,31 +404,36 @@ Kelime: ${word}`;
           <>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginBottom: 6 }}>
               <span>{(qIdx % queue.length) + 1} / {queue.length}</span>
-              <span style={{ color: LEVEL_COLOR[card.level], fontWeight: 700 }}>{card.level} — {choiceCount} şık</span>
+              <span style={{ color: levelColor, fontWeight: 700 }}>{choiceCount} şık</span>
             </div>
             <div style={{ height: 3, background: "#1e1e30", borderRadius: 99, marginBottom: 18, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${((qIdx % queue.length) / queue.length) * 100}%`, background: levelColor, borderRadius: 99, transition: "width 0.4s" }} />
             </div>
 
             <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", border: "1px solid #1e293b", borderRadius: 20, padding: "26px 22px", textAlign: "center", marginBottom: 18 }}>
-              {card.part_of_speech?.length > 0 && (
+              {mode === "word" && currentWord?.part_of_speech?.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
-                  {card.part_of_speech.map(p => (
+                  {currentWord.part_of_speech.map(p => (
                     <span key={p} style={{ fontSize: 10, color: "#6366f1", background: "#6366f122", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>{p}</span>
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.5, marginBottom: 14 }}>{card.word}</div>
-              <button onClick={() => handleSpeak(card.word)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, transition: "background 0.2s" }}>
+              <div style={{ fontSize: mode === "word" ? 28 : 18, fontWeight: mode === "word" ? 800 : 600, letterSpacing: -0.5, marginBottom: 14, lineHeight: 1.4 }}>
+                {mode === "word" ? current.word : `"${current.sentence_en}"`}
+              </div>
+              <button onClick={() => handleSpeak(mode === "word" ? current.word : current.sentence_en)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, transition: "background 0.2s" }}>
                 <SpeakerIcon /> {speaking ? "Çalıyor..." : "Telaffuz"}
               </button>
             </div>
 
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600 }}>Türkçe anlamı nedir?</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600 }}>
+              {mode === "word" ? "Türkçe anlamı nedir?" : "Bu cümlenin Türkçesi nedir?"}
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {options.map((opt, i) => {
-                const isCorrect = opt === card.meaning;
+                const correctAnswer = mode === "word" ? current.meaning : current.sentence_tr;
+                const isCorrect = opt === correctAnswer;
                 const isSelected = opt === selected;
                 let bg = "#1a1a2e", border = "#1e293b", color = "#e2e8f0";
                 if (answered) {
@@ -373,38 +453,49 @@ Kelime: ${word}`;
             </div>
 
             {answered && (
-              <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === card.meaning ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === card.meaning ? "#10b981" : "#ef4444"}` }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: selected === card.meaning ? "#10b981" : "#ef4444", marginBottom: 8 }}>
-                  {selected === card.meaning ? "✓ Doğru!" : `✗ Doğru cevap: "${card.meaning}"`}
+              <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === (mode === "word" ? current.meaning : current.sentence_tr) ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === (mode === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444"}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: selected === (mode === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444", marginBottom: 8 }}>
+                  {selected === (mode === "word" ? current.meaning : current.sentence_tr) ? "✓ Doğru!" : `✗ Doğru cevap: "${mode === "word" ? current.meaning : current.sentence_tr}"`}
                 </div>
-                {cardExamples.length > 0 && (
+                
+                {mode === "word" && cardExamples.length > 0 && (
                   <div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Örnek cümleler:</div>
                     {cardExamples.map((ex, idx) => (
-                      <div key={idx} style={{ marginBottom: idx < cardExamples.length - 1 ? 12 : 0 }}>
-                        <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", lineHeight: 1.5 }}>"{ex.sentence_en}"</div>
-                        {ex.sentence_tr && <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>"{ex.sentence_tr}"</div>}
-                        <button onClick={() => handleSpeak(ex.sentence_en)} style={{ marginTop: 6, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, padding: 0 }}>
+                      <div key={idx} style={{ marginBottom: idx < cardExamples.length - 1 ? 10 : 0 }}>
+                        <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic", lineHeight: 1.4 }}>"{ex.sentence_en}"</div>
+                        {ex.sentence_tr && <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>"{ex.sentence_tr}"</div>}
+                        <button onClick={() => handleSpeak(ex.sentence_en)} style={{ marginTop: 4, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 10, display: "inline-flex", alignItems: "center", gap: 3, padding: 0 }}>
                           <SpeakerIcon /> Cümleyi dinle
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
-                {(card.synonyms?.length > 0 || card.antonyms?.length > 0) && (
+                
+                {mode === "sentence" && currentWord && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                      Kelime: <span style={{ color: "#6366f1", fontWeight: 600 }}>{currentWord.word}</span> — {currentWord.meaning}
+                    </div>
+                  </div>
+                )}
+                
+                {mode === "word" && (currentWord?.synonyms?.length > 0 || currentWord?.antonyms?.length > 0) && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e293b", display: "flex", gap: 16 }}>
-                    {card.synonyms?.length > 0 && (
+                    {currentWord?.synonyms?.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Eş anlamlı</div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {card.synonyms.map(s => <span key={s} style={{ fontSize: 11, color: "#10b981", background: "#0e2d1f", padding: "2px 7px", borderRadius: 5 }}>{s}</span>)}
+                          {currentWord.synonyms.map(s => <span key={s} style={{ fontSize: 11, color: "#10b981", background: "#0e2d1f", padding: "2px 7px", borderRadius: 5 }}>{s}</span>)}
                         </div>
                       </div>
                     )}
-                    {card.antonyms?.length > 0 && (
+                    {currentWord?.antonyms?.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Zıt anlamlı</div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {card.antonyms.map(a => <span key={a} style={{ fontSize: 11, color: "#ef4444", background: "#2d0e0e", padding: "2px 7px", borderRadius: 5 }}>{a}</span>)}
+                          {currentWord.antonyms.map(a => <span key={a} style={{ fontSize: 11, color: "#ef4444", background: "#2d0e0e", padding: "2px 7px", borderRadius: 5 }}>{a}</span>)}
                         </div>
                       </div>
                     )}
@@ -464,26 +555,6 @@ Kelime: ${word}`;
                 })
               }
             </div>
-            {Object.keys(stats).length > 0 && (
-              <div style={{ background: "#1a1a2e", borderRadius: 14, padding: 16 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>Tüm Kelimeler</div>
-                {allCards.filter(c => stats[c.id]).map(c => {
-                  const s = stats[c.id];
-                  const acc = Math.round((s.correct / (s.correct + s.wrong)) * 100);
-                  return (
-                    <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #0f0f1a" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{c.word}</span>
-                        <span style={{ fontSize: 11, color: acc >= 70 ? "#10b981" : "#ef4444" }}>%{acc}</span>
-                      </div>
-                      <div style={{ height: 4, background: "#0f0f1a", borderRadius: 99, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${acc}%`, background: acc >= 70 ? "#10b981" : "#ef4444", borderRadius: 99 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </>
         )}
       </div>
