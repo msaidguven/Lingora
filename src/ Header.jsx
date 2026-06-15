@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "../config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };

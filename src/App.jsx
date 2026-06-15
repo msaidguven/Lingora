@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "../config.js";
 import Header from "./Header.jsx";
 import HomeScreen from "./HomeScreen.jsx";
 import QuizScreen from "./QuizScreen.jsx";

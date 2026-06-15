@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "../config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 const LEVEL_CHOICES = { A1: 3, A2: 3, B1: 4, B2: 4 };
