@@ -101,7 +101,7 @@ function QuizScreen({ userLevel, onChangeLevel }) {
         const { data, error } = await supabase
           .from("en_words")
           .select("*")
-          .in("level", levels)
+          //.in("level", levels)
           .eq("type", mode);
         if (error) throw error;
         const cards = data || [];
