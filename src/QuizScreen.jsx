@@ -74,7 +74,7 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
   const levelColor = LEVEL_COLOR[userLevel];
 
   useEffect(() => {
-    if (queue.length && !answered) {
+    if (queue.length && !answered && !saving) {
       const current = queue[qIdx % queue.length];
       setTimeout(() => {
         if (quizType === "word") {
@@ -84,7 +84,7 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
         }
       }, 100);
     }
-  }, [qIdx, queue, answered, quizType]);
+  }, [qIdx, queue, answered, saving, quizType]);
 
   useEffect(() => {
     async function fetchData() {
@@ -284,170 +284,173 @@ Kelime: ${word}`;
   };
 
   const saveWordResult = async (wordId, isCorrect) => {
-  setSaving(true);
-  const now = new Date();
-  
-  // Mevcut kaydı al
-  const { data: existing } = await supabase
-    .from("en_user_words")
-    .select("id, review_count, ease_factor, last_score, is_mastered")
-    .eq("user_id", FIXED_USER_ID)
-    .eq("word_id", wordId)
-    .single();
-  
-  let nextReviewDate = new Date();
-  let newReviewCount = (existing?.review_count || 0) + 1;
-  let newIsMastered = existing?.is_mastered || false;
-  let masteryLevel = 0;
-  
-  if (isCorrect) {
-    // Kaçıncı doğru olduğuna göre interval belirle
-    if (newReviewCount === 1) {
-      nextReviewDate.setDate(now.getDate() + 1);     // 1 gün
-      masteryLevel = 1;
-    } else if (newReviewCount === 2) {
-      nextReviewDate.setDate(now.getDate() + 3);     // 3 gün
-      masteryLevel = 2;
-    } else if (newReviewCount === 3) {
-      nextReviewDate.setDate(now.getDate() + 7);     // 7 gün
-      masteryLevel = 3;
-    } else if (newReviewCount === 4) {
-      nextReviewDate.setDate(now.getDate() + 14);    // 14 gün
-      masteryLevel = 4;
-    } else if (newReviewCount === 5) {
-      nextReviewDate.setDate(now.getDate() + 30);    // 30 gün
-      masteryLevel = 5;
-    } else if (newReviewCount === 6) {
-      nextReviewDate.setDate(now.getDate() + 60);    // 60 gün
-      masteryLevel = 6;
-    } else if (newReviewCount === 7) {
-      nextReviewDate.setDate(now.getDate() + 90);    // 90 gün
-      masteryLevel = 7;
-    } else if (newReviewCount === 8) {
-      nextReviewDate.setDate(now.getDate() + 120);   // 120 gün
-      masteryLevel = 8;
-    } else if (newReviewCount >= 9) {
-      nextReviewDate.setDate(now.getDate() + 180);   // 180 gün
-      masteryLevel = 9;
-      newIsMastered = true;
-    }
-  } else {
-    // Yanlış: 3 saat sonra tekrar, art arda doğru sayısını sıfırla
-    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-    newReviewCount = 0;  // Art arda doğru sayısı sıfırlandı
-    newIsMastered = false;
-  }
-  
-  if (existing) {
-    await supabase
+    const now = new Date();
+    let nextReviewDate = new Date();
+    
+    // Mevcut kaydı al
+    const { data: existing } = await supabase
       .from("en_user_words")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: newReviewCount,
-        last_score: isCorrect ? 100 : 0,
-        last_reviewed_at: now.toISOString(),
-        is_mastered: newIsMastered,
-        mastery_level: masteryLevel
-      })
-      .eq("id", existing.id);
-  }
-  
-  setSaving(false);
-  
-  // Uzmanlık seviyesi atladığında bildirim
-  if (newIsMastered && !existing?.is_mastered) {
-    alert(`🎉 Harika! "${current.word}" kelimesinde UZMAN oldun! Artık 180 günde bir tekrar edilecek.`);
-  } else if (masteryLevel > 0 && masteryLevel % 2 === 0) {
-    // Her 2 seviyede bir tebrik mesajı (isteğe bağlı)
-    alert(`🌟 Tebrikler! "${current.word}" kelimesinde seviye ${masteryLevel}'\a ulaştın!`);
-  }
-};
+      .select("id, review_count")
+      .eq("user_id", FIXED_USER_ID)
+      .eq("word_id", wordId)
+      .single();
+    
+    if (isCorrect) {
+      // Doğru: art arda doğru sayısını artır
+      const newReviewCount = (existing?.review_count || 0) + 1;
+      
+      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+      else if (newReviewCount === 4) nextReviewDate.setDate(now.getDate() + 14);
+      else if (newReviewCount === 5) nextReviewDate.setDate(now.getDate() + 30);
+      else if (newReviewCount === 6) nextReviewDate.setDate(now.getDate() + 60);
+      else if (newReviewCount === 7) nextReviewDate.setDate(now.getDate() + 90);
+      else if (newReviewCount === 8) nextReviewDate.setDate(now.getDate() + 120);
+      else nextReviewDate.setDate(now.getDate() + 180);
+      
+      if (existing) {
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: newReviewCount,
+            last_score: 100,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: Math.min(newReviewCount, 9),
+            is_mastered: newReviewCount >= 9
+          })
+          .eq("id", existing.id);
+      }
+    } else {
+      // Yanlış: 3 saat sonra, art arda doğru sayısını sıfırla
+      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      
+      if (existing) {
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: 0,
+            last_score: 0,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: 0,
+            is_mastered: false
+          })
+          .eq("id", existing.id);
+      }
+    }
+  };
 
-const saveSentenceResult = async (sentenceId, isCorrect) => {
-  setSaving(true);
-  const now = new Date();
-  let nextReviewDate = new Date();
-  
-  if (isCorrect) {
-    nextReviewDate.setDate(now.getDate() + 1);
-  } else {
-    // Yanlış: 30 dakika sonra
-    nextReviewDate.setTime(now.getTime() + 30 * 60 * 1000);
-  }
-  
-  const { data: existing } = await supabase
-    .from("en_user_sentences")
-    .select("id, review_count")
-    .eq("user_id", FIXED_USER_ID)
-    .eq("sentence_id", sentenceId)
-    .single();
-  
-  if (existing) {
-    await supabase
+  const saveSentenceResult = async (sentenceId, isCorrect) => {
+    const now = new Date();
+    let nextReviewDate = new Date();
+    
+    const { data: existing } = await supabase
       .from("en_user_sentences")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: existing.review_count + 1,
-        last_score: isCorrect ? 100 : 0,
-        last_reviewed_at: now.toISOString()
-      })
-      .eq("id", existing.id);
-  }
-  setSaving(false);
-};
+      .select("id, review_count")
+      .eq("user_id", FIXED_USER_ID)
+      .eq("sentence_id", sentenceId)
+      .single();
+    
+    if (isCorrect) {
+      const newReviewCount = (existing?.review_count || 0) + 1;
+      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+      else nextReviewDate.setDate(now.getDate() + 14);
+      
+      if (existing) {
+        await supabase
+          .from("en_user_sentences")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: newReviewCount,
+            last_score: 100,
+            last_reviewed_at: now.toISOString()
+          })
+          .eq("id", existing.id);
+      }
+    } else {
+      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      if (existing) {
+        await supabase
+          .from("en_user_sentences")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: 0,
+            last_score: 0,
+            last_reviewed_at: now.toISOString()
+          })
+          .eq("id", existing.id);
+      }
+    }
+  };
 
   const handleSelect = async (opt) => {
-  if (answered || saving) return;
-  const current = queue[qIdx % queue.length];
-  const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
-  const isCorrect = opt === correctAnswer;
-  
-  setSelected(opt);
-  setAnswered(true);
-  
-  // SADECE KELİME MODUNDA quiz attempt kaydet
-  if (quizType === "word") {
-    // Quiz sorusu ID'sini bul veya oluştur
-    let { data: quizQuestion } = await supabase
-      .from("en_quiz_questions")
-      .select("id")
-      .eq("word_id", current.id)
-      .maybeSingle();
+    if (answered || saving) return;
+    const current = queue[qIdx % queue.length];
+    const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+    const isCorrect = opt === correctAnswer;
     
-    if (!quizQuestion) {
-      const { data: newQuestion } = await supabase
+    setSelected(opt);
+    setAnswered(true);
+    setSaving(true);
+    
+    // Quiz attempt kaydet
+    if (quizType === "word") {
+      let { data: quizQuestion } = await supabase
         .from("en_quiz_questions")
-        .insert({
-          word_id: current.id,
-          question_text: `${current.word} kelimesinin Türkçesi nedir?`,
-          options: buildWordOptions(current, allCards, choiceCount),
-          correct_answer: current.meaning,
-          difficulty: 1
-        })
-        .select()
-        .single();
-      quizQuestion = newQuestion;
+        .select("id")
+        .eq("word_id", current.id)
+        .maybeSingle();
+      
+      if (!quizQuestion) {
+        const { data: newQuestion } = await supabase
+          .from("en_quiz_questions")
+          .insert({
+            word_id: current.id,
+            question_text: `${current.word} kelimesinin Türkçesi nedir?`,
+            options: buildWordOptions(current, allCards, choiceCount),
+            correct_answer: current.meaning,
+            difficulty: 1
+          })
+          .select()
+          .single();
+        quizQuestion = newQuestion;
+      }
+      
+      if (quizQuestion) {
+        await supabase.from("en_user_quiz_attempts").insert({
+          user_id: FIXED_USER_ID,
+          question_id: quizQuestion.id,
+          user_answer: opt,
+          is_correct: isCorrect
+        });
+      }
+      
+      await saveWordResult(current.id, isCorrect);
+    } else {
+      await saveSentenceResult(current.id, isCorrect);
     }
     
-    if (quizQuestion) {
-      await supabase.from("en_user_quiz_attempts").insert({
-        user_id: FIXED_USER_ID,
-        question_id: quizQuestion.id,
-        user_answer: opt,
-        is_correct: isCorrect
-      });
-    }
-  }
-  
-  // SRS kaydet
-  if (quizType === "word") {
-    await saveWordResult(current.id, isCorrect);
-  } else {
-    await saveSentenceResult(current.id, isCorrect);
-  }
-};
+    setSaving(false);
+  };
 
-  const handleNext = () => setQIdx(i => i + 1);
+  const handleNext = () => {
+    // Mevcut soruyu kuyruktan çıkar
+    const newQueue = [...queue];
+    newQueue.splice(qIdx % queue.length, 1);
+    setQueue(newQueue);
+    
+    // Index sıfırla (çünkü eleman kaldı)
+    setQIdx(0);
+    
+    if (newQueue.length === 0) {
+      // Kuyruk boşaldı, ana sayfaya dön
+      onChangeLevel();
+    }
+  };
 
   if (loading) {
     return (
@@ -497,7 +500,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 420, margin: "0 auto", padding: "20px" }}>
       
-      {/* Kelime / Cümle seçimi */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <button onClick={() => setQuizType("word")} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: quizType === "word" ? "#6366f1" : "#1e1e30", color: quizType === "word" ? "#fff" : "#64748b" }}>
           📖 Kelimeler
@@ -507,7 +509,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
         </button>
       </div>
 
-      {/* Progress */}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginBottom: 6 }}>
         <span>{(qIdx % queue.length) + 1} / {queue.length}</span>
         <span style={{ color: levelColor, fontWeight: 700 }}>{choiceCount} şık</span>
@@ -516,7 +517,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
         <div style={{ height: "100%", width: `${((qIdx % queue.length) / queue.length) * 100}%`, background: levelColor, borderRadius: 99, transition: "width 0.4s" }} />
       </div>
 
-      {/* Soru kartı */}
       <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", border: "1px solid #1e293b", borderRadius: 20, padding: "26px 22px", textAlign: "center", marginBottom: 18 }}>
         {quizType === "word" && currentWord?.part_of_speech?.length > 0 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
@@ -551,7 +551,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
         {quizType === "word" ? "Türkçe anlamı nedir?" : "Bu cümlenin Türkçesi nedir?"}
       </div>
 
-      {/* Şıklar */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {options.map((opt, i) => {
           const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
@@ -574,7 +573,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
         })}
       </div>
 
-      {/* Sonuç */}
       {answered && (
         <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444"}` }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444", marginBottom: 8 }}>
@@ -603,27 +601,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
               </div>
             </div>
           )}
-
-          {quizType === "word" && (currentWord?.synonyms?.length > 0 || currentWord?.antonyms?.length > 0) && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e293b", display: "flex", gap: 16 }}>
-              {currentWord?.synonyms?.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Eş anlamlı</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {currentWord.synonyms.slice(0, 3).map(s => <span key={s} style={{ fontSize: 11, color: "#10b981", background: "#0e2d1f", padding: "2px 7px", borderRadius: 5 }}>{s}</span>)}
-                  </div>
-                </div>
-              )}
-              {currentWord?.antonyms?.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Zıt anlamlı</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {currentWord.antonyms.slice(0, 3).map(a => <span key={a} style={{ fontSize: 11, color: "#ef4444", background: "#2d0e0e", padding: "2px 7px", borderRadius: 5 }}>{a}</span>)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -639,7 +616,6 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
         </div>
       )}
 
-      {/* Modal */}
       {showExampleModal && selectedWordForExample && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
           <div style={{ background: "#1a1a2e", borderRadius: 20, maxWidth: 500, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, border: "1px solid #1e293b" }}>
