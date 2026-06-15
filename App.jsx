@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
-import QuizScreen from "./QuizScreen.jsx";
+import Header from "./Header.jsx";
 import HomeScreen from "./HomeScreen.jsx";
+import QuizScreen from "./QuizScreen.jsx";
+import StatsScreen from "./StatsScreen.jsx";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
 export default function App() {
-  const [screen, setScreen] = useState("home");
+  const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
 
   useEffect(() => {
@@ -21,17 +23,21 @@ export default function App() {
     fetchUserLevel();
   }, []);
 
-  const handleStartQuiz = () => {
-    setScreen("quiz");
+  const handleNavigate = (screen) => {
+    setCurrentScreen(screen);
   };
 
-  const handleBackToHome = () => {
-    setScreen("home");
-  };
-
-  if (screen === "home") {
-    return <HomeScreen onStartQuiz={handleStartQuiz} />;
-  }
-
-  return <QuizScreen userLevel={userLevel} mode="review" onChangeLevel={handleBackToHome} />;
+  return (
+    <div style={{ minHeight: "100vh", background: "#0f0f1a" }}>
+      <Header 
+        currentScreen={currentScreen} 
+        onNavigate={handleNavigate} 
+        userLevel={userLevel}
+      />
+      
+      {currentScreen === "home" && <HomeScreen onStartQuiz={() => handleNavigate("quiz")} />}
+      {currentScreen === "quiz" && <QuizScreen userLevel={userLevel} onChangeLevel={() => handleNavigate("home")} />}
+      {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
+    </div>
+  );
 }
