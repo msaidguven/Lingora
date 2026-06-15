@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
-const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
+// Renk tonları StatsScreen ile uyumlu olacak şekilde hafifçe parlatıldı
+const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#fb923c" };
 
 export default function Header({ currentScreen, onNavigate, userLevel }) {
   const [user, setUser] = useState(null);
@@ -23,81 +24,137 @@ export default function Header({ currentScreen, onNavigate, userLevel }) {
 
   return (
     <div style={{ 
-      background: "#0f0f1a", 
-      borderBottom: "1px solid #1e293b",
-      padding: "12px 20px",
+      background: "#0b0b14", 
+      borderBottom: "1px solid #1e1e38",
+      padding: "14px 16px",
       position: "sticky",
       top: 0,
-      zIndex: 100
+      zIndex: 100,
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+      fontFamily: "system-ui, -apple-system, sans-serif"
     }}>
       <div style={{ 
-        maxWidth: 420, 
+        maxWidth: 440, 
         margin: "0 auto", 
         display: "flex", 
         justifyContent: "space-between", 
-        alignItems: "center" 
+        alignItems: "center",
+        gap: 12
       }}>
-        <div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>
-            <a href="https://lingora-phi.vercel.app/admin">Admin</a>
-            </div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-            Merhaba, {user?.username || "Öğrenci"}
+        
+        {/* Sol Kısım: Kullanıcı Bilgisi ve Admin Paneli */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#ffffff", letterSpacing: "-0.2px" }}>
+            {user?.username || "Öğrenci"}
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600 }}>
+            <a 
+              href="https://lingora-phi.vercel.app/admin" 
+              style={{ 
+                color: "#64748b", 
+                textDecoration: "none", 
+                letterSpacing: "0.5px",
+                transition: "color 0.2s"
+              }}
+              onMouseEnter={(e) => e.target.style.color = "#818cf8"}
+              onMouseLeave={(e) => e.target.style.color = "#64748b"}
+            >
+              🛠️ Admin
+            </a>
           </div>
         </div>
         
-        <div style={{ display: "flex", gap: 8 }}>
+        {/* Orta Kısım: Modern Navigasyon Butonları */}
+        <div style={{ 
+          display: "flex", 
+          background: "#131324", 
+          padding: "4px", 
+          borderRadius: 12,
+          border: "1px solid #1e1e38"
+        }}>
           <button
             onClick={() => onNavigate("home")}
             style={{
-              background: currentScreen === "home" ? levelColor : "#1e293b",
+              background: currentScreen === "home" ? levelColor : "transparent",
               border: "none",
-              borderRadius: 8,
-              padding: "6px 12px",
-              color: currentScreen === "home" ? "#fff" : "#64748b",
+              borderRadius: 9,
+              padding: "6px 10px",
+              color: currentScreen === "home" ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
-              fontWeight: 600
+              fontWeight: 600,
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: 4
             }}
           >
-            🏠 Ana Sayfa
+            <span>🏠</span> {currentScreen === "home" && "Ana Sayfa"}
           </button>
+          
           <button
             onClick={() => onNavigate("quiz")}
             style={{
-              background: currentScreen === "quiz" ? levelColor : "#1e293b",
+              background: currentScreen === "quiz" ? levelColor : "transparent",
               border: "none",
-              borderRadius: 8,
-              padding: "6px 12px",
-              color: currentScreen === "quiz" ? "#fff" : "#64748b",
+              borderRadius: 9,
+              padding: "6px 10px",
+              color: currentScreen === "quiz" ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
-              fontWeight: 600
+              fontWeight: 600,
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: 4
             }}
           >
-            📝 Quiz
+            <span>📝</span> {currentScreen === "quiz" && "Quiz"}
           </button>
+          
           <button
             onClick={() => onNavigate("stats")}
             style={{
-              background: currentScreen === "stats" ? levelColor : "#1e293b",
+              background: currentScreen === "stats" ? levelColor : "transparent",
               border: "none",
-              borderRadius: 8,
-              padding: "6px 12px",
-              color: currentScreen === "stats" ? "#fff" : "#64748b",
+              borderRadius: 9,
+              padding: "6px 10px",
+              color: currentScreen === "stats" ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
-              fontWeight: 600
+              fontWeight: 600,
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: 4
             }}
           >
-            📊 İstatistik
+            <span>📊</span> {currentScreen === "stats" && "İstatistik"}
           </button>
         </div>
         
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#64748b" }}>🔥 Streak</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#f59e0b" }}>{user?.streak_days || 0}</div>
+        {/* Sağ Kısım: Premium Streak Göstergesi */}
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 6,
+          background: "rgba(245, 158, 11, 0.08)",
+          padding: "6px 10px",
+          borderRadius: 12,
+          border: "1px solid rgba(245, 158, 11, 0.15)"
+        }}>
+          <span style={{ fontSize: 14 }}>🔥</span>
+          <span style={{ 
+            fontSize: 13, 
+            fontWeight: 800, 
+            color: "#f59e0b",
+            lineHeight: 1
+          }}>
+            {user?.streak_days || 0}
+          </span>
         </div>
+
       </div>
     </div>
   );
