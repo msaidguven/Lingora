@@ -57,7 +57,7 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [queue, setQueue] = useState([]);
-  const [qIdx, setQIdx] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
   const [options, setOptions] = useState([]);
   const [selected, setSelected] = useState(null);
   const [answered, setAnswered] = useState(false);
@@ -69,23 +69,25 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
   const [exampleParseError, setExampleParseError] = useState(null);
   const [exampleStatus, setExampleStatus] = useState(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [queueIndex, setQueueIndex] = useState(0);
 
   const choiceCount = LEVEL_CHOICES[userLevel];
   const levelColor = LEVEL_COLOR[userLevel];
 
+  // Kelime gelince telaffuz et
   useEffect(() => {
-    if (queue.length && !answered && !saving) {
-      const current = queue[qIdx % queue.length];
+    if (currentQuestion && !answered && !saving) {
       setTimeout(() => {
         if (quizType === "word") {
-          speak(current.word);
+          speak(currentQuestion.word);
         } else {
-          speak(current.sentence_en);
+          speak(currentQuestion.sentence_en);
         }
       }, 100);
     }
-  }, [qIdx, queue, answered, saving, quizType]);
+  }, [currentQuestion, answered, saving, quizType]);
 
+  // Verileri yükle
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -102,6 +104,7 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
           
           if (!userWords || userWords.length === 0) {
             setQueue([]);
+            setCurrentQuestion(null);
             setLoading(false);
             return;
           }
@@ -116,7 +119,10 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
           if (wError) throw wError;
           
           setAllCards(words || []);
-          setQueue(shuffle(words || []));
+          const shuffledQueue = shuffle(words || []);
+          setQueue(shuffledQueue);
+          setCurrentQuestion(shuffledQueue[0] || null);
+          setQueueIndex(0);
           
           if (words && words.length > 0) {
             const { data: examples } = await supabase
@@ -145,6 +151,7 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
           
           if (!userSentences || userSentences.length === 0) {
             setQueue([]);
+            setCurrentQuestion(null);
             setLoading(false);
             return;
           }
@@ -161,7 +168,10 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
           
           const validSentences = (sentences || []).filter(s => s.sentence_en && s.sentence_tr && s.en_words);
           setAllSentences(validSentences);
-          setQueue(shuffle(validSentences));
+          const shuffledQueue = shuffle(validSentences);
+          setQueue(shuffledQueue);
+          setCurrentQuestion(shuffledQueue[0] || null);
+          setQueueIndex(0);
           
           const { data: words } = await supabase
             .from("en_words")
@@ -176,22 +186,21 @@ export default function QuizScreen({ userLevel, onChangeLevel }) {
       }
     }
     fetchData();
-    setQIdx(0);
     setSelected(null);
     setAnswered(false);
   }, [quizType]);
 
+  // Şıkları oluştur
   useEffect(() => {
-    if (!queue.length) return;
-    const current = queue[qIdx % queue.length];
+    if (!currentQuestion) return;
     if (quizType === "word") {
-      setOptions(buildWordOptions(current, allCards, choiceCount));
+      setOptions(buildWordOptions(currentQuestion, allCards, choiceCount));
     } else {
-      setOptions(buildSentenceOptions(current, allSentences, current.word_id, choiceCount));
+      setOptions(buildSentenceOptions(currentQuestion, allSentences, currentQuestion.word_id, choiceCount));
     }
     setSelected(null);
     setAnswered(false);
-  }, [qIdx, queue, quizType, allCards, allSentences, choiceCount]);
+  }, [currentQuestion, quizType, allCards, allSentences, choiceCount]);
 
   const generatePrompt = (word) => `Aşağıdaki kelime için A1-A2 seviyesinde 10 tane İngilizce örnek cümle hazırla. Her cümle için Türkçe anlamını da ekle. SADECE JSON array döndür, başka hiçbir şey yazma.
 
@@ -287,7 +296,6 @@ Kelime: ${word}`;
     const now = new Date();
     let nextReviewDate = new Date();
     
-    // Mevcut kaydı al
     const { data: existing } = await supabase
       .from("en_user_words")
       .select("id, review_count")
@@ -296,7 +304,6 @@ Kelime: ${word}`;
       .single();
     
     if (isCorrect) {
-      // Doğru: art arda doğru sayısını artır
       const newReviewCount = (existing?.review_count || 0) + 1;
       
       if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
@@ -323,7 +330,6 @@ Kelime: ${word}`;
           .eq("id", existing.id);
       }
     } else {
-      // Yanlış: 3 saat sonra, art arda doğru sayısını sıfırla
       nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
       
       if (existing) {
@@ -388,31 +394,30 @@ Kelime: ${word}`;
   };
 
   const handleSelect = async (opt) => {
-    if (answered || saving) return;
-    const current = queue[qIdx % queue.length];
-    const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+    if (answered || saving || !currentQuestion) return;
+    const correctAnswer = quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr;
     const isCorrect = opt === correctAnswer;
     
     setSelected(opt);
     setAnswered(true);
     setSaving(true);
     
-    // Quiz attempt kaydet
+    // Quiz attempt kaydet (arka planda)
     if (quizType === "word") {
       let { data: quizQuestion } = await supabase
         .from("en_quiz_questions")
         .select("id")
-        .eq("word_id", current.id)
+        .eq("word_id", currentQuestion.id)
         .maybeSingle();
       
       if (!quizQuestion) {
         const { data: newQuestion } = await supabase
           .from("en_quiz_questions")
           .insert({
-            word_id: current.id,
-            question_text: `${current.word} kelimesinin Türkçesi nedir?`,
-            options: buildWordOptions(current, allCards, choiceCount),
-            correct_answer: current.meaning,
+            word_id: currentQuestion.id,
+            question_text: `${currentQuestion.word} kelimesinin Türkçesi nedir?`,
+            options: buildWordOptions(currentQuestion, allCards, choiceCount),
+            correct_answer: currentQuestion.meaning,
             difficulty: 1
           })
           .select()
@@ -429,26 +434,28 @@ Kelime: ${word}`;
         });
       }
       
-      await saveWordResult(current.id, isCorrect);
+      await saveWordResult(currentQuestion.id, isCorrect);
     } else {
-      await saveSentenceResult(current.id, isCorrect);
+      await saveSentenceResult(currentQuestion.id, isCorrect);
     }
     
     setSaving(false);
   };
 
   const handleNext = () => {
-    // Mevcut soruyu kuyruktan çıkar
-    const newQueue = [...queue];
-    newQueue.splice(qIdx % queue.length, 1);
-    setQueue(newQueue);
+    if (saving) return;
     
-    // Index sıfırla (çünkü eleman kaldı)
-    setQIdx(0);
+    // Sonraki soruya geç
+    const nextIndex = queueIndex + 1;
     
-    if (newQueue.length === 0) {
-      // Kuyruk boşaldı, ana sayfaya dön
+    if (nextIndex >= queue.length) {
+      // Kuyruk bitti, ana sayfaya dön
       onChangeLevel();
+    } else {
+      setQueueIndex(nextIndex);
+      setCurrentQuestion(queue[nextIndex]);
+      setSelected(null);
+      setAnswered(false);
     }
   };
 
@@ -470,7 +477,7 @@ Kelime: ${word}`;
     );
   }
 
-  if (!queue.length) {
+  if (!currentQuestion || queue.length === 0) {
     return (
       <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 48 }}>🎉</div>
@@ -487,9 +494,8 @@ Kelime: ${word}`;
     );
   }
 
-  const current = queue[qIdx % queue.length];
-  const currentWord = quizType === "word" ? current : current.en_words;
-  const cardExamples = quizType === "word" ? (examplesMap[current.id] || []) : [];
+  const currentWord = quizType === "word" ? currentQuestion : currentQuestion.en_words;
+  const cardExamples = quizType === "word" ? (examplesMap[currentQuestion.id] || []) : [];
 
   const handleSpeak = (text) => {
     setSpeaking(true);
@@ -510,11 +516,11 @@ Kelime: ${word}`;
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginBottom: 6 }}>
-        <span>{(qIdx % queue.length) + 1} / {queue.length}</span>
+        <span>{queueIndex + 1} / {queue.length}</span>
         <span style={{ color: levelColor, fontWeight: 700 }}>{choiceCount} şık</span>
       </div>
       <div style={{ height: 3, background: "#1e1e30", borderRadius: 99, marginBottom: 18, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${((qIdx % queue.length) / queue.length) * 100}%`, background: levelColor, borderRadius: 99, transition: "width 0.4s" }} />
+        <div style={{ height: "100%", width: `${((queueIndex + 1) / queue.length) * 100}%`, background: levelColor, borderRadius: 99, transition: "width 0.4s" }} />
       </div>
 
       <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", border: "1px solid #1e293b", borderRadius: 20, padding: "26px 22px", textAlign: "center", marginBottom: 18 }}>
@@ -526,10 +532,10 @@ Kelime: ${word}`;
           </div>
         )}
         <div style={{ fontSize: quizType === "word" ? 28 : 18, fontWeight: quizType === "word" ? 800 : 600, letterSpacing: -0.5, marginBottom: 14, lineHeight: 1.4 }}>
-          {quizType === "word" ? current.word : `"${current.sentence_en}"`}
+          {quizType === "word" ? currentQuestion.word : `"${currentQuestion.sentence_en}"`}
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={() => handleSpeak(quizType === "word" ? current.word : current.sentence_en)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+          <button onClick={() => handleSpeak(quizType === "word" ? currentQuestion.word : currentQuestion.sentence_en)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
             <SpeakerIcon /> {speaking ? "Çalıyor..." : "Telaffuz"}
           </button>
           
@@ -553,7 +559,7 @@ Kelime: ${word}`;
 
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {options.map((opt, i) => {
-          const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+          const correctAnswer = quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr;
           const isCorrect = opt === correctAnswer;
           const isSelected = opt === selected;
           let bg = "#1a1a2e", border = "#1e293b", color = "#e2e8f0";
@@ -574,9 +580,9 @@ Kelime: ${word}`;
       </div>
 
       {answered && (
-        <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444"}` }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444", marginBottom: 8 }}>
-            {selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "✓ Doğru!" : `✗ Doğru cevap: "${quizType === "word" ? current.meaning : current.sentence_tr}"`}
+        <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === (quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr) ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === (quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr) ? "#10b981" : "#ef4444"}` }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: selected === (quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr) ? "#10b981" : "#ef4444", marginBottom: 8 }}>
+            {selected === (quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr) ? "✓ Doğru!" : `✗ Doğru cevap: "${quizType === "word" ? currentQuestion.meaning : currentQuestion.sentence_tr}"`}
           </div>
 
           {quizType === "word" && cardExamples.length > 0 && (
@@ -601,18 +607,11 @@ Kelime: ${word}`;
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {answered && !saving && (
-        <button onClick={handleNext} style={{ marginTop: 12, width: "100%", padding: 15, borderRadius: 14, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
-          {qIdx + 1 >= queue.length ? "🏁 Bitir" : "Sonraki →"}
-        </button>
-      )}
-      
-      {saving && (
-        <div style={{ marginTop: 12, textAlign: "center", fontSize: 12, color: "#64748b" }}>
-          Kaydediliyor...
+          
+          {/* Sonraki butonu HER ZAMAN gösteriliyor */}
+          <button onClick={handleNext} disabled={saving} style={{ marginTop: 12, width: "100%", padding: 12, borderRadius: 12, border: "none", background: saving ? "#475569" : "#6366f1", color: "#fff", fontWeight: 600, fontSize: 14, cursor: saving ? "not-allowed" : "pointer" }}>
+            {saving ? "Kaydediliyor..." : queueIndex + 1 >= queue.length ? "🏁 Bitir" : "Sonraki →"}
+          </button>
         </div>
       )}
 
