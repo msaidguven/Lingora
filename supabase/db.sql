@@ -1,16 +1,19 @@
--- CASCADE ile sil (bağımlı tabloları otomatik siler)
+-- TABLOLARI SİL (doğru sıra - foreign key'ler önce silinir)
 DROP TABLE IF EXISTS en_user_quiz_attempts CASCADE;
 DROP TABLE IF EXISTS en_user_lesson_progress CASCADE;
 DROP TABLE IF EXISTS en_user_word_progress CASCADE;
+DROP TABLE IF EXISTS en_user_words CASCADE;
+DROP TABLE IF EXISTS en_user_daily_limit CASCADE;
 DROP TABLE IF EXISTS en_lesson_words CASCADE;
 DROP TABLE IF EXISTS en_quiz_questions CASCADE;
 DROP TABLE IF EXISTS en_example_sentences CASCADE;
 DROP TABLE IF EXISTS en_lessons CASCADE;
-DROP TABLE IF EXISTS en_user_stats CASCADE;
+DROP TABLE IF EXISTS en_users CASCADE;
 DROP TABLE IF EXISTS en_words CASCADE;
 
 -- TABLOLARI YENİDEN OLUŞTUR
 
+-- 1. Kelimeler
 CREATE TABLE en_words (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   word text NOT NULL,
@@ -25,24 +28,21 @@ CREATE TABLE en_words (
   created_at timestamp DEFAULT now()
 );
 
-CREATE TABLE en_user_stats (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  total_words_learned int DEFAULT 0,
-  total_quizzes_taken int DEFAULT 0,
-  total_correct_answers int DEFAULT 0,
+-- 2. Kullanıcılar
+CREATE TABLE en_users (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text UNIQUE NOT NULL,
+  username text UNIQUE,
+  avatar_url text,
+  level text DEFAULT 'A1',
+  total_points int DEFAULT 0,
   streak_days int DEFAULT 0,
+  last_active_at timestamp DEFAULT now(),
+  created_at timestamp DEFAULT now(),
   updated_at timestamp DEFAULT now()
 );
 
-CREATE TABLE en_lessons (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  lesson_number int UNIQUE,
-  title text,
-  level text,
-  content_json jsonb,
-  created_at timestamp DEFAULT now()
-);
-
+-- 3. Örnek Cümleler
 CREATE TABLE en_example_sentences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
@@ -56,8 +56,24 @@ CREATE TABLE en_example_sentences (
   updated_at timestamp DEFAULT now()
 );
 
-CREATE INDEX idx_en_example_sentences_word_id ON en_example_sentences(word_id, order_index);
+-- 4. Dersler
+CREATE TABLE en_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lesson_number int UNIQUE,
+  title text,
+  level text,
+  content_json jsonb,
+  created_at timestamp DEFAULT now()
+);
 
+-- 5. Ders-Kelime İlişkisi
+CREATE TABLE en_lesson_words (
+  lesson_id uuid REFERENCES en_lessons(id) ON DELETE CASCADE,
+  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
+  PRIMARY KEY (lesson_id, word_id)
+);
+
+-- 6. Quiz Soruları
 CREATE TABLE en_quiz_questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
@@ -68,27 +84,43 @@ CREATE TABLE en_quiz_questions (
   created_at timestamp DEFAULT now()
 );
 
-CREATE TABLE en_lesson_words (
-  lesson_id uuid REFERENCES en_lessons(id) ON DELETE CASCADE,
-  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  PRIMARY KEY (lesson_id, word_id)
-);
-
-CREATE TABLE en_user_word_progress (
+-- 7. Kullanıcı Kelime Havuzu (SRS)
+CREATE TABLE en_user_words (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
   word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  known boolean DEFAULT false,
+  added_at timestamp DEFAULT now(),
+  next_review_at timestamp DEFAULT now(),
+  ease_factor float DEFAULT 2.5,
   review_count int DEFAULT 0,
+  last_score int CHECK (last_score BETWEEN 0 AND 100),
   last_reviewed_at timestamp,
-  next_review_at timestamp,
-  created_at timestamp DEFAULT now(),
   UNIQUE(user_id, word_id)
 );
 
+-- 8. Günlük Kelime Limiti
+CREATE TABLE en_user_daily_limit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE UNIQUE,
+  remaining_today int DEFAULT 5,
+  last_reset_date date DEFAULT CURRENT_DATE,
+  updated_at timestamp DEFAULT now()
+);
+
+-- 9. Kullanıcı Quiz Denemeleri
+CREATE TABLE en_user_quiz_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
+  question_id uuid REFERENCES en_quiz_questions(id) ON DELETE CASCADE,
+  user_answer text NOT NULL,
+  is_correct boolean NOT NULL,
+  attempted_at timestamp DEFAULT now()
+);
+
+-- 10. Kullanıcı Ders İlerlemesi
 CREATE TABLE en_user_lesson_progress (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
   lesson_id uuid REFERENCES en_lessons(id) ON DELETE CASCADE,
   completed boolean DEFAULT false,
   score int,
@@ -96,11 +128,50 @@ CREATE TABLE en_user_lesson_progress (
   UNIQUE(user_id, lesson_id)
 );
 
-CREATE TABLE en_user_quiz_attempts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  question_id uuid REFERENCES en_quiz_questions(id) ON DELETE CASCADE,
-  user_answer text NOT NULL,
-  is_correct boolean NOT NULL,
-  attempted_at timestamp DEFAULT now()
-);
+-- İNDEXLER
+CREATE INDEX idx_en_example_sentences_word_id ON en_example_sentences(word_id, order_index);
+CREATE INDEX idx_en_user_words_user_id ON en_user_words(user_id);
+CREATE INDEX idx_en_user_words_next_review ON en_user_words(next_review_at);
+CREATE INDEX idx_en_user_daily_limit_user_id ON en_user_daily_limit(user_id);
+
+-- FONKSİYONLAR VE TRIGGERLAR
+
+-- Günlük limit sıfırlama
+CREATE OR REPLACE FUNCTION reset_daily_limit()
+RETURNS trigger AS $$
+BEGIN
+  IF OLD.last_reset_date < CURRENT_DATE THEN
+    NEW.remaining_today = 5;
+    NEW.last_reset_date = CURRENT_DATE;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_reset_daily_limit ON en_user_daily_limit;
+CREATE TRIGGER trigger_reset_daily_limit
+BEFORE UPDATE ON en_user_daily_limit
+FOR EACH ROW
+EXECUTE FUNCTION reset_daily_limit();
+
+-- Yeni kullanıcı kaydı için tetikleyici
+CREATE OR REPLACE FUNCTION create_user_daily_limit()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO en_user_daily_limit (user_id, remaining_today, last_reset_date)
+  VALUES (NEW.id, 5, CURRENT_DATE)
+  ON CONFLICT (user_id) DO NOTHING;
+  
+  INSERT INTO en_users (id, email, username)
+  VALUES (NEW.id, NEW.email, split_part(NEW.email, '@', 1))
+  ON CONFLICT (id) DO NOTHING;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS after_auth_user_signup ON auth.users;
+CREATE TRIGGER after_auth_user_signup
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION create_user_daily_limit();
