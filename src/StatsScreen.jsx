@@ -92,10 +92,13 @@ export default function StatsScreen({ userLevel }) {
         const totalAttempts = stats.correct + stats.wrong;
         const accuracy = totalAttempts > 0 ? Math.round((stats.correct / totalAttempts) * 100) : 0;
         
+        // TOPLAM TEKRAR = doğru + yanlış
+        const totalReviews = stats.correct + stats.wrong;
+        
         return {
           word: uw.en_words.word,
           meaning: uw.en_words.meaning,
-          reviewCount: uw.review_count || 0,
+          totalReviews: totalReviews,  // TOPLAM TEKRAR
           masteryLevel: uw.mastery_level || 0,
           isMastered: uw.is_mastered || false,
           totalCorrect: stats.correct,
@@ -178,7 +181,7 @@ export default function StatsScreen({ userLevel }) {
                     <div style={{ fontSize: 11, color: "#64748b" }}>Başarı</div>
                   </div>
                   <div style={{ textAlign: "center", flex: 1 }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: "#6366f1" }}>{item.reviewCount}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#6366f1" }}>{item.totalReviews}</div>
                     <div style={{ fontSize: 11, color: "#64748b" }}>Tekrar</div>
                   </div>
                 </div>
