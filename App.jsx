@@ -79,6 +79,7 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   const [mode, setMode] = useState("word");
   const [tab, setTab] = useState("quiz");
   const [allCards, setAllCards] = useState([]);
+  const [examplesMap, setExamplesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -92,20 +93,49 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   const choiceCount = LEVEL_CHOICES[userLevel];
   const levelColor = LEVEL_COLOR[userLevel];
 
+  // Yeni kelime gelince telaffuz et
+  useEffect(() => {
+    if (queue.length && !answered) {
+      const currentCard = queue[qIdx % queue.length];
+      setTimeout(() => {
+        speak(currentCard.word);
+      }, 100);
+    }
+  }, [qIdx, queue, answered]);
+
   useEffect(() => {
     async function fetchWords() {
       setLoading(true);
       setError(null);
       try {
-        const levels = LEVELS.slice(0, LEVEL_ORDER[userLevel]);
-        const { data, error } = await supabase
+        const { data: words, error: wordError } = await supabase
           .from("en_words")
           .select("*")
-          //.in("level", levels)
           .eq("type", mode);
-        if (error) throw error;
-        const cards = data || [];
+        if (wordError) throw wordError;
+        
+        const cards = words || [];
         setAllCards(cards);
+        
+        // Örnek cümleleri çek
+        if (cards.length > 0) {
+          const wordIds = cards.map(c => c.id);
+          const { data: examples, error: exampleError } = await supabase
+            .from("en_example_sentences")
+            .select("*")
+            .in("word_id", wordIds)
+            .order("order_index");
+          
+          if (!exampleError && examples) {
+            const map = {};
+            examples.forEach(ex => {
+              if (!map[ex.word_id]) map[ex.word_id] = [];
+              map[ex.word_id].push(ex);
+            });
+            setExamplesMap(map);
+          }
+        }
+        
         setQueue(shuffle(cards));
       } catch (err) {
         setError("Kelimeler yüklenemedi. Supabase bağlantısını kontrol et.");
@@ -117,6 +147,7 @@ function QuizScreen({ userLevel, onChangeLevel }) {
     setQIdx(0);
     setSelected(null);
     setAnswered(false);
+    setStats({});
   }, [userLevel, mode]);
 
   useEffect(() => {
@@ -151,6 +182,7 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   );
 
   const card = queue[qIdx % queue.length];
+  const cardExamples = examplesMap[card.id] || [];
 
   const handleSpeak = (text) => {
     setSpeaking(true);
@@ -260,14 +292,18 @@ function QuizScreen({ userLevel, onChangeLevel }) {
                 <div style={{ fontWeight: 700, fontSize: 13, color: selected === card.meaning ? "#10b981" : "#ef4444", marginBottom: 8 }}>
                   {selected === card.meaning ? "✓ Doğru!" : `✗ Doğru cevap: "${card.meaning}"`}
                 </div>
-                {card.example && (
-                  <>
-                    <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", lineHeight: 1.5 }}>"{card.example}"</div>
-                    {card.example_tr && <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>"{card.example_tr}"</div>}
-                    <button onClick={() => handleSpeak(card.example)} style={{ marginTop: 8, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, padding: 0 }}>
-                      <SpeakerIcon /> Cümleyi dinle
-                    </button>
-                  </>
+                {cardExamples.length > 0 && (
+                  <div>
+                    {cardExamples.map((ex, idx) => (
+                      <div key={idx} style={{ marginBottom: idx < cardExamples.length - 1 ? 12 : 0 }}>
+                        <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", lineHeight: 1.5 }}>"{ex.sentence_en}"</div>
+                        {ex.sentence_tr && <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>"{ex.sentence_tr}"</div>}
+                        <button onClick={() => handleSpeak(ex.sentence_en)} style={{ marginTop: 6, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, padding: 0 }}>
+                          <SpeakerIcon /> Cümleyi dinle
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {(card.synonyms?.length > 0 || card.antonyms?.length > 0) && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e293b", display: "flex", gap: 16 }}>
