@@ -59,80 +59,72 @@ export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
   };
 
   const handleOpenNewWords = async () => {
-    if (dailyRemaining === 0) {
-      alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
-      return;
-    }
-    
-    setOpening(true);
-    
-    // Havuzdaki kelime ID'lerini al
-    const { data: userWords } = await supabase
-      .from("en_user_words")
-      .select("word_id")
+  if (dailyRemaining === 0) {
+    alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
+    return;
+  }
+  
+  setOpening(true);
+  
+  const { data: userWords } = await supabase
+    .from("en_user_words")
+    .select("word_id")
+    .eq("user_id", FIXED_USER_ID);
+  
+  const learnedIds = userWords?.map(w => w.word_id) || [];
+  
+  let query = supabase
+    .from("en_words")
+    .select("*")
+    .eq("level", userLevel)
+    .eq("type", "word");
+  
+  if (learnedIds.length > 0) {
+    query = query.not("id", "in", `(${learnedIds.join(",")})`);
+  }
+  
+  const { data: newWords } = await query.limit(dailyRemaining);
+  
+  if (!newWords || newWords.length === 0) {
+    alert("Tüm kelimeleri açtınız!");
+    setOpening(false);
+    return;
+  }
+  
+  const now = new Date();
+  // next_review_at'i BUGÜN yap (hemen tekrar edilebilir olsun)
+  const today = new Date();
+  
+  const inserts = newWords.map(word => ({
+    user_id: FIXED_USER_ID,
+    word_id: word.id,
+    added_at: now.toISOString(),
+    next_review_at: today.toISOString(),  // Bugün -> hemen tekrar edilebilir
+    review_count: 0,
+    last_score: null,
+    last_reviewed_at: null,
+    ease_factor: 2.5
+  }));
+  
+  const { error } = await supabase
+    .from("en_user_words")
+    .insert(inserts);
+  
+  if (error) {
+    console.error("Ekleme hatası:", error);
+    alert("Bir hata oluştu!");
+  } else {
+    await supabase
+      .from("en_user_daily_limit")
+      .update({ remaining_today: 0 })
       .eq("user_id", FIXED_USER_ID);
     
-    const learnedIds = userWords?.map(w => w.word_id) || [];
-    
-    // Havuzda olmayan kelimeleri bul
-    let query = supabase
-      .from("en_words")
-      .select("*")
-      .eq("level", userLevel)
-      .eq("type", "word");
-    
-    if (learnedIds.length > 0) {
-      query = query.not("id", "in", `(${learnedIds.join(",")})`);
-    }
-    
-    const { data: newWords } = await query.limit(dailyRemaining);
-    
-    if (!newWords || newWords.length === 0) {
-      alert("Tüm kelimeleri açtınız!");
-      setOpening(false);
-      return;
-    }
-    
-    // Kelimeleri kullanıcı havuzuna ekle
-    const now = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(now.getDate() + 1);
-    
-    const inserts = newWords.map(word => ({
-      user_id: FIXED_USER_ID,
-      word_id: word.id,
-      added_at: now.toISOString(),
-      next_review_at: tomorrow.toISOString(),
-      review_count: 0,
-      last_score: null,
-      last_reviewed_at: null,
-      ease_factor: 2.5
-    }));
-    
-    const { error } = await supabase
-      .from("en_user_words")
-      .insert(inserts);
-    
-    if (error) {
-      console.error("Ekleme hatası:", error);
-      alert("Bir hata oluştu!");
-    } else {
-      // Günlük limiti sıfırla
-      await supabase
-        .from("en_user_daily_limit")
-        .update({ remaining_today: 0 })
-        .eq("user_id", FIXED_USER_ID);
-      
-      // Verileri yenile
-      await fetchData();
-      alert(`${newWords.length} yeni kelime havuzuna eklendi!`);
-      
-      // Parent'a haber ver (isteğe bağlı)
-      if (onOpenNewWords) onOpenNewWords(newWords.length);
-    }
-    
-    setOpening(false);
-  };
+    await fetchData();
+    alert(`${newWords.length} yeni kelime havuzuna eklendi! Hemen tekrar edebilirsin.`);
+  }
+  
+  setOpening(false);
+};
 
   const progress = totalWords > 0 ? (myWordsCount / totalWords) * 100 : 0;
 
