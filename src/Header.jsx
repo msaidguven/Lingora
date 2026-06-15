@@ -38,7 +38,9 @@ export default function Header({ currentScreen, onNavigate, userLevel }) {
         alignItems: "center" 
       }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>WordFlow</div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>
+            <a href="https://lingora-phi.vercel.app/admin">Admin</a>
+            </div>
           <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
             Merhaba, {user?.username || "Öğrenci"}
           </div>
