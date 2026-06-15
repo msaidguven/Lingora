@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "/config.js";
 
 const LEVELS = ["A1", "A2", "B1", "B2"];
 const LEVEL_ORDER = { A1: 1, A2: 2, B1: 3, B2: 4 };

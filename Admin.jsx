@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "/config.js";
 
 const ADMIN_PASSWORD = "123456";
 
