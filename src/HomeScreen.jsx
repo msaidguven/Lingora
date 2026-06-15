@@ -92,36 +92,73 @@ export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
   }
   
   const now = new Date();
-  // next_review_at'i BUGÜN yap (hemen tekrar edilebilir olsun)
   const today = new Date();
   
-  const inserts = newWords.map(word => ({
+  // Kelimeleri user_words'e ekle
+  const wordInserts = newWords.map(word => ({
     user_id: FIXED_USER_ID,
     word_id: word.id,
     added_at: now.toISOString(),
-    next_review_at: today.toISOString(),  // Bugün -> hemen tekrar edilebilir
+    next_review_at: today.toISOString(),
     review_count: 0,
     last_score: null,
     last_reviewed_at: null,
-    ease_factor: 2.5
+    ease_factor: 2.5,
+    mastery_level: 0,
+    is_mastered: false
   }));
   
-  const { error } = await supabase
+  const { error: wordError } = await supabase
     .from("en_user_words")
-    .insert(inserts);
+    .insert(wordInserts);
   
-  if (error) {
-    console.error("Ekleme hatası:", error);
+  if (wordError) {
+    console.error("Kelime ekleme hatası:", wordError);
     alert("Bir hata oluştu!");
-  } else {
-    await supabase
-      .from("en_user_daily_limit")
-      .update({ remaining_today: 0 })
-      .eq("user_id", FIXED_USER_ID);
-    
-    await fetchData();
-    alert(`${newWords.length} yeni kelime havuzuna eklendi! Hemen tekrar edebilirsin.`);
+    setOpening(false);
+    return;
   }
+  
+  // Yeni eklenen kelimelerin cümlelerini bul ve user_sentences'e ekle
+  const newWordIds = newWords.map(w => w.id);
+  
+  const { data: sentences } = await supabase
+    .from("en_example_sentences")
+    .select("*")
+    .in("word_id", newWordIds)
+    .eq("is_approved", true);
+  
+  if (sentences && sentences.length > 0) {
+    const sentenceInserts = sentences.map(sentence => ({
+      user_id: FIXED_USER_ID,
+      sentence_id: sentence.id,
+      added_at: now.toISOString(),
+      next_review_at: today.toISOString(),
+      review_count: 0,
+      last_score: null,
+      last_reviewed_at: null,
+      ease_factor: 2.5
+    }));
+    
+    const { error: sentenceError } = await supabase
+      .from("en_user_sentences")
+      .insert(sentenceInserts);
+    
+    if (sentenceError) {
+      console.error("Cümle ekleme hatası:", sentenceError);
+    } else {
+      console.log(`${sentenceInserts.length} cümle kullanıcı havuzuna eklendi`);
+    }
+  }
+  
+  // Günlük limiti sıfırla
+  await supabase
+    .from("en_user_daily_limit")
+    .update({ remaining_today: 0 })
+    .eq("user_id", FIXED_USER_ID);
+  
+  await fetchData();
+  alert(`${newWords.length} yeni kelime ve cümleleri havuzuna eklendi!`);
   
   setOpening(false);
 };
