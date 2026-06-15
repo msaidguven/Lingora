@@ -1,5 +1,6 @@
 import { useState } from "react";
 import QuizScreen from "./QuizScreen.jsx";
+import HomeScreen from "./HomeScreen.jsx";
 
 const LEVELS = ["A1", "A2", "B1", "B2"];
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
@@ -44,7 +45,36 @@ function WelcomeScreen({ onSelect }) {
 }
 
 export default function App() {
+  const [screen, setScreen] = useState("home");
   const [userLevel, setUserLevel] = useState(null);
-  if (!userLevel) return <WelcomeScreen onSelect={setUserLevel} />;
-  return <QuizScreen userLevel={userLevel} onChangeLevel={() => setUserLevel(null)} />;
+
+  // Ana sayfadan quiz'e geçiş
+  const handleStartQuiz = () => {
+    setScreen("welcome");
+  };
+
+  // Seviye seçiminden sonra quiz'e geç
+  const handleLevelSelect = (level) => {
+    setUserLevel(level);
+    setScreen("quiz");
+  };
+
+  // Quiz'den ana sayfaya dönüş
+  const handleBackToHome = () => {
+    setScreen("home");
+    setUserLevel(null);
+  };
+
+  // Ana sayfa
+  if (screen === "home") {
+    return <HomeScreen onStartQuiz={handleStartQuiz} />;
+  }
+
+  // Seviye seçim ekranı
+  if (screen === "welcome") {
+    return <WelcomeScreen onSelect={handleLevelSelect} />;
+  }
+
+  // Quiz ekranı
+  return <QuizScreen userLevel={userLevel} onChangeLevel={handleBackToHome} />;
 }
