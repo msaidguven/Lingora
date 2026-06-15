@@ -175,3 +175,18 @@ CREATE TRIGGER after_auth_user_signup
 AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION create_user_daily_limit();
+
+
+-- Kullanıcı Cümle Havuzu (SRS için)
+CREATE TABLE IF NOT EXISTS en_user_sentences (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
+  sentence_id uuid REFERENCES en_example_sentences(id) ON DELETE CASCADE,
+  added_at timestamp DEFAULT now(),
+  next_review_at timestamp DEFAULT now(),
+  ease_factor float DEFAULT 2.5,
+  review_count int DEFAULT 0,
+  last_score int CHECK (last_score BETWEEN 0 AND 100),
+  last_reviewed_at timestamp,
+  UNIQUE(user_id, sentence_id)
+);

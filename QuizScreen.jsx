@@ -27,6 +27,20 @@ function buildWordOptions(correct, allCards, count) {
   return shuffle([correct.meaning, ...wrong]);
 }
 
+function buildSentenceOptions(correctSentence, allSentences, currentWordId, count) {
+  const sameWordSentences = allSentences.filter(s => s.word_id === currentWordId && s.id !== correctSentence.id);
+  const sameWordMeanings = sameWordSentences.map(s => s.sentence_tr).filter(Boolean);
+  let wrong = [...sameWordMeanings];
+  if (wrong.length < count - 1) {
+    const otherSentences = allSentences.filter(s => s.word_id !== currentWordId && s.sentence_tr);
+    const otherMeanings = shuffle(otherSentences.map(s => s.sentence_tr));
+    wrong = [...wrong, ...otherMeanings].slice(0, count - 1);
+  } else {
+    wrong = shuffle(wrong).slice(0, count - 1);
+  }
+  return shuffle([correctSentence.sentence_tr, ...wrong]);
+}
+
 const SpeakerIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
@@ -35,9 +49,11 @@ const SpeakerIcon = () => (
   </svg>
 );
 
-export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", newWord = null }) {
+export default function QuizScreen({ userLevel, onChangeLevel, mode = "review" }) {
   const [tab, setTab] = useState("quiz");
+  const [quizType, setQuizType] = useState("word"); // word veya sentence
   const [allCards, setAllCards] = useState([]);
+  const [allSentences, setAllSentences] = useState([]);
   const [examplesMap, setExamplesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,41 +65,36 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
   const [speaking, setSpeaking] = useState(false);
   const [stats, setStats] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showExampleModal, setShowExampleModal] = useState(false);
+  const [selectedWordForExample, setSelectedWordForExample] = useState(null);
+  const [exampleJsonInput, setExampleJsonInput] = useState("");
+  const [exampleParseError, setExampleParseError] = useState(null);
+  const [exampleStatus, setExampleStatus] = useState(null);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const choiceCount = LEVEL_CHOICES[userLevel];
   const levelColor = LEVEL_COLOR[userLevel];
 
-  // Yeni kelime gelince telaffuz et
   useEffect(() => {
     if (queue.length && !answered) {
       const current = queue[qIdx % queue.length];
-      setTimeout(() => speak(current.word), 100);
+      setTimeout(() => {
+        if (quizType === "word") {
+          speak(current.word);
+        } else {
+          speak(current.sentence_en);
+        }
+      }, 100);
     }
-  }, [qIdx, queue, answered]);
+  }, [qIdx, queue, answered, quizType]);
 
-  // Verileri yükle
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       setError(null);
       try {
-        if (mode === "new" && newWord) {
-          // Yeni kelime modu: tek kelime göster
-          setAllCards([newWord]);
-          setQueue([newWord]);
-          
-          // Örnek cümleleri çek
-          const { data: examples } = await supabase
-            .from("en_example_sentences")
-            .select("*")
-            .eq("word_id", newWord.id)
-            .order("order_index");
-          
-          if (examples) {
-            setExamplesMap({ [newWord.id]: examples });
-          }
-        } else {
-          // Tekrar modu: next_review_at geçmiş kelimeleri çek
+        if (quizType === "word") {
+          // Kelime modu: en_user_words'ten tekrar edilecek kelimeleri al
           const { data: userWords, error: uwError } = await supabase
             .from("en_user_words")
             .select("word_id, next_review_at")
@@ -110,7 +121,6 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
           setAllCards(words || []);
           setQueue(shuffle(words || []));
           
-          // Örnek cümleleri çek
           if (words && words.length > 0) {
             const { data: examples } = await supabase
               .from("en_example_sentences")
@@ -127,6 +137,41 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
               setExamplesMap(map);
             }
           }
+        } else {
+          // Cümle modu: en_user_sentences'ten tekrar edilecek cümleleri al
+          const { data: userSentences, error: usError } = await supabase
+            .from("en_user_sentences")
+            .select("sentence_id, next_review_at")
+            .eq("user_id", FIXED_USER_ID)
+            .lt("next_review_at", new Date().toISOString());
+          
+          if (usError) throw usError;
+          
+          if (!userSentences || userSentences.length === 0) {
+            setQueue([]);
+            setLoading(false);
+            return;
+          }
+          
+          const sentenceIds = userSentences.map(s => s.sentence_id);
+          
+          const { data: sentences, error: sError } = await supabase
+            .from("en_example_sentences")
+            .select("*, en_words(word, meaning, level, part_of_speech)")
+            .in("id", sentenceIds)
+            .eq("is_approved", true);
+          
+          if (sError) throw sError;
+          
+          const validSentences = (sentences || []).filter(s => s.sentence_en && s.sentence_tr && s.en_words);
+          setAllSentences(validSentences);
+          setQueue(shuffle(validSentences));
+          
+          const { data: words } = await supabase
+            .from("en_words")
+            .select("*")
+            .eq("type", "word");
+          setAllCards(words || []);
         }
       } catch (err) {
         setError("Veriler yüklenemedi.");
@@ -139,32 +184,118 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
     setSelected(null);
     setAnswered(false);
     setStats({});
-  }, [mode, newWord]);
+  }, [quizType]);
 
-  // Şıkları oluştur
   useEffect(() => {
     if (!queue.length) return;
     const current = queue[qIdx % queue.length];
-    setOptions(buildWordOptions(current, allCards, choiceCount));
+    if (quizType === "word") {
+      setOptions(buildWordOptions(current, allCards, choiceCount));
+    } else {
+      setOptions(buildSentenceOptions(current, allSentences, current.word_id, choiceCount));
+    }
     setSelected(null);
     setAnswered(false);
-  }, [qIdx, queue, allCards, choiceCount]);
+  }, [qIdx, queue, quizType, allCards, allSentences, choiceCount]);
 
-  // Sonucu kaydet (SRS)
+  const generatePrompt = (word) => `Aşağıdaki kelime için A1-A2 seviyesinde 10 tane İngilizce örnek cümle hazırla. Her cümle için Türkçe anlamını da ekle. SADECE JSON array döndür, başka hiçbir şey yazma.
+
+[
+  {
+    "sentence_en": "İngilizce cümle",
+    "sentence_tr": "Türkçe çevirisi"
+  }
+]
+
+Kelime: ${word}`;
+
+  const handleCopyPrompt = (word) => {
+    navigator.clipboard.writeText(generatePrompt(word));
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2000);
+  };
+
+  const handleParseAndSaveExamples = async () => {
+    if (!exampleJsonInput.trim() || !selectedWordForExample) return;
+    setExampleParseError(null);
+    setExampleStatus("loading");
+
+    try {
+      const data = JSON.parse(exampleJsonInput.trim());
+      if (!Array.isArray(data)) throw new Error("JSON bir array olmalı");
+
+      const newSentenceIds = [];
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        if (!item.sentence_en || !item.sentence_tr) continue;
+        
+        const { data: inserted, error } = await supabase
+          .from("en_example_sentences")
+          .insert({
+            word_id: selectedWordForExample.id,
+            sentence_en: item.sentence_en,
+            sentence_tr: item.sentence_tr,
+            order_index: i,
+            source: "ai",
+            is_approved: true
+          })
+          .select();
+        
+        if (error) throw error;
+        if (inserted) newSentenceIds.push(inserted[0].id);
+      }
+
+      // Yeni eklenen cümleleri kullanıcı havuzuna ekle
+      if (newSentenceIds.length > 0) {
+        const now = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(now.getDate() + 1);
+        
+        const inserts = newSentenceIds.map(sentence_id => ({
+          user_id: FIXED_USER_ID,
+          sentence_id: sentence_id,
+          added_at: now.toISOString(),
+          next_review_at: tomorrow.toISOString(),
+          review_count: 0,
+          last_score: null,
+          last_reviewed_at: null,
+          ease_factor: 2.5
+        }));
+        
+        await supabase.from("en_user_sentences").insert(inserts);
+      }
+
+      const { data: newExamples } = await supabase
+        .from("en_example_sentences")
+        .select("*")
+        .eq("word_id", selectedWordForExample.id)
+        .order("order_index");
+
+      setExamplesMap(prev => ({
+        ...prev,
+        [selectedWordForExample.id]: newExamples || []
+      }));
+
+      setExampleStatus("success");
+      setTimeout(() => {
+        setShowExampleModal(false);
+        setExampleJsonInput("");
+        setExampleStatus(null);
+        setSelectedWordForExample(null);
+      }, 1500);
+
+    } catch (e) {
+      setExampleParseError(e.message);
+      setExampleStatus("error");
+    }
+  };
+
   const saveWordResult = async (wordId, isCorrect) => {
     setSaving(true);
     const now = new Date();
     let nextReviewDate = new Date();
+    nextReviewDate.setDate(now.getDate() + (isCorrect ? 1 : 0));
     
-    if (isCorrect) {
-      // Doğru: 1 gün sonra
-      nextReviewDate.setDate(now.getDate() + 1);
-    } else {
-      // Yanlış: 0 gün sonra (hemen tekrar)
-      nextReviewDate = now;
-    }
-    
-    // Var mı kontrol et
     const { data: existing } = await supabase
       .from("en_user_words")
       .select("id, review_count")
@@ -173,7 +304,6 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
       .single();
     
     if (existing) {
-      // Güncelle
       await supabase
         .from("en_user_words")
         .update({
@@ -183,34 +313,33 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
           last_reviewed_at: now.toISOString()
         })
         .eq("id", existing.id);
-    } else if (mode === "new") {
-      // Yeni kelime: havuza ekle
+    }
+    setSaving(false);
+  };
+
+  const saveSentenceResult = async (sentenceId, isCorrect) => {
+    setSaving(true);
+    const now = new Date();
+    let nextReviewDate = new Date();
+    nextReviewDate.setDate(now.getDate() + (isCorrect ? 1 : 0));
+    
+    const { data: existing } = await supabase
+      .from("en_user_sentences")
+      .select("id, review_count")
+      .eq("user_id", FIXED_USER_ID)
+      .eq("sentence_id", sentenceId)
+      .single();
+    
+    if (existing) {
       await supabase
-        .from("en_user_words")
-        .insert({
-          user_id: FIXED_USER_ID,
-          word_id: wordId,
-          added_at: now.toISOString(),
+        .from("en_user_sentences")
+        .update({
           next_review_at: nextReviewDate.toISOString(),
-          review_count: 1,
+          review_count: existing.review_count + 1,
           last_score: isCorrect ? 100 : 0,
-          last_reviewed_at: now.toISOString(),
-          ease_factor: 2.5
-        });
-      
-      // Günlük limiti 1 azalt
-      const { data: daily } = await supabase
-        .from("en_user_daily_limit")
-        .select("remaining_today")
-        .eq("user_id", FIXED_USER_ID)
-        .single();
-      
-      if (daily && daily.remaining_today > 0) {
-        await supabase
-          .from("en_user_daily_limit")
-          .update({ remaining_today: daily.remaining_today - 1 })
-          .eq("user_id", FIXED_USER_ID);
-      }
+          last_reviewed_at: now.toISOString()
+        })
+        .eq("id", existing.id);
     }
     setSaving(false);
   };
@@ -218,19 +347,23 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
   const handleSelect = async (opt) => {
     if (answered || saving) return;
     const current = queue[qIdx % queue.length];
-    const isCorrect = opt === current.meaning;
+    const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+    const isCorrect = opt === correctAnswer;
     
     setSelected(opt);
     setAnswered(true);
     
-    // İstatistikleri güncelle
     setStats(prev => {
-      const cur = prev[current.id] || { correct: 0, wrong: 0 };
-      return { ...prev, [current.id]: { correct: cur.correct + (isCorrect ? 1 : 0), wrong: cur.wrong + (isCorrect ? 0 : 1) } };
+      const id = quizType === "word" ? current.id : current.id;
+      const cur = prev[id] || { correct: 0, wrong: 0 };
+      return { ...prev, [id]: { correct: cur.correct + (isCorrect ? 1 : 0), wrong: cur.wrong + (isCorrect ? 0 : 1) } };
     });
     
-    // SRS kaydet
-    await saveWordResult(current.id, isCorrect);
+    if (quizType === "word") {
+      await saveWordResult(current.id, isCorrect);
+    } else {
+      await saveSentenceResult(current.id, isCorrect);
+    }
   };
 
   const handleNext = () => setQIdx(i => i + 1);
@@ -263,10 +396,10 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
       <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 48 }}>🎉</div>
         <div style={{ fontSize: 18, fontWeight: 700 }}>
-          {mode === "new" ? "Tebrikler! Yeni kelime havuzuna eklendi." : "Bugün tekrarlanacak kelime yok!"}
+          {quizType === "word" ? "Tekrarlanacak kelime yok!" : "Tekrarlanacak cümle yok!"}
         </div>
         <div style={{ fontSize: 13, color: "#64748b" }}>
-          {mode === "new" ? "Yeni kelimeler açmaya devam edebilirsin." : "Yarın tekrar gel, yeni kelimeler seni bekliyor."}
+          Ana sayfadan yeni kelime/cümle ekleyebilirsin.
         </div>
         <button onClick={onChangeLevel} style={{ background: "#6366f1", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", cursor: "pointer", fontWeight: 600, marginTop: 16 }}>
           Ana Sayfaya Dön
@@ -276,7 +409,8 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
   }
 
   const current = queue[qIdx % queue.length];
-  const cardExamples = examplesMap[current.id] || [];
+  const currentWord = quizType === "word" ? current : current.en_words;
+  const cardExamples = quizType === "word" ? (examplesMap[current.id] || []) : [];
 
   const handleSpeak = (text) => {
     setSpeaking(true);
@@ -286,49 +420,35 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 420, margin: "0 auto", display: "flex", flexDirection: "column" }}>
-      
-      
-      // QuizScreen'in header kısmını şöyle değiştir:
-
-<div style={{ padding: "20px 20px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-  <div>
-    <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-      <div style={{ fontSize: 18, fontWeight: 800 }}>{mode === "new" ? "🎁 Yeni Kelime" : "🔄 Tekrar"}</div>
-      <button onClick={onChangeLevel} style={{ background: levelColor + "22", border: `1px solid ${levelColor}44`, borderRadius: 6, padding: "2px 8px", color: levelColor, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{userLevel}</button>
-    </div>
-  </div>
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-    <button 
-      onClick={onChangeLevel}
-      style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}
-    >
-      🏠 Ana Sayfa
-    </button>
-    <div style={{ textAlign: "right" }}>
-      <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : "#475569" }}>
-        {totalAnswered > 0 ? `%${accuracy}` : "—"}
-      </div>
-    </div>
-  </div>
-</div>
-      
-      
       <div style={{ padding: "20px 20px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{mode === "new" ? "🎁 Yeni Kelime" : "🔄 Tekrar"}</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>📝 Quiz</div>
             <button onClick={onChangeLevel} style={{ background: levelColor + "22", border: `1px solid ${levelColor}44`, borderRadius: 6, padding: "2px 8px", color: levelColor, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{userLevel}</button>
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : "#475569" }}>
-            {totalAnswered > 0 ? `%${accuracy}` : "—"}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onChangeLevel} style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}>
+            🏠 Ana Sayfa
+          </button>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : "#475569" }}>
+              {totalAnswered > 0 ? `%${accuracy}` : "—"}
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Kelime / Cümle seçimi */}
+      <div style={{ padding: "0 20px 14px", display: "flex", gap: 8 }}>
+        <button onClick={() => setQuizType("word")} style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, background: quizType === "word" ? "#6366f1" : "#1e1e30", color: quizType === "word" ? "#fff" : "#64748b" }}>
+          📖 Kelimeler
+        </button>
+        <button onClick={() => setQuizType("sentence")} style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, background: quizType === "sentence" ? "#6366f1" : "#1e1e30", color: quizType === "sentence" ? "#fff" : "#64748b" }}>
+          📝 Cümleler
+        </button>
       </div>
 
       <div style={{ padding: "0 20px 14px", display: "flex", gap: 8 }}>
@@ -348,24 +468,44 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
             </div>
 
             <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", border: "1px solid #1e293b", borderRadius: 20, padding: "26px 22px", textAlign: "center", marginBottom: 18 }}>
-              {current.part_of_speech?.length > 0 && (
+              {quizType === "word" && currentWord?.part_of_speech?.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
-                  {current.part_of_speech.map(p => (
+                  {currentWord.part_of_speech.map(p => (
                     <span key={p} style={{ fontSize: 10, color: "#6366f1", background: "#6366f122", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>{p}</span>
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.5, marginBottom: 14 }}>{current.word}</div>
-              <button onClick={() => handleSpeak(current.word)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
-                <SpeakerIcon /> {speaking ? "Çalıyor..." : "Telaffuz"}
-              </button>
+              <div style={{ fontSize: quizType === "word" ? 28 : 18, fontWeight: quizType === "word" ? 800 : 600, letterSpacing: -0.5, marginBottom: 14, lineHeight: 1.4 }}>
+                {quizType === "word" ? current.word : `"${current.sentence_en}"`}
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => handleSpeak(quizType === "word" ? current.word : current.sentence_en)} style={{ background: speaking ? "#6366f1" : "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#e2e8f0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+                  <SpeakerIcon /> {speaking ? "Çalıyor..." : "Telaffuz"}
+                </button>
+                
+                {/* Cümle ekleme butonu (sadece kelime modunda) */}
+                {quizType === "word" && currentWord && (
+                  <button onClick={() => {
+                    setSelectedWordForExample(currentWord);
+                    setShowExampleModal(true);
+                    setExampleJsonInput("");
+                    setExampleParseError(null);
+                    setExampleStatus(null);
+                  }} style={{ background: "#1e293b", border: "none", borderRadius: 10, padding: "7px 16px", color: "#64748b", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+                    ✏️ Cümle Ekle
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600 }}>Türkçe anlamı nedir?</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600 }}>
+              {quizType === "word" ? "Türkçe anlamı nedir?" : "Bu cümlenin Türkçesi nedir?"}
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {options.map((opt, i) => {
-                const isCorrect = opt === current.meaning;
+                const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+                const isCorrect = opt === correctAnswer;
                 const isSelected = opt === selected;
                 let bg = "#1a1a2e", border = "#1e293b", color = "#e2e8f0";
                 if (answered) {
@@ -385,12 +525,12 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
             </div>
 
             {answered && (
-              <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === current.meaning ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === current.meaning ? "#10b981" : "#ef4444"}` }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: selected === current.meaning ? "#10b981" : "#ef4444", marginBottom: 8 }}>
-                  {selected === current.meaning ? "✓ Doğru!" : `✗ Doğru cevap: "${current.meaning}"`}
+              <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 14, background: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#0e2d1f" : "#2d0e0e", border: `1px solid ${selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444"}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "#10b981" : "#ef4444", marginBottom: 8 }}>
+                  {selected === (quizType === "word" ? current.meaning : current.sentence_tr) ? "✓ Doğru!" : `✗ Doğru cevap: "${quizType === "word" ? current.meaning : current.sentence_tr}"`}
                 </div>
-                
-                {cardExamples.length > 0 && (
+
+                {quizType === "word" && cardExamples.length > 0 && (
                   <div>
                     <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Örnek cümleler:</div>
                     {cardExamples.slice(0, 2).map((ex, idx) => (
@@ -405,21 +545,29 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
                   </div>
                 )}
 
-                {(current.synonyms?.length > 0 || current.antonyms?.length > 0) && (
+                {quizType === "sentence" && currentWord && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                      Kelime: <span style={{ color: "#6366f1", fontWeight: 600 }}>{currentWord.word}</span> — {currentWord.meaning}
+                    </div>
+                  </div>
+                )}
+
+                {quizType === "word" && (currentWord?.synonyms?.length > 0 || currentWord?.antonyms?.length > 0) && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e293b", display: "flex", gap: 16 }}>
-                    {current.synonyms?.length > 0 && (
+                    {currentWord?.synonyms?.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Eş anlamlı</div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {current.synonyms.slice(0, 3).map(s => <span key={s} style={{ fontSize: 11, color: "#10b981", background: "#0e2d1f", padding: "2px 7px", borderRadius: 5 }}>{s}</span>)}
+                          {currentWord.synonyms.slice(0, 3).map(s => <span key={s} style={{ fontSize: 11, color: "#10b981", background: "#0e2d1f", padding: "2px 7px", borderRadius: 5 }}>{s}</span>)}
                         </div>
                       </div>
                     )}
-                    {current.antonyms?.length > 0 && (
+                    {currentWord?.antonyms?.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Zıt anlamlı</div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {current.antonyms.slice(0, 3).map(a => <span key={a} style={{ fontSize: 11, color: "#ef4444", background: "#2d0e0e", padding: "2px 7px", borderRadius: 5 }}>{a}</span>)}
+                          {currentWord.antonyms.slice(0, 3).map(a => <span key={a} style={{ fontSize: 11, color: "#ef4444", background: "#2d0e0e", padding: "2px 7px", borderRadius: 5 }}>{a}</span>)}
                         </div>
                       </div>
                     )}
@@ -466,6 +614,56 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
           </>
         )}
       </div>
+
+      {/* Modal */}
+      {showExampleModal && selectedWordForExample && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div style={{ background: "#1a1a2e", borderRadius: 20, maxWidth: 500, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, border: "1px solid #1e293b" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>📝 Örnek Cümle Ekle</div>
+                <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Kelime: <span style={{ color: "#6366f1", fontWeight: 700 }}>{selectedWordForExample.word}</span></div>
+              </div>
+              <button onClick={() => {
+                setShowExampleModal(false);
+                setExampleJsonInput("");
+                setExampleParseError(null);
+                setExampleStatus(null);
+              }} style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", fontSize: 20, cursor: "pointer", width: 32, height: 32 }}>✕</button>
+            </div>
+
+            <div style={{ background: "#0f0f1a", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>🤖 Yapay Zeka Promptu</div>
+              <div style={{ background: "#1a1a2e", borderRadius: 8, padding: 12, fontSize: 11, color: "#e2e8f0", fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 10 }}>
+                {generatePrompt(selectedWordForExample.word)}
+              </div>
+              <button onClick={() => handleCopyPrompt(selectedWordForExample.word)} style={{ background: copiedPrompt ? "#0e2d1f" : "#1e293b", border: "none", borderRadius: 8, color: copiedPrompt ? "#10b981" : "#94a3b8", fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>
+                {copiedPrompt ? "✓ Kopyalandı!" : "📋 Promptu Kopyala"}
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>JSON Çıktısını Yapıştır</div>
+              <textarea
+                value={exampleJsonInput}
+                onChange={e => { setExampleJsonInput(e.target.value); setExampleParseError(null); setExampleStatus(null); }}
+                placeholder='[{"sentence_en": "...", "sentence_tr": "..."}]'
+                rows={8}
+                style={{ width: "100%", boxSizing: "border-box", background: "#0f0f1a", border: `1px solid ${exampleParseError ? "#ef4444" : "#1e293b"}`, borderRadius: 12, padding: 12, color: "#e2e8f0", fontSize: 11, fontFamily: "monospace", resize: "vertical", outline: "none" }}
+              />
+              {exampleParseError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>⚠️ {exampleParseError}</div>}
+            </div>
+
+            <button
+              onClick={handleParseAndSaveExamples}
+              disabled={!exampleJsonInput.trim() || exampleStatus === "loading"}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: exampleJsonInput.trim() ? "#6366f1" : "#1e1e30", color: exampleJsonInput.trim() ? "#fff" : "#475569", fontWeight: 700, fontSize: 14, cursor: exampleJsonInput.trim() ? "pointer" : "not-allowed" }}
+            >
+              {exampleStatus === "loading" ? "Kaydediliyor..." : exampleStatus === "success" ? "✓ Kaydedildi!" : "💾 Örnek Cümleleri Kaydet"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
