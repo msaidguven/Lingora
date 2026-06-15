@@ -89,11 +89,16 @@ function QuizScreen({ userLevel, onChangeLevel }) {
   const [answered, setAnswered] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [stats, setStats] = useState({});
+  const [showExampleModal, setShowExampleModal] = useState(false);
+  const [selectedWordForExample, setSelectedWordForExample] = useState(null);
+  const [exampleJsonInput, setExampleJsonInput] = useState("");
+  const [exampleParseError, setExampleParseError] = useState(null);
+  const [exampleStatus, setExampleStatus] = useState(null);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const choiceCount = LEVEL_CHOICES[userLevel];
   const levelColor = LEVEL_COLOR[userLevel];
 
-  // Yeni kelime gelince telaffuz et
   useEffect(() => {
     if (queue.length && !answered) {
       const currentCard = queue[qIdx % queue.length];
@@ -117,7 +122,6 @@ function QuizScreen({ userLevel, onChangeLevel }) {
         const cards = words || [];
         setAllCards(cards);
         
-        // Örnek cümleleri çek
         if (cards.length > 0) {
           const wordIds = cards.map(c => c.id);
           const { data: examples, error: exampleError } = await supabase
@@ -157,6 +161,73 @@ function QuizScreen({ userLevel, onChangeLevel }) {
     setSelected(null);
     setAnswered(false);
   }, [qIdx, queue]);
+
+  const generatePrompt = (word) => `Aşağıdaki kelime için A1-A2 seviyesinde 10 tane İngilizce örnek cümle hazırla. Her cümle için Türkçe anlamını da ekle. SADECE JSON array döndür, başka hiçbir şey yazma.
+
+[
+  {
+    "sentence_en": "İngilizce cümle",
+    "sentence_tr": "Türkçe çevirisi"
+  }
+]
+
+Kelime: ${word}`;
+
+  const handleCopyPrompt = (word) => {
+    navigator.clipboard.writeText(generatePrompt(word));
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2000);
+  };
+
+  const handleParseAndSaveExamples = async () => {
+    if (!exampleJsonInput.trim() || !selectedWordForExample) return;
+    setExampleParseError(null);
+    setExampleStatus("loading");
+    
+    try {
+      const data = JSON.parse(exampleJsonInput.trim());
+      if (!Array.isArray(data)) throw new Error("JSON bir array olmalı");
+      
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        if (!item.sentence_en || !item.sentence_tr) continue;
+        const { error } = await supabase
+          .from("en_example_sentences")
+          .insert({
+            word_id: selectedWordForExample.id,
+            sentence_en: item.sentence_en,
+            sentence_tr: item.sentence_tr,
+            order_index: i,
+            source: "ai",
+            is_approved: true
+          });
+        if (error) throw error;
+      }
+      
+      const { data: newExamples } = await supabase
+        .from("en_example_sentences")
+        .select("*")
+        .eq("word_id", selectedWordForExample.id)
+        .order("order_index");
+      
+      setExamplesMap(prev => ({
+        ...prev,
+        [selectedWordForExample.id]: newExamples || []
+      }));
+      
+      setExampleStatus("success");
+      setTimeout(() => {
+        setShowExampleModal(false);
+        setExampleJsonInput("");
+        setExampleStatus(null);
+        setSelectedWordForExample(null);
+      }, 1500);
+      
+    } catch (e) {
+      setExampleParseError(e.message);
+      setExampleStatus("error");
+    }
+  };
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, fontFamily: "Inter, sans-serif" }}>
@@ -219,10 +290,24 @@ function QuizScreen({ userLevel, onChangeLevel }) {
             <button onClick={onChangeLevel} style={{ background: levelColor + "22", border: `1px solid ${levelColor}44`, borderRadius: 6, padding: "2px 8px", color: levelColor, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{userLevel}</button>
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : totalAnswered === 0 ? "#475569" : "#ef4444" }}>
-            {totalAnswered > 0 ? `%${accuracy}` : "—"}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button 
+            onClick={() => {
+              setSelectedWordForExample(card);
+              setShowExampleModal(true);
+              setExampleJsonInput("");
+              setExampleParseError(null);
+              setExampleStatus(null);
+            }}
+            style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}
+          >
+            ✏️ Cümle Ekle
+          </button>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : totalAnswered === 0 ? "#475569" : "#ef4444" }}>
+              {totalAnswered > 0 ? `%${accuracy}` : "—"}
+            </div>
           </div>
         </div>
       </div>
@@ -402,6 +487,76 @@ function QuizScreen({ userLevel, onChangeLevel }) {
           </>
         )}
       </div>
+
+      {showExampleModal && selectedWordForExample && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.85)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: 20
+        }}>
+          <div style={{
+            background: "#1a1a2e",
+            borderRadius: 20,
+            maxWidth: 500,
+            width: "100%",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: 24,
+            border: "1px solid #1e293b"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>📝 Örnek Cümle Ekle</div>
+                <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Kelime: <span style={{ color: "#6366f1", fontWeight: 700 }}>{selectedWordForExample.word}</span></div>
+              </div>
+              <button onClick={() => {
+                setShowExampleModal(false);
+                setExampleJsonInput("");
+                setExampleParseError(null);
+                setExampleStatus(null);
+              }} style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", fontSize: 20, cursor: "pointer", width: 32, height: 32 }}>✕</button>
+            </div>
+            
+            <div style={{ background: "#0f0f1a", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>🤖 Yapay Zeka Promptu</div>
+              <div style={{ background: "#1a1a2e", borderRadius: 8, padding: 12, fontSize: 11, color: "#e2e8f0", fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 10 }}>
+                {generatePrompt(selectedWordForExample.word)}
+              </div>
+              <button onClick={() => handleCopyPrompt(selectedWordForExample.word)} style={{ background: copiedPrompt ? "#0e2d1f" : "#1e293b", border: "none", borderRadius: 8, color: copiedPrompt ? "#10b981" : "#94a3b8", fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>
+                {copiedPrompt ? "✓ Kopyalandı!" : "📋 Promptu Kopyala"}
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>JSON Çıktısını Yapıştır</div>
+              <textarea
+                value={exampleJsonInput}
+                onChange={e => { setExampleJsonInput(e.target.value); setExampleParseError(null); setExampleStatus(null); }}
+                placeholder='[{"sentence_en": "...", "sentence_tr": "..."}]'
+                rows={8}
+                style={{ width: "100%", boxSizing: "border-box", background: "#0f0f1a", border: `1px solid ${exampleParseError ? "#ef4444" : "#1e293b"}`, borderRadius: 12, padding: 12, color: "#e2e8f0", fontSize: 11, fontFamily: "monospace", resize: "vertical", outline: "none" }}
+              />
+              {exampleParseError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>⚠️ {exampleParseError}</div>}
+            </div>
+            
+            <button
+              onClick={handleParseAndSaveExamples}
+              disabled={!exampleJsonInput.trim() || exampleStatus === "loading"}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: exampleJsonInput.trim() ? "#6366f1" : "#1e1e30", color: exampleJsonInput.trim() ? "#fff" : "#475569", fontWeight: 700, fontSize: 14, cursor: exampleJsonInput.trim() ? "pointer" : "not-allowed" }}
+            >
+              {exampleStatus === "loading" ? "Kaydediliyor..." : exampleStatus === "success" ? "✓ Kaydedildi!" : "💾 Örnek Cümleleri Kaydet"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
