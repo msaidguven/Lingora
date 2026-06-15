@@ -338,20 +338,55 @@ Kelime: ${word}`;
   };
 
   const handleSelect = async (opt) => {
-    if (answered || saving) return;
-    const current = queue[qIdx % queue.length];
-    const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
-    const isCorrect = opt === correctAnswer;
+  if (answered || saving) return;
+  const current = queue[qIdx % queue.length];
+  const correctAnswer = quizType === "word" ? current.meaning : current.sentence_tr;
+  const isCorrect = opt === correctAnswer;
+  
+  setSelected(opt);
+  setAnswered(true);
+  
+  // SADECE KELİME MODUNDA quiz attempt kaydet
+  if (quizType === "word") {
+    // Quiz sorusu ID'sini bul veya oluştur
+    let { data: quizQuestion } = await supabase
+      .from("en_quiz_questions")
+      .select("id")
+      .eq("word_id", current.id)
+      .maybeSingle();
     
-    setSelected(opt);
-    setAnswered(true);
-    
-    if (quizType === "word") {
-      await saveWordResult(current.id, isCorrect);
-    } else {
-      await saveSentenceResult(current.id, isCorrect);
+    if (!quizQuestion) {
+      const { data: newQuestion } = await supabase
+        .from("en_quiz_questions")
+        .insert({
+          word_id: current.id,
+          question_text: `${current.word} kelimesinin Türkçesi nedir?`,
+          options: buildWordOptions(current, allCards, choiceCount),
+          correct_answer: current.meaning,
+          difficulty: 1
+        })
+        .select()
+        .single();
+      quizQuestion = newQuestion;
     }
-  };
+    
+    if (quizQuestion) {
+      await supabase.from("en_user_quiz_attempts").insert({
+        user_id: FIXED_USER_ID,
+        question_id: quizQuestion.id,
+        user_answer: opt,
+        is_correct: isCorrect
+      });
+    }
+  }
+  
+  // SRS kaydet
+  if (quizType === "word") {
+    await saveWordResult(current.id, isCorrect);
+  } else {
+    await saveSentenceResult(current.id, isCorrect);
+  }
+};
 
   const handleNext = () => setQIdx(i => i + 1);
 
