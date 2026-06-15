@@ -16,47 +16,10 @@ export default function App() {
         .select("level")
         .eq("id", FIXED_USER_ID)
         .single();
-      
       if (data) setUserLevel(data.level);
     };
     fetchUserLevel();
   }, []);
-
-  // Yeni kelime açma işlemi
-  const handleOpenNewWord = async () => {
-    // Havuzdaki kelime ID'lerini al
-    const { data: userWords } = await supabase
-      .from("en_user_words")
-      .select("word_id")
-      .eq("user_id", FIXED_USER_ID);
-    
-    const learnedIds = userWords?.map(w => w.word_id) || [];
-    
-    // Havuzda olmayan rastgele bir kelime bul
-    let query = supabase
-      .from("en_words")
-      .select("*")
-      .eq("level", userLevel)
-      .eq("type", "word");
-    
-    if (learnedIds.length > 0) {
-      query = query.not("id", "in", `(${learnedIds.join(",")})`);
-    }
-    
-    const { data: newWords } = await query.limit(10);
-    
-    if (!newWords || newWords.length === 0) {
-      alert("Tüm kelimeleri açtınız!");
-      return;
-    }
-    
-    const randomWord = newWords[Math.floor(Math.random() * newWords.length)];
-    
-    // QuizScreen'e yönlendir (yeni kelime modu)
-    setScreen("newWordQuiz");
-    // Geçici state'e kelimeyi kaydet (bunu daha sonra düzenli yapacağız)
-    sessionStorage.setItem("newWord", JSON.stringify(randomWord));
-  };
 
   const handleStartQuiz = () => {
     setScreen("quiz");
@@ -67,19 +30,7 @@ export default function App() {
   };
 
   if (screen === "home") {
-    return <HomeScreen onStartQuiz={handleStartQuiz} onOpenNewWord={handleOpenNewWord} />;
-  }
-
-  if (screen === "newWordQuiz") {
-    const newWord = JSON.parse(sessionStorage.getItem("newWord") || "{}");
-    return (
-      <QuizScreen 
-        userLevel={userLevel} 
-        mode="new"
-        newWord={newWord}
-        onChangeLevel={handleBackToHome} 
-      />
-    );
+    return <HomeScreen onStartQuiz={handleStartQuiz} />;
   }
 
   return <QuizScreen userLevel={userLevel} mode="review" onChangeLevel={handleBackToHome} />;

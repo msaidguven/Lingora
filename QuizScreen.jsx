@@ -286,6 +286,35 @@ export default function QuizScreen({ userLevel, onChangeLevel, mode = "review", 
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 420, margin: "0 auto", display: "flex", flexDirection: "column" }}>
+      
+      
+      // QuizScreen'in header kısmını şöyle değiştir:
+
+<div style={{ padding: "20px 20px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+  <div>
+    <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+      <div style={{ fontSize: 18, fontWeight: 800 }}>{mode === "new" ? "🎁 Yeni Kelime" : "🔄 Tekrar"}</div>
+      <button onClick={onChangeLevel} style={{ background: levelColor + "22", border: `1px solid ${levelColor}44`, borderRadius: 6, padding: "2px 8px", color: levelColor, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{userLevel}</button>
+    </div>
+  </div>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <button 
+      onClick={onChangeLevel}
+      style={{ background: "#1e293b", border: "none", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 11, padding: "6px 10px", display: "flex", alignItems: "center", gap: 4 }}
+    >
+      🏠 Ana Sayfa
+    </button>
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 10, color: "#64748b" }}>Doğruluk</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : "#475569" }}>
+        {totalAnswered > 0 ? `%${accuracy}` : "—"}
+      </div>
+    </div>
+  </div>
+</div>
+      
+      
       <div style={{ padding: "20px 20px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
