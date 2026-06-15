@@ -26,7 +26,7 @@ export default function StatsScreen({ userLevel }) {
   const fetchStats = async () => {
     setLoading(true);
     
-    // Kullanıcının havuzundaki kelimeleri al
+    // 1. Kullanıcının kelimelerini al
     const { data: userWords } = await supabase
       .from("en_user_words")
       .select(`
@@ -44,7 +44,7 @@ export default function StatsScreen({ userLevel }) {
       return;
     }
     
-    // Tüm quiz sorularını ve cevaplarını tek sorguda al
+    // 2. Tüm quiz sorularını ve cevaplarını al
     const wordIds = userWords.map(uw => uw.word_id).filter(Boolean);
     
     const { data: quizQuestions } = await supabase
@@ -84,18 +84,25 @@ export default function StatsScreen({ userLevel }) {
       });
     }
     
-    // Sonuçları düzenle
+    // 3. Sonuçları düzenle
     const wordsWithStats = userWords
       .filter(uw => uw.en_words)
-      .map(uw => ({
-        word: uw.en_words.word,
-        meaning: uw.en_words.meaning,
-        reviewCount: uw.review_count || 0,
-        masteryLevel: uw.mastery_level || 0,
-        isMastered: uw.is_mastered || false,
-        totalCorrect: attemptsMap[uw.word_id]?.correct || 0,
-        totalWrong: attemptsMap[uw.word_id]?.wrong || 0
-      }));
+      .map(uw => {
+        const stats = attemptsMap[uw.word_id] || { correct: 0, wrong: 0 };
+        const totalAttempts = stats.correct + stats.wrong;
+        const accuracy = totalAttempts > 0 ? Math.round((stats.correct / totalAttempts) * 100) : 0;
+        
+        return {
+          word: uw.en_words.word,
+          meaning: uw.en_words.meaning,
+          reviewCount: uw.review_count || 0,
+          masteryLevel: uw.mastery_level || 0,
+          isMastered: uw.is_mastered || false,
+          totalCorrect: stats.correct,
+          totalWrong: stats.wrong,
+          accuracy: accuracy
+        };
+      });
     
     setLearnedWords(wordsWithStats);
     setLoading(false);
@@ -125,8 +132,6 @@ export default function StatsScreen({ userLevel }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {learnedWords.map((item, idx) => {
-            const totalAttempts = item.totalCorrect + item.totalWrong;
-            const accuracy = totalAttempts > 0 ? Math.round((item.totalCorrect / totalAttempts) * 100) : 0;
             const badge = getMasteryBadge(item.masteryLevel, item.isMastered);
             
             return (
@@ -167,8 +172,8 @@ export default function StatsScreen({ userLevel }) {
                     <div style={{ fontSize: 11, color: "#64748b" }}>Yanlış</div>
                   </div>
                   <div style={{ textAlign: "center", flex: 1 }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: accuracy >= 70 ? "#10b981" : accuracy >= 40 ? "#f59e0b" : "#64748b" }}>
-                      %{accuracy}
+                    <div style={{ fontSize: 24, fontWeight: 700, color: item.accuracy >= 70 ? "#10b981" : item.accuracy >= 40 ? "#f59e0b" : "#64748b" }}>
+                      %{item.accuracy}
                     </div>
                     <div style={{ fontSize: 11, color: "#64748b" }}>Başarı</div>
                   </div>
