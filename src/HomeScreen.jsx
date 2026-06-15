@@ -3,7 +3,7 @@ import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
-export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
+export default function HomeScreen({ onStartQuiz }) {
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
@@ -59,109 +59,113 @@ export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
   };
 
   const handleOpenNewWords = async () => {
-  if (dailyRemaining === 0) {
-    alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
-    return;
-  }
-  
-  setOpening(true);
-  
-  const { data: userWords } = await supabase
-    .from("en_user_words")
-    .select("word_id")
-    .eq("user_id", FIXED_USER_ID);
-  
-  const learnedIds = userWords?.map(w => w.word_id) || [];
-  
-  let query = supabase
-    .from("en_words")
-    .select("*")
-    .eq("level", userLevel)
-    .eq("type", "word");
-  
-  if (learnedIds.length > 0) {
-    query = query.not("id", "in", `(${learnedIds.join(",")})`);
-  }
-  
-  const { data: newWords } = await query.limit(dailyRemaining);
-  
-  if (!newWords || newWords.length === 0) {
-    alert("Tüm kelimeleri açtınız!");
-    setOpening(false);
-    return;
-  }
-  
-  const now = new Date();
-  const today = new Date();
-  
-  // Kelimeleri user_words'e ekle
-  const wordInserts = newWords.map(word => ({
-    user_id: FIXED_USER_ID,
-    word_id: word.id,
-    added_at: now.toISOString(),
-    next_review_at: today.toISOString(),
-    review_count: 0,
-    last_score: null,
-    last_reviewed_at: null,
-    ease_factor: 2.5,
-    mastery_level: 0,
-    is_mastered: false
-  }));
-  
-  const { error: wordError } = await supabase
-    .from("en_user_words")
-    .insert(wordInserts);
-  
-  if (wordError) {
-    console.error("Kelime ekleme hatası:", wordError);
-    alert("Bir hata oluştu!");
-    setOpening(false);
-    return;
-  }
-  
-  // Yeni eklenen kelimelerin cümlelerini bul ve user_sentences'e ekle
-  const newWordIds = newWords.map(w => w.id);
-  
-  const { data: sentences } = await supabase
-    .from("en_example_sentences")
-    .select("*")
-    .in("word_id", newWordIds)
-    .eq("is_approved", true);
-  
-  if (sentences && sentences.length > 0) {
-    const sentenceInserts = sentences.map(sentence => ({
+    if (dailyRemaining === 0) {
+      alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
+      return;
+    }
+    
+    setOpening(true);
+    
+    // Kullanıcının mevcut kelimelerini al
+    const { data: userWords } = await supabase
+      .from("en_user_words")
+      .select("word_id")
+      .eq("user_id", FIXED_USER_ID);
+    
+    const learnedIds = userWords?.map(w => w.word_id) || [];
+    
+    let query = supabase
+      .from("en_words")
+      .select("*")
+      .eq("level", userLevel)
+      .eq("type", "word");
+    
+    if (learnedIds.length > 0) {
+      query = query.not("id", "in", `(${learnedIds.join(",")})`);
+    }
+    
+    const { data: newWords } = await query.limit(dailyRemaining);
+    
+    if (!newWords || newWords.length === 0) {
+      alert("Tüm kelimeleri açtınız!");
+      setOpening(false);
+      return;
+    }
+    
+    const now = new Date();
+    const today = new Date();
+    
+    // 1. Kelimeleri user_words'e ekle
+    const wordInserts = newWords.map(word => ({
       user_id: FIXED_USER_ID,
-      sentence_id: sentence.id,
+      word_id: word.id,
       added_at: now.toISOString(),
       next_review_at: today.toISOString(),
       review_count: 0,
       last_score: null,
       last_reviewed_at: null,
-      ease_factor: 2.5
+      ease_factor: 2.5,
+      mastery_level: 0,
+      is_mastered: false
     }));
     
-    const { error: sentenceError } = await supabase
-      .from("en_user_sentences")
-      .insert(sentenceInserts);
+    const { error: wordError } = await supabase
+      .from("en_user_words")
+      .insert(wordInserts);
     
-    if (sentenceError) {
-      console.error("Cümle ekleme hatası:", sentenceError);
-    } else {
-      console.log(`${sentenceInserts.length} cümle kullanıcı havuzuna eklendi`);
+    if (wordError) {
+      console.error("Kelime ekleme hatası:", wordError);
+      alert("Bir hata oluştu!");
+      setOpening(false);
+      return;
     }
-  }
-  
-  // Günlük limiti sıfırla
-  await supabase
-    .from("en_user_daily_limit")
-    .update({ remaining_today: 0 })
-    .eq("user_id", FIXED_USER_ID);
-  
-  await fetchData();
-  alert(`${newWords.length} yeni kelime ve cümleleri havuzuna eklendi!`);
-  
-  setOpening(false);
-};
+    
+    // 2. Yeni eklenen kelimelerin cümlelerini bul
+    const newWordIds = newWords.map(w => w.id);
+    
+    const { data: sentences } = await supabase
+      .from("en_example_sentences")
+      .select("*")
+      .in("word_id", newWordIds)
+      .eq("is_approved", true);
+    
+    // 3. Cümleleri user_sentences'e ekle
+    if (sentences && sentences.length > 0) {
+      const sentenceInserts = sentences.map(sentence => ({
+        user_id: FIXED_USER_ID,
+        sentence_id: sentence.id,
+        added_at: now.toISOString(),
+        next_review_at: today.toISOString(),
+        review_count: 0,
+        last_score: null,
+        last_reviewed_at: null,
+        ease_factor: 2.5
+      }));
+      
+      const { error: sentenceError } = await supabase
+        .from("en_user_sentences")
+        .insert(sentenceInserts);
+      
+      if (sentenceError) {
+        console.error("Cümle ekleme hatası:", sentenceError);
+      } else {
+        console.log(`${sentenceInserts.length} cümle kullanıcı havuzuna eklendi`);
+      }
+    } else {
+      console.log("Bu kelimelere ait cümle bulunamadı. Önce cümle eklemelisiniz.");
+    }
+    
+    // 4. Günlük limiti sıfırla
+    await supabase
+      .from("en_user_daily_limit")
+      .update({ remaining_today: 0 })
+      .eq("user_id", FIXED_USER_ID);
+    
+    await fetchData();
+    alert(`${newWords.length} yeni kelime ve ${sentences?.length || 0} cümle havuzuna eklendi!`);
+    
+    setOpening(false);
+  };
 
   const progress = totalWords > 0 ? (myWordsCount / totalWords) * 100 : 0;
 
@@ -191,7 +195,6 @@ export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
         </div>
       </div>
 
-      {/* Yeni kelime aç butonu */}
       {dailyRemaining > 0 && myWordsCount < totalWords && (
         <button 
           onClick={handleOpenNewWords}
@@ -207,7 +210,6 @@ export default function HomeScreen({ onStartQuiz, onOpenNewWords }) {
         </button>
       )}
 
-      {/* Tekrar et butonu */}
       <button 
         onClick={onStartQuiz}
         disabled={dueCount === 0}
