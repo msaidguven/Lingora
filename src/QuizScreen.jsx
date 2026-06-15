@@ -284,58 +284,117 @@ Kelime: ${word}`;
   };
 
   const saveWordResult = async (wordId, isCorrect) => {
-    setSaving(true);
-    const now = new Date();
-    let nextReviewDate = new Date();
-    nextReviewDate.setDate(now.getDate() + (isCorrect ? 1 : 0));
-    
-    const { data: existing } = await supabase
+  setSaving(true);
+  const now = new Date();
+  
+  // Mevcut kaydı al
+  const { data: existing } = await supabase
+    .from("en_user_words")
+    .select("id, review_count, ease_factor, last_score, is_mastered")
+    .eq("user_id", FIXED_USER_ID)
+    .eq("word_id", wordId)
+    .single();
+  
+  let nextReviewDate = new Date();
+  let newReviewCount = (existing?.review_count || 0) + 1;
+  let newIsMastered = existing?.is_mastered || false;
+  let masteryLevel = 0;
+  
+  if (isCorrect) {
+    // Kaçıncı doğru olduğuna göre interval belirle
+    if (newReviewCount === 1) {
+      nextReviewDate.setDate(now.getDate() + 1);     // 1 gün
+      masteryLevel = 1;
+    } else if (newReviewCount === 2) {
+      nextReviewDate.setDate(now.getDate() + 3);     // 3 gün
+      masteryLevel = 2;
+    } else if (newReviewCount === 3) {
+      nextReviewDate.setDate(now.getDate() + 7);     // 7 gün
+      masteryLevel = 3;
+    } else if (newReviewCount === 4) {
+      nextReviewDate.setDate(now.getDate() + 14);    // 14 gün
+      masteryLevel = 4;
+    } else if (newReviewCount === 5) {
+      nextReviewDate.setDate(now.getDate() + 30);    // 30 gün
+      masteryLevel = 5;
+    } else if (newReviewCount === 6) {
+      nextReviewDate.setDate(now.getDate() + 60);    // 60 gün
+      masteryLevel = 6;
+    } else if (newReviewCount === 7) {
+      nextReviewDate.setDate(now.getDate() + 90);    // 90 gün
+      masteryLevel = 7;
+    } else if (newReviewCount === 8) {
+      nextReviewDate.setDate(now.getDate() + 120);   // 120 gün
+      masteryLevel = 8;
+    } else if (newReviewCount >= 9) {
+      nextReviewDate.setDate(now.getDate() + 180);   // 180 gün
+      masteryLevel = 9;
+      newIsMastered = true;
+    }
+  } else {
+    // Yanlış: 3 saat sonra tekrar, art arda doğru sayısını sıfırla
+    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+    newReviewCount = 0;  // Art arda doğru sayısı sıfırlandı
+    newIsMastered = false;
+  }
+  
+  if (existing) {
+    await supabase
       .from("en_user_words")
-      .select("id, review_count")
-      .eq("user_id", FIXED_USER_ID)
-      .eq("word_id", wordId)
-      .single();
-    
-    if (existing) {
-      await supabase
-        .from("en_user_words")
-        .update({
-          next_review_at: nextReviewDate.toISOString(),
-          review_count: existing.review_count + 1,
-          last_score: isCorrect ? 100 : 0,
-          last_reviewed_at: now.toISOString()
-        })
-        .eq("id", existing.id);
-    }
-    setSaving(false);
-  };
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: newReviewCount,
+        last_score: isCorrect ? 100 : 0,
+        last_reviewed_at: now.toISOString(),
+        is_mastered: newIsMastered,
+        mastery_level: masteryLevel
+      })
+      .eq("id", existing.id);
+  }
+  
+  setSaving(false);
+  
+  // Uzmanlık seviyesi atladığında bildirim
+  if (newIsMastered && !existing?.is_mastered) {
+    alert(`🎉 Harika! "${current.word}" kelimesinde UZMAN oldun! Artık 180 günde bir tekrar edilecek.`);
+  } else if (masteryLevel > 0 && masteryLevel % 2 === 0) {
+    // Her 2 seviyede bir tebrik mesajı (isteğe bağlı)
+    alert(`🌟 Tebrikler! "${current.word}" kelimesinde seviye ${masteryLevel}'\a ulaştın!`);
+  }
+};
 
-  const saveSentenceResult = async (sentenceId, isCorrect) => {
-    setSaving(true);
-    const now = new Date();
-    let nextReviewDate = new Date();
-    nextReviewDate.setDate(now.getDate() + (isCorrect ? 1 : 0));
-    
-    const { data: existing } = await supabase
+const saveSentenceResult = async (sentenceId, isCorrect) => {
+  setSaving(true);
+  const now = new Date();
+  let nextReviewDate = new Date();
+  
+  if (isCorrect) {
+    nextReviewDate.setDate(now.getDate() + 1);
+  } else {
+    // Yanlış: 30 dakika sonra
+    nextReviewDate.setTime(now.getTime() + 30 * 60 * 1000);
+  }
+  
+  const { data: existing } = await supabase
+    .from("en_user_sentences")
+    .select("id, review_count")
+    .eq("user_id", FIXED_USER_ID)
+    .eq("sentence_id", sentenceId)
+    .single();
+  
+  if (existing) {
+    await supabase
       .from("en_user_sentences")
-      .select("id, review_count")
-      .eq("user_id", FIXED_USER_ID)
-      .eq("sentence_id", sentenceId)
-      .single();
-    
-    if (existing) {
-      await supabase
-        .from("en_user_sentences")
-        .update({
-          next_review_at: nextReviewDate.toISOString(),
-          review_count: existing.review_count + 1,
-          last_score: isCorrect ? 100 : 0,
-          last_reviewed_at: now.toISOString()
-        })
-        .eq("id", existing.id);
-    }
-    setSaving(false);
-  };
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: existing.review_count + 1,
+        last_score: isCorrect ? 100 : 0,
+        last_reviewed_at: now.toISOString()
+      })
+      .eq("id", existing.id);
+  }
+  setSaving(false);
+};
 
   const handleSelect = async (opt) => {
   if (answered || saving) return;

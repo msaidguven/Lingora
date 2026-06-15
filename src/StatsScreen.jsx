@@ -3,6 +3,19 @@ import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
+// Rozet fonksiyonu
+const getMasteryBadge = (level, isMastered) => {
+  if (!isMastered && level === 0) return null;
+  
+  if (level >= 9) return { emoji: "🏆", color: "#fbbf24", label: "Efsane Uzman", days: "180 gün" };
+  if (level >= 8) return { emoji: "💎", color: "#a855f7", label: "Diamond Uzman", days: "120 gün" };
+  if (level >= 7) return { emoji: "⭐", color: "#3b82f6", label: "Gold Uzman", days: "90 gün" };
+  if (level >= 6) return { emoji: "🌟", color: "#10b981", label: "Silver Uzman", days: "60 gün" };
+  if (level >= 5) return { emoji: "🔥", color: "#f59e0b", label: "Bronz Uzman", days: "30 gün" };
+  if (level >= 3) return { emoji: "📘", color: "#6366f1", label: "Bilgili", days: `${level === 3 ? 7 : 14} gün` };
+  return { emoji: "📖", color: "#64748b", label: "Öğreniyor", days: `${level === 1 ? 1 : 3} gün` };
+};
+
 export default function StatsScreen({ userLevel }) {
   const [loading, setLoading] = useState(true);
   const [learnedWords, setLearnedWords] = useState([]);
@@ -14,60 +27,88 @@ export default function StatsScreen({ userLevel }) {
   const fetchStats = async () => {
     setLoading(true);
     
-    // Kullanıcının havuzundaki kelimeleri al
-    const { data: userWords } = await supabase
+    // TEK SORGUDa tüm verileri al (JOIN ile)
+    const { data: userWords, error } = await supabase
       .from("en_user_words")
       .select(`
         word_id,
         review_count,
-        en_words (word, meaning)
+        mastery_level,
+        is_mastered,
+        en_words (
+          word,
+          meaning
+        )
       `)
       .eq("user_id", FIXED_USER_ID);
     
-    if (!userWords || userWords.length === 0) {
+    if (error || !userWords || userWords.length === 0) {
       setLearnedWords([]);
       setLoading(false);
       return;
     }
     
-    const wordsWithStats = [];
+    // Tüm kelime ID'lerini al
+    const wordIds = userWords.map(uw => uw.word_id).filter(Boolean);
     
-    for (const uw of userWords) {
-      if (!uw.en_words) continue;
-      
-      // Bu kelimeye ait quiz sorularını bul
+    // Tek sorguda tüm quiz sorularını ve cevaplarını al
+    let allStats = {};
+    
+    if (wordIds.length > 0) {
+      // Quiz sorularını al
       const { data: quizQuestions } = await supabase
         .from("en_quiz_questions")
-        .select("id")
-        .eq("word_id", uw.word_id);
+        .select("id, word_id")
+        .in("word_id", wordIds);
       
-      const questionIds = quizQuestions?.map(q => q.id) || [];
-      
-      let totalCorrect = 0;
-      let totalWrong = 0;
-      
-      if (questionIds.length > 0) {
-        // Tüm zamanların doğru/yanlış sayısı
+      if (quizQuestions && quizQuestions.length > 0) {
+        const questionIds = quizQuestions.map(q => q.id);
+        
+        // Tüm cevapları tek sorguda al
         const { data: allAttempts } = await supabase
           .from("en_user_quiz_attempts")
-          .select("is_correct")
+          .select("is_correct, question_id")
           .eq("user_id", FIXED_USER_ID)
           .in("question_id", questionIds);
         
-        if (allAttempts) {
-          totalCorrect = allAttempts.filter(a => a.is_correct).length;
-          totalWrong = allAttempts.filter(a => !a.is_correct).length;
+        // Kelime bazında grupla
+        if (allAttempts && allAttempts.length > 0) {
+          // Önce soruların hangi kelimeye ait olduğunu map'le
+          const questionToWord = {};
+          quizQuestions.forEach(q => {
+            questionToWord[q.id] = q.word_id;
+          });
+          
+          // Cevapları kelime bazında say
+          allAttempts.forEach(attempt => {
+            const wordId = questionToWord[attempt.question_id];
+            if (wordId) {
+              if (!allStats[wordId]) {
+                allStats[wordId] = { correct: 0, wrong: 0 };
+              }
+              if (attempt.is_correct) {
+                allStats[wordId].correct++;
+              } else {
+                allStats[wordId].wrong++;
+              }
+            }
+          });
         }
       }
-      
-      wordsWithStats.push({
+    }
+    
+    // Sonuçları düzenle
+    const wordsWithStats = userWords
+      .filter(uw => uw.en_words)
+      .map(uw => ({
         word: uw.en_words.word,
         meaning: uw.en_words.meaning,
         reviewCount: uw.review_count || 0,
-        totalCorrect: totalCorrect,
-        totalWrong: totalWrong
-      });
-    }
+        masteryLevel: uw.mastery_level || 0,
+        isMastered: uw.is_mastered || false,
+        totalCorrect: allStats[uw.word_id]?.correct || 0,
+        totalWrong: allStats[uw.word_id]?.wrong || 0
+      }));
     
     setLearnedWords(wordsWithStats);
     setLoading(false);
@@ -99,19 +140,38 @@ export default function StatsScreen({ userLevel }) {
           {learnedWords.map((item, idx) => {
             const totalAttempts = item.totalCorrect + item.totalWrong;
             const accuracy = totalAttempts > 0 ? Math.round((item.totalCorrect / totalAttempts) * 100) : 0;
+            const badge = getMasteryBadge(item.masteryLevel, item.isMastered);
             
             return (
               <div key={idx} style={{ 
                 background: "#1a1a2e", 
                 borderRadius: 16, 
                 padding: 16,
+                borderLeft: badge ? `4px solid ${badge.color}` : "none",
                 borderBottom: "1px solid #0f0f1a"
               }}>
-                <div style={{ marginBottom: 12 }}>
+                {/* Kelime ve Rozet */}
+                <div style={{ marginBottom: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                   <span style={{ fontSize: 18, fontWeight: 800 }}>{item.word}</span>
-                  <span style={{ fontSize: 13, color: "#64748b", marginLeft: 8 }}>{item.meaning}</span>
+                  <span style={{ fontSize: 13, color: "#64748b" }}>{item.meaning}</span>
+                  
+                  {badge && (
+                    <div style={{ 
+                      display: "inline-flex", 
+                      alignItems: "center", 
+                      gap: 4, 
+                      background: `${badge.color}22`, 
+                      padding: "4px 10px", 
+                      borderRadius: 20
+                    }}>
+                      <span style={{ fontSize: 12 }}>{badge.emoji}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: badge.color }}>{badge.label}</span>
+                      <span style={{ fontSize: 9, color: badge.color }}>({badge.days})</span>
+                    </div>
+                  )}
                 </div>
                 
+                {/* İstatistikler */}
                 <div style={{ display: "flex", gap: 16 }}>
                   <div style={{ textAlign: "center", flex: 1 }}>
                     <div style={{ fontSize: 24, fontWeight: 700, color: "#10b981" }}>{item.totalCorrect}</div>
