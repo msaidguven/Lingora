@@ -3,7 +3,6 @@ import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
-// Rozet fonksiyonu
 const getMasteryBadge = (level, isMastered) => {
   if (!isMastered && level === 0) return null;
   
@@ -27,74 +26,62 @@ export default function StatsScreen({ userLevel }) {
   const fetchStats = async () => {
     setLoading(true);
     
-    // TEK SORGUDa tüm verileri al (JOIN ile)
-    const { data: userWords, error } = await supabase
+    // Kullanıcının havuzundaki kelimeleri al
+    const { data: userWords } = await supabase
       .from("en_user_words")
       .select(`
         word_id,
         review_count,
         mastery_level,
         is_mastered,
-        en_words (
-          word,
-          meaning
-        )
+        en_words (word, meaning)
       `)
       .eq("user_id", FIXED_USER_ID);
     
-    if (error || !userWords || userWords.length === 0) {
+    if (!userWords || userWords.length === 0) {
       setLearnedWords([]);
       setLoading(false);
       return;
     }
     
-    // Tüm kelime ID'lerini al
+    // Tüm quiz sorularını ve cevaplarını tek sorguda al
     const wordIds = userWords.map(uw => uw.word_id).filter(Boolean);
     
-    // Tek sorguda tüm quiz sorularını ve cevaplarını al
-    let allStats = {};
+    const { data: quizQuestions } = await supabase
+      .from("en_quiz_questions")
+      .select("id, word_id")
+      .in("word_id", wordIds);
     
-    if (wordIds.length > 0) {
-      // Quiz sorularını al
-      const { data: quizQuestions } = await supabase
-        .from("en_quiz_questions")
-        .select("id, word_id")
-        .in("word_id", wordIds);
+    const questionIds = quizQuestions?.map(q => q.id) || [];
+    
+    let attemptsMap = {};
+    if (questionIds.length > 0) {
+      const { data: allAttempts } = await supabase
+        .from("en_user_quiz_attempts")
+        .select("is_correct, question_id")
+        .eq("user_id", FIXED_USER_ID)
+        .in("question_id", questionIds);
       
-      if (quizQuestions && quizQuestions.length > 0) {
-        const questionIds = quizQuestions.map(q => q.id);
-        
-        // Tüm cevapları tek sorguda al
-        const { data: allAttempts } = await supabase
-          .from("en_user_quiz_attempts")
-          .select("is_correct, question_id")
-          .eq("user_id", FIXED_USER_ID)
-          .in("question_id", questionIds);
-        
-        // Kelime bazında grupla
-        if (allAttempts && allAttempts.length > 0) {
-          // Önce soruların hangi kelimeye ait olduğunu map'le
-          const questionToWord = {};
-          quizQuestions.forEach(q => {
-            questionToWord[q.id] = q.word_id;
-          });
-          
-          // Cevapları kelime bazında say
-          allAttempts.forEach(attempt => {
-            const wordId = questionToWord[attempt.question_id];
-            if (wordId) {
-              if (!allStats[wordId]) {
-                allStats[wordId] = { correct: 0, wrong: 0 };
-              }
-              if (attempt.is_correct) {
-                allStats[wordId].correct++;
-              } else {
-                allStats[wordId].wrong++;
-              }
-            }
-          });
+      // Soru ID -> kelime ID map'i
+      const questionToWord = {};
+      quizQuestions.forEach(q => {
+        questionToWord[q.id] = q.word_id;
+      });
+      
+      // Kelime bazında doğru/yanlış say
+      allAttempts?.forEach(attempt => {
+        const wordId = questionToWord[attempt.question_id];
+        if (wordId) {
+          if (!attemptsMap[wordId]) {
+            attemptsMap[wordId] = { correct: 0, wrong: 0 };
+          }
+          if (attempt.is_correct) {
+            attemptsMap[wordId].correct++;
+          } else {
+            attemptsMap[wordId].wrong++;
+          }
         }
-      }
+      });
     }
     
     // Sonuçları düzenle
@@ -106,8 +93,8 @@ export default function StatsScreen({ userLevel }) {
         reviewCount: uw.review_count || 0,
         masteryLevel: uw.mastery_level || 0,
         isMastered: uw.is_mastered || false,
-        totalCorrect: allStats[uw.word_id]?.correct || 0,
-        totalWrong: allStats[uw.word_id]?.wrong || 0
+        totalCorrect: attemptsMap[uw.word_id]?.correct || 0,
+        totalWrong: attemptsMap[uw.word_id]?.wrong || 0
       }));
     
     setLearnedWords(wordsWithStats);
@@ -150,7 +137,6 @@ export default function StatsScreen({ userLevel }) {
                 borderLeft: badge ? `4px solid ${badge.color}` : "none",
                 borderBottom: "1px solid #0f0f1a"
               }}>
-                {/* Kelime ve Rozet */}
                 <div style={{ marginBottom: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                   <span style={{ fontSize: 18, fontWeight: 800 }}>{item.word}</span>
                   <span style={{ fontSize: 13, color: "#64748b" }}>{item.meaning}</span>
@@ -171,7 +157,6 @@ export default function StatsScreen({ userLevel }) {
                   )}
                 </div>
                 
-                {/* İstatistikler */}
                 <div style={{ display: "flex", gap: 16 }}>
                   <div style={{ textAlign: "center", flex: 1 }}>
                     <div style={{ fontSize: 24, fontWeight: 700, color: "#10b981" }}>{item.totalCorrect}</div>
