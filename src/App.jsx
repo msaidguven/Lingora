@@ -27,25 +27,41 @@ export default function App() {
     fetchUserLevel();
   }, []);
 
-  // Navigasyon fonksiyonu
   const handleNavigate = (screen, type = null) => {
-    console.log("🔄 Navigasyon:", screen, type); // DEBUG
+    console.log("🔄 Navigasyon:", screen, type);
+    
+    // 🔥 EĞER QUIZ SAYFASINA GİDİYORSA VE TYPE GELMEMİŞSE QUIZTYPE'I SIFIRLA
+    if (screen === "quiz" && !type) {
+      setQuizType(null);
+    }
+    
     if (type) {
       setQuizType(type);
     }
     setCurrentScreen(screen);
   };
 
-  // Ana sayfaya dön
   const handleBackToHome = () => {
-    console.log("🏠 Ana sayfaya dönülüyor"); // DEBUG
+    console.log("🏠 Ana sayfaya dönülüyor");
     setCurrentScreen("home");
-    setQuizType(null);
+    setQuizType(null); // 🔥 QUIZTYPE'I SIFIRLA
   };
 
-  // Quiz sayfasını render et
   const renderQuizScreen = () => {
-    console.log("📝 Quiz render:", quizType); // DEBUG
+    console.log("📝 Quiz render:", quizType);
+    
+    // 🔥 EĞER QUIZTYPE NULL İSE QUIZSCREEN GÖSTER
+    if (!quizType) {
+      return (
+        <QuizScreen 
+          onStartQuiz={(type) => {
+            console.log("🎯 Quiz başlatılıyor:", type);
+            handleNavigate("quiz", type);
+          }} 
+          onBack={handleBackToHome}
+        />
+      );
+    }
     
     if (quizType === "word") {
       return <WordQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
@@ -53,19 +69,7 @@ export default function App() {
       return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     }
     
-    // quizType null ise QuizScreen göster
-    return (
-      <QuizScreen 
-        onStartQuiz={(type) => {
-          console.log("🎯 Quiz başlatılıyor:", type); // DEBUG
-          handleNavigate("quiz", type);
-        }} 
-        onBack={() => {
-          console.log("⬅️ Geri dönüldü"); // DEBUG
-          handleBackToHome();
-        }}
-      />
-    );
+    return null;
   };
 
   return (
@@ -80,7 +84,7 @@ export default function App() {
       {currentScreen === "home" && (
         <HomeScreen 
           onStartQuiz={(type) => {
-            console.log("🏠 Home'dan quiz başlatılıyor:", type); // DEBUG
+            console.log("🏠 Home'dan quiz başlatılıyor:", type);
             handleNavigate("quiz", type);
           }} 
         />

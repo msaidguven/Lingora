@@ -35,6 +35,20 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
 
   const isActive = (key) => currentScreen === key;
 
+  // Quiz aktifken özel label gösterimi
+  const getQuizLabel = () => {
+    if (quizType === "word") return "📖 KELİME";
+    if (quizType === "sentence") return "📝 CÜMLE";
+    return "QUIZ";
+  };
+
+  // Quiz aktifken özel ikon gösterimi
+  const getQuizIcon = () => {
+    if (quizType === "word") return "ti-book";
+    if (quizType === "sentence") return "ti-message";
+    return "ti-tournament";
+  };
+
   return (
     <div style={{
       background: "#0d0d1a",
@@ -58,8 +72,6 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
           <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e2f0", letterSpacing: "-0.3px" }}>
             {user?.username || "Öğrenci"}
           </div>
-          
-          {/* HATA BURADAYDI: Açılış <a> etiketi eklendi */}
           <a
             href="https://lingora-phi.vercel.app/admin"
             style={{ fontSize: 10, color: "#4a4a6a", textDecoration: "none", letterSpacing: "0.3px", display: "flex", alignItems: "center", gap: 3 }}
@@ -82,10 +94,23 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
         }}>
           {NAV_ITEMS.map(({ key, icon, label }) => {
             const active = isActive(key);
+            
+            // Quiz butonu özel durumu
+            const isQuiz = key === "quiz";
+            const displayIcon = isQuiz && active ? getQuizIcon() : icon;
+            const displayLabel = isQuiz && active ? getQuizLabel() : label;
+            
             return (
               <button
                 key={key}
-                onClick={() => onNavigate(key)}
+                onClick={() => {
+                  // Quiz butonuna tıklandığında quizType'ı sıfırla
+                  if (key === "quiz") {
+                    onNavigate(key, null);
+                  } else {
+                    onNavigate(key);
+                  }
+                }}
                 style={{
                   flex: 1,
                   border: "none",
@@ -101,8 +126,8 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
                   transition: "background 0.15s, color 0.15s",
                 }}
               >
-                <i className={`ti ${icon}`} style={{ fontSize: 17 }} aria-hidden="true" />
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.5px" }}>{label}</span>
+                <i className={`ti ${displayIcon}`} style={{ fontSize: 17 }} aria-hidden="true" />
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.5px" }}>{displayLabel}</span>
               </button>
             );
           })}
