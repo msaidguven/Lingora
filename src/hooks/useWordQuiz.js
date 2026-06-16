@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
+import { updateDailyStats } from "../utils/dailyStats.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
@@ -154,8 +155,11 @@ const saveWordResult = async (wordId, isCorrect) => {
     setAnswered(true);
     setSaving(true);
     
-    // SADECE kelime sonucunu kaydet (en_user_words)
+    // Kelime sonucunu kaydet
     await saveWordResult(currentQuestion.id, isCorrect);
+
+    // 🆕 Günlük istatistiği güncelle
+    await updateDailyStats('word', isCorrect);
     
     setSaving(false);
     onComplete(isCorrect);

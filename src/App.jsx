@@ -5,6 +5,8 @@ import HomeScreen from "./HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen.jsx";
+import DashboardScreen from "./components/Dashboard/DashboardScreen.jsx";
+import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
@@ -44,7 +46,7 @@ export default function App() {
     } else if (quizType === "sentence") {
       return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     }
-    return null;
+    return <QuizScreen />; // Boş QuizScreen
   };
 
   return (
@@ -53,7 +55,7 @@ export default function App() {
         currentScreen={currentScreen} 
         onNavigate={handleNavigate} 
         userLevel={userLevel}
-        quizType={quizType} // Header'a quizType'ı gönder
+        quizType={quizType}
       />
       
       {currentScreen === "home" && (
@@ -61,6 +63,8 @@ export default function App() {
           onStartQuiz={(type) => handleNavigate("quiz", type)} 
         />
       )}
+      
+      {currentScreen === "dashboard" && <DashboardScreen />}
       
       {currentScreen === "quiz" && renderQuizScreen()}
       

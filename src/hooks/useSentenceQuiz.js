@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { updateDailyStats } from "../utils/dailyStats.js";
 import { supabase } from "../config.js";
 import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
 
@@ -132,14 +133,18 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
 
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
-    const correctAnswer = currentQuestion.sentence_tr;
-    const isCorrect = opt === correctAnswer;
+    
+    const isCorrect = opt === currentQuestion.sentence_tr;
     
     setSelected(opt);
     setAnswered(true);
     setSaving(true);
     
     await saveSentenceResult(currentQuestion.id, isCorrect);
+    
+    // 🆕 Günlük istatistiği güncelle
+    await updateDailyStats('sentence', isCorrect);
+    
     setSaving(false);
     onComplete(isCorrect);
   };

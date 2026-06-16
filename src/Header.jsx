@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
-// Renk tonları StatsScreen ile uyumlu olacak şekilde hafifçe parlatıldı
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#fb923c" };
 
 export default function Header({ currentScreen, onNavigate, userLevel, quizType = null }) {
@@ -22,14 +21,12 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
     if (data) setUser(data);
   };
 
-  // Quiz tipine göre başlık belirleme
   const getQuizTitle = () => {
     if (quizType === "word") return "📖 Kelime";
     if (quizType === "sentence") return "📝 Cümle";
     return "📝 Quiz";
   };
 
-  // Hangi butonun aktif olduğunu belirleme
   const isActive = (screen) => {
     if (screen === "quiz" && currentScreen === "quiz") return true;
     return currentScreen === screen;
@@ -56,7 +53,7 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
         gap: 12
       }}>
         
-        {/* Sol Kısım: Kullanıcı Bilgisi ve Admin Paneli */}
+        {/* Sol Kısım: Kullanıcı Bilgisi */}
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#ffffff", letterSpacing: "-0.2px" }}>
             {user?.username || "Öğrenci"}
@@ -78,7 +75,7 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
           </div>
         </div>
         
-        {/* Orta Kısım: Modern Navigasyon Butonları */}
+        {/* Orta Kısım: Navigasyon Butonları */}
         <div style={{ 
           display: "flex", 
           background: "#131324", 
@@ -108,7 +105,27 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
             <span>🏠</span> {isActive("home") && "Ana Sayfa"}
           </button>
           
-          {/* Quiz Butonu - Aktifken tipini göster */}
+          <button
+            onClick={() => onNavigate("dashboard")}
+            style={{
+              background: isActive("dashboard") ? levelColor : "transparent",
+              border: "none",
+              borderRadius: 9,
+              padding: "6px 10px",
+              color: isActive("dashboard") ? "#ffffff" : "#64748b",
+              fontSize: 12,
+              cursor: "pointer",
+              fontWeight: 600,
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              whiteSpace: "nowrap"
+            }}
+          >
+            <span>📊</span> {isActive("dashboard") && "Dashboard"}
+          </button>
+          
           <button
             onClick={() => onNavigate("quiz")}
             style={{
@@ -128,7 +145,7 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
             }}
           >
             <span>{isActive("quiz") && quizType === "word" ? "📖" : 
-                   isActive("quiz") && quizType === "sentence" ? "📝" : "📝"}</span> 
+                   isActive("quiz") && quizType === "sentence" ? "📝" : "🎯"}</span> 
             {isActive("quiz") ? getQuizTitle() : "Quiz"}
           </button>
           
@@ -150,11 +167,11 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
               whiteSpace: "nowrap"
             }}
           >
-            <span>📊</span> {isActive("stats") && "İstatistik"}
+            <span>📈</span> {isActive("stats") && "İstatistik"}
           </button>
         </div>
         
-        {/* Sağ Kısım: Premium Streak Göstergesi */}
+        {/* Sağ Kısım: Streak */}
         <div style={{ 
           display: "flex", 
           alignItems: "center", 
