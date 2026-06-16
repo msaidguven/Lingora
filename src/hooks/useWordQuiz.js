@@ -72,6 +72,7 @@ export function useWordQuiz(userLevel) {
           }
         }
       } catch (err) {
+        console.error("Veri yükleme hatası:", err);
         setError("Veriler yüklenemedi.");
       } finally {
         setLoading(false);
@@ -82,7 +83,7 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [userLevel]);
 
-  // Şıkları oluştur
+  // Şıkları oluştur - HER SEFERİNDE FARKLI!
   useEffect(() => {
     if (!currentQuestion) return;
     setOptions(buildWordOptions(currentQuestion, allCards, choiceCount));
@@ -90,20 +91,27 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allCards, choiceCount]);
 
+  // Kelime sonucunu kaydet - SADECE en_user_words GÜNCELLENİR
   const saveWordResult = async (wordId, isCorrect) => {
     const now = new Date();
     let nextReviewDate = new Date();
     
-    const { data: existing } = await supabase
+    const { data: existing, error } = await supabase
       .from("en_user_words")
       .select("id, review_count")
       .eq("user_id", FIXED_USER_ID)
       .eq("word_id", wordId)
       .single();
     
+    if (error) {
+      console.error("Kelime bulunamadı:", error);
+      return;
+    }
+    
     if (isCorrect) {
       const newReviewCount = (existing?.review_count || 0) + 1;
       
+      // Doğru cevap: Tekrar aralığını uzat
       if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
       else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
       else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
@@ -114,83 +122,53 @@ export function useWordQuiz(userLevel) {
       else if (newReviewCount === 8) nextReviewDate.setDate(now.getDate() + 120);
       else nextReviewDate.setDate(now.getDate() + 180);
       
-      if (existing) {
-        await supabase
-          .from("en_user_words")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: newReviewCount,
-            last_score: 100,
-            last_reviewed_at: now.toISOString(),
-            mastery_level: Math.min(newReviewCount, 9),
-            is_mastered: newReviewCount >= 9
-          })
-          .eq("id", existing.id);
-      }
+      await supabase
+        .from("en_user_words")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: newReviewCount,
+          last_score: 100,
+          last_reviewed_at: now.toISOString(),
+          mastery_level: Math.min(newReviewCount, 9),
+          is_mastered: newReviewCount >= 9
+        })
+        .eq("id", existing.id);
     } else {
+      // Yanlış cevap: 3 saat sonra tekrar göster
       nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
       
-      if (existing) {
-        await supabase
-          .from("en_user_words")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: 0,
-            last_score: 0,
-            last_reviewed_at: now.toISOString(),
-            mastery_level: 0,
-            is_mastered: false
-          })
-          .eq("id", existing.id);
-      }
+      await supabase
+        .from("en_user_words")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: 0,  // Sıfırla!
+          last_score: 0,
+          last_reviewed_at: now.toISOString(),
+          mastery_level: 0,
+          is_mastered: false
+        })
+        .eq("id", existing.id);
     }
   };
 
+  // Cevap seçildiğinde
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
-    const correctAnswer = currentQuestion.meaning;
-    const isCorrect = opt === correctAnswer;
+    
+    const isCorrect = opt === currentQuestion.meaning;
     
     setSelected(opt);
     setAnswered(true);
     setSaving(true);
     
-    // Quiz attempt kaydet
-    let { data: quizQuestion } = await supabase
-      .from("en_quiz_questions")
-      .select("id")
-      .eq("word_id", currentQuestion.id)
-      .maybeSingle();
-    
-    if (!quizQuestion) {
-      const { data: newQuestion } = await supabase
-        .from("en_quiz_questions")
-        .insert({
-          word_id: currentQuestion.id,
-          question_text: `${currentQuestion.word} kelimesinin Türkçesi nedir?`,
-          options: buildWordOptions(currentQuestion, allCards, choiceCount),
-          correct_answer: currentQuestion.meaning,
-          difficulty: 1
-        })
-        .select()
-        .single();
-      quizQuestion = newQuestion;
-    }
-    
-    if (quizQuestion) {
-      await supabase.from("en_user_quiz_attempts").insert({
-        user_id: FIXED_USER_ID,
-        question_id: quizQuestion.id,
-        user_answer: opt,
-        is_correct: isCorrect
-      });
-    }
-    
+    // SADECE kelime sonucunu kaydet (en_user_words)
     await saveWordResult(currentQuestion.id, isCorrect);
+    
     setSaving(false);
     onComplete(isCorrect);
   };
 
+  // Sonraki soruya geç
   const handleNext = () => {
     if (saving) return;
     const nextIndex = queueIndex + 1;
@@ -205,6 +183,7 @@ export function useWordQuiz(userLevel) {
     }
   };
 
+  // Hook'tan dönen değerler
   return {
     loading,
     error,
@@ -219,6 +198,7 @@ export function useWordQuiz(userLevel) {
     handleSelect,
     handleNext,
     setSelected,
-    setAnswered
+    setAnswered,
+    setExamplesMap
   };
 }
