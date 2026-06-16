@@ -1,4 +1,6 @@
-export default function QuizScreen() {
+import { useNavigate } from "react-router-dom";
+
+export default function QuizScreen({ onStartQuiz }) {
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -8,23 +10,140 @@ export default function QuizScreen() {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      padding: "20px"
+      padding: "20px",
+      fontFamily: "'Inter', system-ui, sans-serif"
     }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Quiz</h1>
-      <p style={{ fontSize: 14, color: "#64748b", textAlign: "center", maxWidth: 400 }}>
-        Bu sayfa şu anda geliştirme aşamasında.
-        <br />
-        Yakında burada özel quiz'ler olacak!
-      </p>
+      
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Quiz</h1>
+        <p style={{ fontSize: 14, color: "#64748b" }}>
+          Hangi quiz'e başlamak istersin?
+        </p>
+      </div>
+
+      {/* Butonlar */}
       <div style={{ 
-        marginTop: 20,
-        background: "#1a1a2e",
-        padding: "12px 24px",
-        borderRadius: 12,
-        border: "1px solid #1e293b"
+        display: "flex", 
+        flexDirection: "column", 
+        gap: 14, 
+        width: "100%", 
+        maxWidth: 320 
       }}>
-        <span style={{ fontSize: 12, color: "#64748b" }}>🚧 Yapım Aşaması</span>
+        {/* Kelime Quiz Butonu */}
+        <button 
+          onClick={() => onStartQuiz("word")}
+          style={{ 
+            padding: "20px", 
+            borderRadius: 16, 
+            border: "none", 
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)", 
+            color: "#fff", 
+            fontSize: 17, 
+            fontWeight: 700, 
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)"
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = "scale(1.02)";
+            e.target.style.boxShadow = "0 6px 25px rgba(99, 102, 241, 0.4)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = "scale(1)";
+            e.target.style.boxShadow = "0 4px 15px rgba(99, 102, 241, 0.3)";
+          }}
+        >
+          <span style={{ fontSize: 24 }}>📖</span>
+          <div style={{ textAlign: "left" }}>
+            <div>Kelime Quiz</div>
+            <div style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
+              Kelime tekrarı ve öğrenme
+            </div>
+          </div>
+          <span style={{ fontSize: 20, marginLeft: "auto" }}>→</span>
+        </button>
+
+        {/* Cümle Quiz Butonu */}
+        <button 
+          onClick={() => onStartQuiz("sentence")}
+          style={{ 
+            padding: "20px", 
+            borderRadius: 16, 
+            border: "none", 
+            background: "linear-gradient(135deg, #3b82f6, #6366f1)", 
+            color: "#fff", 
+            fontSize: 17, 
+            fontWeight: 700, 
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)"
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = "scale(1.02)";
+            e.target.style.boxShadow = "0 6px 25px rgba(59, 130, 246, 0.4)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = "scale(1)";
+            e.target.style.boxShadow = "0 4px 15px rgba(59, 130, 246, 0.3)";
+          }}
+        >
+          <span style={{ fontSize: 24 }}>📝</span>
+          <div style={{ textAlign: "left" }}>
+            <div>Cümle Quiz</div>
+            <div style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
+              Cümle tekrarı ve öğrenme
+            </div>
+          </div>
+          <span style={{ fontSize: 20, marginLeft: "auto" }}>→</span>
+        </button>
+
+        {/* Geri Dön Butonu */}
+        <button 
+          onClick={() => window.history.back()}
+          style={{ 
+            padding: "12px", 
+            borderRadius: 12, 
+            border: "1px solid #1e293b", 
+            background: "transparent", 
+            color: "#64748b", 
+            fontSize: 14, 
+            fontWeight: 500, 
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            marginTop: 8
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.color = "#e2e8f0";
+            e.target.style.borderColor = "#6366f1";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.color = "#64748b";
+            e.target.style.borderColor = "#1e293b";
+          }}
+        >
+          ← Geri Dön
+        </button>
+      </div>
+
+      {/* Alt Bilgi */}
+      <div style={{ 
+        marginTop: 40, 
+        fontSize: 12, 
+        color: "#475569",
+        textAlign: "center",
+        maxWidth: 300
+      }}>
+        💡 Kelime ve cümle tekrarları spaced repetition yöntemi ile yapılır.
       </div>
     </div>
   );
