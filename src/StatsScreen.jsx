@@ -26,7 +26,7 @@ export default function StatsScreen({ userLevel }) {
   const fetchStats = async () => {
     setLoading(true);
     
-    // 1. Kullanıcının kelimelerini al
+    // Kullanıcının kelimelerini ve istatistiklerini al
     const { data: userWords } = await supabase
       .from("en_user_words")
       .select(`
@@ -34,6 +34,8 @@ export default function StatsScreen({ userLevel }) {
         review_count,
         mastery_level,
         is_mastered,
+        total_correct,
+        total_wrong,
         en_words (word, meaning)
       `)
       .eq("user_id", FIXED_USER_ID);
@@ -44,68 +46,29 @@ export default function StatsScreen({ userLevel }) {
       return;
     }
     
-    // 2. Tüm quiz sorularını ve cevaplarını al
-    const wordIds = userWords.map(uw => uw.word_id).filter(Boolean);
-    
-    const { data: quizQuestions } = await supabase
-      .from("en_quiz_questions")
-      .select("id, word_id")
-      .in("word_id", wordIds);
-    
-    const questionIds = quizQuestions?.map(q => q.id) || [];
-    
-    let attemptsMap = {};
-    if (questionIds.length > 0) {
-      const { data: allAttempts } = await supabase
-        .from("en_user_quiz_attempts")
-        .select("is_correct, question_id")
-        .eq("user_id", FIXED_USER_ID)
-        .in("question_id", questionIds);
-      
-      // Soru ID -> kelime ID map'i
-      const questionToWord = {};
-      quizQuestions.forEach(q => {
-        questionToWord[q.id] = q.word_id;
-      });
-      
-      // Kelime bazında doğru/yanlış say
-      allAttempts?.forEach(attempt => {
-        const wordId = questionToWord[attempt.question_id];
-        if (wordId) {
-          if (!attemptsMap[wordId]) {
-            attemptsMap[wordId] = { correct: 0, wrong: 0 };
-          }
-          if (attempt.is_correct) {
-            attemptsMap[wordId].correct++;
-          } else {
-            attemptsMap[wordId].wrong++;
-          }
-        }
-      });
-    }
-    
-    // 3. Sonuçları düzenle
+    // Sonuçları düzenle
     const wordsWithStats = userWords
-      .filter(uw => uw.en_words)
+      .filter(uw => uw.en_words) // en_words ilişkisi var mı kontrol et
       .map(uw => {
-        const stats = attemptsMap[uw.word_id] || { correct: 0, wrong: 0 };
-        const totalAttempts = stats.correct + stats.wrong;
-        const accuracy = totalAttempts > 0 ? Math.round((stats.correct / totalAttempts) * 100) : 0;
-        
-        // TOPLAM TEKRAR = doğru + yanlış
-        const totalReviews = stats.correct + stats.wrong;
+        const totalCorrect = uw.total_correct || 0;
+        const totalWrong = uw.total_wrong || 0;
+        const totalReviews = totalCorrect + totalWrong;
+        const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
         
         return {
           word: uw.en_words.word,
           meaning: uw.en_words.meaning,
-          totalReviews: totalReviews,  // TOPLAM TEKRAR
+          totalReviews: totalReviews,
+          totalCorrect: totalCorrect,
+          totalWrong: totalWrong,
+          accuracy: accuracy,
           masteryLevel: uw.mastery_level || 0,
-          isMastered: uw.is_mastered || false,
-          totalCorrect: stats.correct,
-          totalWrong: stats.wrong,
-          accuracy: accuracy
+          isMastered: uw.is_mastered || false
         };
       });
+    
+    // Başarı oranına göre sırala (en yüksekten en düşüğe)
+    wordsWithStats.sort((a, b) => b.accuracy - a.accuracy);
     
     setLearnedWords(wordsWithStats);
     setLoading(false);
@@ -253,7 +216,7 @@ export default function StatsScreen({ userLevel }) {
                     </div>
                   </div>
 
-                  {/* Mini İlerleme Çubuğu (Görsel Zenginlik İçin) */}
+                  {/* Mini İlerleme Çubuğu */}
                   <div style={{ width: "100%", height: 4, background: "#1a1a30", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ 
                       width: `${item.accuracy}%`, 

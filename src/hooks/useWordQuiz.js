@@ -92,64 +92,57 @@ export function useWordQuiz(userLevel) {
   }, [currentQuestion, allCards, choiceCount]);
 
   // Kelime sonucunu kaydet - SADECE en_user_words GÜNCELLENİR
-  const saveWordResult = async (wordId, isCorrect) => {
-    const now = new Date();
-    let nextReviewDate = new Date();
+  // useWordQuiz.js - saveWordResult
+const saveWordResult = async (wordId, isCorrect) => {
+  const now = new Date();
+  let nextReviewDate = new Date();
+  
+  const { data: existing } = await supabase
+    .from("en_user_words")
+    .select("id, review_count, total_correct, total_wrong")
+    .eq("user_id", FIXED_USER_ID)
+    .eq("word_id", wordId)
+    .single();
+  
+  if (isCorrect) {
+    const newReviewCount = (existing?.review_count || 0) + 1;
+    const newTotalCorrect = (existing?.total_correct || 0) + 1;
     
-    const { data: existing, error } = await supabase
+    // Tekrar aralığını hesapla...
+    if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+    else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+    // ... devamı
+    
+    await supabase
       .from("en_user_words")
-      .select("id, review_count")
-      .eq("user_id", FIXED_USER_ID)
-      .eq("word_id", wordId)
-      .single();
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: newReviewCount,
+        total_correct: newTotalCorrect,     // ⬅️ YENİ
+        last_score: 100,
+        last_reviewed_at: now.toISOString(),
+        mastery_level: Math.min(newReviewCount, 9),
+        is_mastered: newReviewCount >= 9
+      })
+      .eq("id", existing.id);
+  } else {
+    const newTotalWrong = (existing?.total_wrong || 0) + 1;
+    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
     
-    if (error) {
-      console.error("Kelime bulunamadı:", error);
-      return;
-    }
-    
-    if (isCorrect) {
-      const newReviewCount = (existing?.review_count || 0) + 1;
-      
-      // Doğru cevap: Tekrar aralığını uzat
-      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-      else if (newReviewCount === 4) nextReviewDate.setDate(now.getDate() + 14);
-      else if (newReviewCount === 5) nextReviewDate.setDate(now.getDate() + 30);
-      else if (newReviewCount === 6) nextReviewDate.setDate(now.getDate() + 60);
-      else if (newReviewCount === 7) nextReviewDate.setDate(now.getDate() + 90);
-      else if (newReviewCount === 8) nextReviewDate.setDate(now.getDate() + 120);
-      else nextReviewDate.setDate(now.getDate() + 180);
-      
-      await supabase
-        .from("en_user_words")
-        .update({
-          next_review_at: nextReviewDate.toISOString(),
-          review_count: newReviewCount,
-          last_score: 100,
-          last_reviewed_at: now.toISOString(),
-          mastery_level: Math.min(newReviewCount, 9),
-          is_mastered: newReviewCount >= 9
-        })
-        .eq("id", existing.id);
-    } else {
-      // Yanlış cevap: 3 saat sonra tekrar göster
-      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-      
-      await supabase
-        .from("en_user_words")
-        .update({
-          next_review_at: nextReviewDate.toISOString(),
-          review_count: 0,  // Sıfırla!
-          last_score: 0,
-          last_reviewed_at: now.toISOString(),
-          mastery_level: 0,
-          is_mastered: false
-        })
-        .eq("id", existing.id);
-    }
-  };
+    await supabase
+      .from("en_user_words")
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: 0,
+        total_wrong: newTotalWrong,        // ⬅️ YENİ
+        last_score: 0,
+        last_reviewed_at: now.toISOString(),
+        mastery_level: 0,
+        is_mastered: false
+      })
+      .eq("id", existing.id);
+  }
+};
 
   // Cevap seçildiğinde
   const handleSelect = async (opt, onComplete) => {
