@@ -1,0 +1,224 @@
+import { useState, useEffect } from "react";
+import { supabase } from "../config.js";
+import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
+
+const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+
+export function useWordQuiz(userLevel) {
+  const [allCards, setAllCards] = useState([]);
+  const [examplesMap, setExamplesMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [options, setOptions] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [answered, setAnswered] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
+
+  // Verileri yükle
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: userWords, error: uwError } = await supabase
+          .from("en_user_words")
+          .select("word_id, next_review_at")
+          .eq("user_id", FIXED_USER_ID)
+          .lt("next_review_at", new Date().toISOString());
+        
+        if (uwError) throw uwError;
+        
+        if (!userWords || userWords.length === 0) {
+          setQueue([]);
+          setCurrentQuestion(null);
+          setLoading(false);
+          return;
+        }
+        
+        const wordIds = userWords.map(w => w.word_id);
+        
+        const { data: words, error: wError } = await supabase
+          .from("en_words")
+          .select("*")
+          .in("id", wordIds);
+        
+        if (wError) throw wError;
+        
+        setAllCards(words || []);
+        const shuffledQueue = shuffle(words || []);
+        setQueue(shuffledQueue);
+        setCurrentQuestion(shuffledQueue[0] || null);
+        setQueueIndex(0);
+        
+        if (words && words.length > 0) {
+          const { data: examples } = await supabase
+            .from("en_example_sentences")
+            .select("*")
+            .in("word_id", wordIds)
+            .order("order_index");
+          
+          if (examples) {
+            const map = {};
+            examples.forEach(ex => {
+              if (!map[ex.word_id]) map[ex.word_id] = [];
+              map[ex.word_id].push(ex);
+            });
+            setExamplesMap(map);
+          }
+        }
+      } catch (err) {
+        setError("Veriler yüklenemedi.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+    setSelected(null);
+    setAnswered(false);
+  }, [userLevel]);
+
+  // Şıkları oluştur
+  useEffect(() => {
+    if (!currentQuestion) return;
+    setOptions(buildWordOptions(currentQuestion, allCards, choiceCount));
+    setSelected(null);
+    setAnswered(false);
+  }, [currentQuestion, allCards, choiceCount]);
+
+  const saveWordResult = async (wordId, isCorrect) => {
+    const now = new Date();
+    let nextReviewDate = new Date();
+    
+    const { data: existing } = await supabase
+      .from("en_user_words")
+      .select("id, review_count")
+      .eq("user_id", FIXED_USER_ID)
+      .eq("word_id", wordId)
+      .single();
+    
+    if (isCorrect) {
+      const newReviewCount = (existing?.review_count || 0) + 1;
+      
+      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+      else if (newReviewCount === 4) nextReviewDate.setDate(now.getDate() + 14);
+      else if (newReviewCount === 5) nextReviewDate.setDate(now.getDate() + 30);
+      else if (newReviewCount === 6) nextReviewDate.setDate(now.getDate() + 60);
+      else if (newReviewCount === 7) nextReviewDate.setDate(now.getDate() + 90);
+      else if (newReviewCount === 8) nextReviewDate.setDate(now.getDate() + 120);
+      else nextReviewDate.setDate(now.getDate() + 180);
+      
+      if (existing) {
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: newReviewCount,
+            last_score: 100,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: Math.min(newReviewCount, 9),
+            is_mastered: newReviewCount >= 9
+          })
+          .eq("id", existing.id);
+      }
+    } else {
+      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      
+      if (existing) {
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: 0,
+            last_score: 0,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: 0,
+            is_mastered: false
+          })
+          .eq("id", existing.id);
+      }
+    }
+  };
+
+  const handleSelect = async (opt, onComplete) => {
+    if (answered || saving || !currentQuestion) return;
+    const correctAnswer = currentQuestion.meaning;
+    const isCorrect = opt === correctAnswer;
+    
+    setSelected(opt);
+    setAnswered(true);
+    setSaving(true);
+    
+    // Quiz attempt kaydet
+    let { data: quizQuestion } = await supabase
+      .from("en_quiz_questions")
+      .select("id")
+      .eq("word_id", currentQuestion.id)
+      .maybeSingle();
+    
+    if (!quizQuestion) {
+      const { data: newQuestion } = await supabase
+        .from("en_quiz_questions")
+        .insert({
+          word_id: currentQuestion.id,
+          question_text: `${currentQuestion.word} kelimesinin Türkçesi nedir?`,
+          options: buildWordOptions(currentQuestion, allCards, choiceCount),
+          correct_answer: currentQuestion.meaning,
+          difficulty: 1
+        })
+        .select()
+        .single();
+      quizQuestion = newQuestion;
+    }
+    
+    if (quizQuestion) {
+      await supabase.from("en_user_quiz_attempts").insert({
+        user_id: FIXED_USER_ID,
+        question_id: quizQuestion.id,
+        user_answer: opt,
+        is_correct: isCorrect
+      });
+    }
+    
+    await saveWordResult(currentQuestion.id, isCorrect);
+    setSaving(false);
+    onComplete(isCorrect);
+  };
+
+  const handleNext = () => {
+    if (saving) return;
+    const nextIndex = queueIndex + 1;
+    if (nextIndex >= queue.length) {
+      return null; // Kuyruk bitti
+    } else {
+      setQueueIndex(nextIndex);
+      setCurrentQuestion(queue[nextIndex]);
+      setSelected(null);
+      setAnswered(false);
+      return queue[nextIndex];
+    }
+  };
+
+  return {
+    loading,
+    error,
+    currentQuestion,
+    options,
+    selected,
+    answered,
+    saving,
+    queue,
+    queueIndex,
+    examplesMap,
+    handleSelect,
+    handleNext,
+    setSelected,
+    setAnswered
+  };
+}

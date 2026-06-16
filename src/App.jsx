@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 import Header from "./Header.jsx";
 import HomeScreen from "./HomeScreen.jsx";
-import QuizScreen from "./QuizScreen.jsx";
+import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
+import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen.jsx";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
@@ -10,6 +11,7 @@ const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
+  const [quizType, setQuizType] = useState(null); // "word" veya "sentence"
 
   useEffect(() => {
     const fetchUserLevel = async () => {
@@ -23,8 +25,26 @@ export default function App() {
     fetchUserLevel();
   }, []);
 
-  const handleNavigate = (screen) => {
+  const handleNavigate = (screen, type = null) => {
+    if (type) {
+      setQuizType(type);
+    }
     setCurrentScreen(screen);
+  };
+
+  const handleBackToHome = () => {
+    setCurrentScreen("home");
+    setQuizType(null);
+  };
+
+  // Hangi quiz sayfasını göstereceğini belirle
+  const renderQuizScreen = () => {
+    if (quizType === "word") {
+      return <WordQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
+    } else if (quizType === "sentence") {
+      return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
+    }
+    return null;
   };
 
   return (
@@ -35,8 +55,14 @@ export default function App() {
         userLevel={userLevel}
       />
       
-      {currentScreen === "home" && <HomeScreen onStartQuiz={() => handleNavigate("quiz")} />}
-      {currentScreen === "quiz" && <QuizScreen userLevel={userLevel} onChangeLevel={() => handleNavigate("home")} />}
+      {currentScreen === "home" && (
+        <HomeScreen 
+          onStartQuiz={(type) => handleNavigate("quiz", type)} 
+        />
+      )}
+      
+      {currentScreen === "quiz" && renderQuizScreen()}
+      
       {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
     </div>
   );
