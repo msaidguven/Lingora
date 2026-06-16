@@ -128,6 +128,34 @@ export default function DashboardScreen() {
     return total > 0 ? Math.round((correct / total) * 100) : 0;
   };
 
+  // Doğru/yanlış sayısını rozet (chip) olarak gösteren küçük yardımcı bileşen.
+  // "x3" gibi çarpma işlemiyle karışmaması için ikon ile sayı arasına net boşluk,
+  // hafif arka plan ve renkli kenarlık eklenir.
+  const StatChip = ({ icon, value, variant, size = 13 }) => {
+    const palette = variant === "correct"
+      ? { bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.35)", color: "#34d399" }
+      : { bg: "rgba(239, 68, 68, 0.14)", border: "rgba(239, 68, 68, 0.4)", color: "#f87171" };
+
+    return (
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 7px",
+        borderRadius: 999,
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        fontSize: size,
+        fontWeight: 700,
+        color: palette.color,
+        lineHeight: 1.4
+      }}>
+        <span style={{ fontSize: size - 1 }}>{icon}</span>
+        <span>{value}</span>
+      </span>
+    );
+  };
+
   return (
     <div style={{ 
       background: "#0b0b14", 
@@ -169,9 +197,9 @@ export default function DashboardScreen() {
                 marginBottom: 6
               }}>
                 <span style={{ fontSize: 13, color: "#94a3b8" }}>📖 Kelime</span>
-                <div style={{ display: "flex", gap: 12, fontSize: 13 }}>
-                  <span style={{ color: "#10b981" }}>✅ {todayStats.word_correct || 0}</span>
-                  <span style={{ color: "#ef4444" }}>❌ {todayStats.word_wrong || 0}</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                  <StatChip icon="✅" value={todayStats.word_correct || 0} variant="correct" />
+                  <StatChip icon="❌" value={todayStats.word_wrong || 0} variant="wrong" />
                   <span style={{ 
                     color: getTodayAccuracy(todayStats.word_correct, todayStats.word_wrong) >= 70 ? "#10b981" : "#f59e0b", 
                     fontWeight: 700 
@@ -192,9 +220,9 @@ export default function DashboardScreen() {
                 marginBottom: 8
               }}>
                 <span style={{ fontSize: 13, color: "#94a3b8" }}>📝 Cümle</span>
-                <div style={{ display: "flex", gap: 12, fontSize: 13 }}>
-                  <span style={{ color: "#10b981" }}>✅ {todayStats.sentence_correct || 0}</span>
-                  <span style={{ color: "#ef4444" }}>❌ {todayStats.sentence_wrong || 0}</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                  <StatChip icon="✅" value={todayStats.sentence_correct || 0} variant="correct" />
+                  <StatChip icon="❌" value={todayStats.sentence_wrong || 0} variant="wrong" />
                   <span style={{ 
                     color: getTodayAccuracy(todayStats.sentence_correct, todayStats.sentence_wrong) >= 70 ? "#10b981" : "#f59e0b", 
                     fontWeight: 700 
@@ -214,9 +242,9 @@ export default function DashboardScreen() {
                 alignItems: "center"
               }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#f8fafc" }}>📊 Toplam</span>
-                <div style={{ display: "flex", gap: 12, fontSize: 13, fontWeight: 600 }}>
-                  <span style={{ color: "#10b981" }}>✅ {todayStats.total_correct || 0}</span>
-                  <span style={{ color: "#ef4444" }}>❌ {todayStats.total_wrong || 0}</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 600 }}>
+                  <StatChip icon="✅" value={todayStats.total_correct || 0} variant="correct" />
+                  <StatChip icon="❌" value={todayStats.total_wrong || 0} variant="wrong" />
                   <span style={{ color: "#f59e0b" }}>🎯 %{todayStats.accuracy || 0}</span>
                 </div>
               </div>
@@ -244,8 +272,9 @@ export default function DashboardScreen() {
               </span>
               <span style={{ fontSize: 12, color: "#64748b" }}>başarı</span>
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-              ✅ {summary.wordTotalCorrect} / ❌ {summary.wordTotalWrong}
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <StatChip icon="✅" value={summary.wordTotalCorrect} variant="correct" size={11} />
+              <StatChip icon="❌" value={summary.wordTotalWrong} variant="wrong" size={11} />
             </div>
           </div>
           
@@ -263,8 +292,9 @@ export default function DashboardScreen() {
               </span>
               <span style={{ fontSize: 12, color: "#64748b" }}>başarı</span>
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-              ✅ {summary.sentenceTotalCorrect} / ❌ {summary.sentenceTotalWrong}
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <StatChip icon="✅" value={summary.sentenceTotalCorrect} variant="correct" size={11} />
+              <StatChip icon="❌" value={summary.sentenceTotalWrong} variant="wrong" size={11} />
             </div>
           </div>
         </div>
@@ -279,21 +309,15 @@ export default function DashboardScreen() {
         }}>
           <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>📊 Genel Toplam</div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>{summary.totalCorrect}</span>
-                <span style={{ fontSize: 11, color: "#64748b", marginLeft: 2 }}>✅</span>
-              </div>
-              <div>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#ef4444" }}>{summary.totalWrong}</span>
-                <span style={{ fontSize: 11, color: "#64748b", marginLeft: 2 }}>❌</span>
-              </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <StatChip icon="✅" value={summary.totalCorrect} variant="correct" size={16} />
+              <StatChip icon="❌" value={summary.totalWrong} variant="wrong" size={16} />
             </div>
             <div>
               <span style={{ fontSize: 24, fontWeight: 800, color: "#f59e0b" }}>%{summary.accuracy}</span>
             </div>
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
             {summary.totalAttempts} toplam çözüm
           </div>
         </div>
@@ -307,8 +331,9 @@ export default function DashboardScreen() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#10b981" }}>
                   {formatDate(summary.bestDay.stat_date)}
                 </div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  ✅ {summary.bestDay.total_correct} / ❌ {summary.bestDay.total_wrong}
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  <StatChip icon="✅" value={summary.bestDay.total_correct} variant="correct" size={11} />
+                  <StatChip icon="❌" value={summary.bestDay.total_wrong} variant="wrong" size={11} />
                 </div>
               </>
             ) : (
@@ -322,8 +347,9 @@ export default function DashboardScreen() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>
                   {formatDate(summary.worstDay.stat_date)}
                 </div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  ✅ {summary.worstDay.total_correct} / ❌ {summary.worstDay.total_wrong}
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  <StatChip icon="✅" value={summary.worstDay.total_correct} variant="correct" size={11} />
+                  <StatChip icon="❌" value={summary.worstDay.total_wrong} variant="wrong" size={11} />
                 </div>
               </>
             ) : (
@@ -400,17 +426,23 @@ export default function DashboardScreen() {
                         </td>
                         <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 11 }}>
                           {wordTotal > 0 ? (
-                            <span style={{ color: getColor(wordAcc) }}>
-                              ✅{day.word_correct || 0} ❌{day.word_wrong || 0}
-                              <span style={{ fontSize: 9, marginLeft: 2, color: "#818cf8" }}>%{wordAcc}</span>
+                            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                              <span style={{ display: "inline-flex", gap: 5 }}>
+                                <span style={{ color: "#34d399" }}>✅ {day.word_correct || 0}</span>
+                                <span style={{ color: "#f87171" }}>❌ {day.word_wrong || 0}</span>
+                              </span>
+                              <span style={{ fontSize: 9, color: getColor(wordAcc) }}>%{wordAcc}</span>
                             </span>
                           ) : "-"}
                         </td>
                         <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 11 }}>
                           {sentenceTotal > 0 ? (
-                            <span style={{ color: getColor(sentenceAcc) }}>
-                              ✅{day.sentence_correct || 0} ❌{day.sentence_wrong || 0}
-                              <span style={{ fontSize: 9, marginLeft: 2, color: "#818cf8" }}>%{sentenceAcc}</span>
+                            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                              <span style={{ display: "inline-flex", gap: 5 }}>
+                                <span style={{ color: "#34d399" }}>✅ {day.sentence_correct || 0}</span>
+                                <span style={{ color: "#f87171" }}>❌ {day.sentence_wrong || 0}</span>
+                              </span>
+                              <span style={{ fontSize: 9, color: getColor(sentenceAcc) }}>%{sentenceAcc}</span>
                             </span>
                           ) : "-"}
                         </td>
