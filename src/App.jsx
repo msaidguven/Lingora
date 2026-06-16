@@ -53,6 +53,7 @@ export default function App() {
         currentScreen={currentScreen} 
         onNavigate={handleNavigate} 
         userLevel={userLevel}
+        quizType={quizType} // Header'a quizType'ı gönder
       />
       
       {currentScreen === "home" && (

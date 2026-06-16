@@ -9,6 +9,7 @@ export default function HomeScreen({ onStartQuiz }) {
   const [myWordsCount, setMyWordsCount] = useState(0);
   const [dailyRemaining, setDailyRemaining] = useState(0);
   const [dueCount, setDueCount] = useState(0);
+  const [dueSentenceCount, setDueSentenceCount] = useState(0);
   const [userLevel, setUserLevel] = useState("A1");
   const [opening, setOpening] = useState(false);
 
@@ -51,10 +52,17 @@ export default function HomeScreen({ onStartQuiz }) {
       .eq("user_id", FIXED_USER_ID)
       .lt("next_review_at", new Date().toISOString());
     
+    const { count: dueSentences } = await supabase
+      .from("en_user_sentences")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", FIXED_USER_ID)
+      .lt("next_review_at", new Date().toISOString());
+    
     setTotalWords(total || 0);
     setMyWordsCount(myWords || 0);
     setDailyRemaining(daily?.remaining_today ?? 5);
     setDueCount(due || 0);
+    setDueSentenceCount(dueSentences || 0);
     setLoading(false);
   };
 
@@ -175,7 +183,15 @@ export default function HomeScreen({ onStartQuiz }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 420, margin: "0 auto", padding: "24px 20px" }}>
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "#0f0f1a", 
+      color: "#e2e8f0", 
+      fontFamily: "'Inter', system-ui, sans-serif", 
+      maxWidth: 420, 
+      margin: "0 auto", 
+      padding: "24px 20px" 
+    }}>
       
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>WordFlow</div>
@@ -197,28 +213,78 @@ export default function HomeScreen({ onStartQuiz }) {
           onClick={handleOpenNewWords}
           disabled={opening}
           style={{ 
-            width: "100%", padding: "18px", borderRadius: 14, border: "none", 
+            width: "100%", 
+            padding: "18px", 
+            borderRadius: 14, 
+            border: "none", 
             background: opening ? "#475569" : "#10b981", 
-            color: "#fff", fontWeight: 700, fontSize: 16, 
-            cursor: opening ? "not-allowed" : "pointer", marginBottom: 12
+            color: "#fff", 
+            fontWeight: 700, 
+            fontSize: 16, 
+            cursor: opening ? "not-allowed" : "pointer", 
+            marginBottom: 12
           }}
         >
           {opening ? "Açılıyor..." : `🎁 ${dailyRemaining} Yeni Kelime Aç`}
         </button>
       )}
 
+      {/* 📖 Kelime Quiz Butonu */}
       <button 
-        onClick={onStartQuiz}
+        onClick={() => onStartQuiz("word")}
         disabled={dueCount === 0}
         style={{ 
-          width: "100%", padding: "18px", borderRadius: 14, border: "none", 
-          background: dueCount > 0 ? "#6366f1" : "#1e1e30", 
+          width: "100%", 
+          padding: "16px", 
+          borderRadius: 14, 
+          border: "none", 
+          background: dueCount > 0 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#1e1e30", 
           color: dueCount > 0 ? "#fff" : "#475569", 
-          fontWeight: 700, fontSize: 16, 
-          cursor: dueCount > 0 ? "pointer" : "not-allowed", marginBottom: 12
+          fontWeight: 700, 
+          fontSize: 15, 
+          cursor: dueCount > 0 ? "pointer" : "not-allowed", 
+          marginBottom: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8
         }}
       >
-        🔄 Tekrar Et ({dueCount})
+        <span>📖</span> Kelime Quiz <span style={{ 
+          fontSize: 12, 
+          background: dueCount > 0 ? "rgba(255,255,255,0.2)" : "transparent",
+          padding: "2px 10px",
+          borderRadius: 99
+        }}>{dueCount}</span>
+      </button>
+
+      {/* 📝 Cümle Quiz Butonu */}
+      <button 
+        onClick={() => onStartQuiz("sentence")}
+        disabled={dueSentenceCount === 0}
+        style={{ 
+          width: "100%", 
+          padding: "16px", 
+          borderRadius: 14, 
+          border: "none", 
+          background: dueSentenceCount > 0 ? "linear-gradient(135deg, #3b82f6, #6366f1)" : "#1e1e30", 
+          color: dueSentenceCount > 0 ? "#fff" : "#475569", 
+          fontWeight: 700, 
+          fontSize: 15, 
+          cursor: dueSentenceCount > 0 ? "pointer" : "not-allowed", 
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8
+        }}
+      >
+        <span>📝</span> Cümle Quiz <span style={{ 
+          fontSize: 12, 
+          background: dueSentenceCount > 0 ? "rgba(255,255,255,0.2)" : "transparent",
+          padding: "2px 10px",
+          borderRadius: 99
+        }}>{dueSentenceCount}</span>
       </button>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
@@ -231,6 +297,28 @@ export default function HomeScreen({ onStartQuiz }) {
           <div style={{ fontSize: 24, marginBottom: 4 }}>⏳</div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>{totalWords - myWordsCount}</div>
           <div style={{ fontSize: 11, color: "#64748b" }}>Kalan Kelime</div>
+        </div>
+      </div>
+
+      {/* İstatistik Özeti */}
+      <div style={{ 
+        marginTop: 16, 
+        padding: 12, 
+        background: "#1a1a2e", 
+        borderRadius: 12,
+        display: "flex",
+        justifyContent: "space-around",
+        fontSize: 12,
+        color: "#64748b"
+      }}>
+        <div>
+          <span style={{ color: "#10b981" }}>●</span> Kelime: {dueCount}
+        </div>
+        <div>
+          <span style={{ color: "#3b82f6" }}>●</span> Cümle: {dueSentenceCount}
+        </div>
+        <div>
+          <span style={{ color: "#6366f1" }}>●</span> Toplam: {dueCount + dueSentenceCount}
         </div>
       </div>
     </div>
