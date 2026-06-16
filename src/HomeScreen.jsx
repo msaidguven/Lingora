@@ -194,7 +194,7 @@ export default function HomeScreen({ onStartQuiz }) {
     }}>
       
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>WordFlow</div>
+        <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700 }}>Lingora</div>
         <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{userLevel} Seviyesi</div>
       </div>
 

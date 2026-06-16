@@ -5,7 +5,7 @@ const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 // Renk tonları StatsScreen ile uyumlu olacak şekilde hafifçe parlatıldı
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#fb923c" };
 
-export default function Header({ currentScreen, onNavigate, userLevel }) {
+export default function Header({ currentScreen, onNavigate, userLevel, quizType = null }) {
   const [user, setUser] = useState(null);
   const levelColor = LEVEL_COLOR[userLevel] || "#6366f1";
 
@@ -20,6 +20,19 @@ export default function Header({ currentScreen, onNavigate, userLevel }) {
       .eq("id", FIXED_USER_ID)
       .single();
     if (data) setUser(data);
+  };
+
+  // Quiz tipine göre başlık belirleme
+  const getQuizTitle = () => {
+    if (quizType === "word") return "📖 Kelime";
+    if (quizType === "sentence") return "📝 Cümle";
+    return "📝 Quiz";
+  };
+
+  // Hangi butonun aktif olduğunu belirleme
+  const isActive = (screen) => {
+    if (screen === "quiz" && currentScreen === "quiz") return true;
+    return currentScreen === screen;
   };
 
   return (
@@ -71,66 +84,73 @@ export default function Header({ currentScreen, onNavigate, userLevel }) {
           background: "#131324", 
           padding: "4px", 
           borderRadius: 12,
-          border: "1px solid #1e1e38"
+          border: "1px solid #1e1e38",
+          gap: 2
         }}>
           <button
             onClick={() => onNavigate("home")}
             style={{
-              background: currentScreen === "home" ? levelColor : "transparent",
+              background: isActive("home") ? levelColor : "transparent",
               border: "none",
               borderRadius: 9,
               padding: "6px 10px",
-              color: currentScreen === "home" ? "#ffffff" : "#64748b",
+              color: isActive("home") ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
               fontWeight: 600,
               transition: "all 0.2s ease",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              whiteSpace: "nowrap"
             }}
           >
-            <span>🏠</span> {currentScreen === "home" && "Ana Sayfa"}
+            <span>🏠</span> {isActive("home") && "Ana Sayfa"}
           </button>
           
+          {/* Quiz Butonu - Aktifken tipini göster */}
           <button
             onClick={() => onNavigate("quiz")}
             style={{
-              background: currentScreen === "quiz" ? levelColor : "transparent",
+              background: isActive("quiz") ? levelColor : "transparent",
               border: "none",
               borderRadius: 9,
               padding: "6px 10px",
-              color: currentScreen === "quiz" ? "#ffffff" : "#64748b",
+              color: isActive("quiz") ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
               fontWeight: 600,
               transition: "all 0.2s ease",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              whiteSpace: "nowrap"
             }}
           >
-            <span>📝</span> {currentScreen === "quiz" && "Quiz"}
+            <span>{isActive("quiz") && quizType === "word" ? "📖" : 
+                   isActive("quiz") && quizType === "sentence" ? "📝" : "📝"}</span> 
+            {isActive("quiz") ? getQuizTitle() : "Quiz"}
           </button>
           
           <button
             onClick={() => onNavigate("stats")}
             style={{
-              background: currentScreen === "stats" ? levelColor : "transparent",
+              background: isActive("stats") ? levelColor : "transparent",
               border: "none",
               borderRadius: 9,
               padding: "6px 10px",
-              color: currentScreen === "stats" ? "#ffffff" : "#64748b",
+              color: isActive("stats") ? "#ffffff" : "#64748b",
               fontSize: 12,
               cursor: "pointer",
               fontWeight: 600,
               transition: "all 0.2s ease",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              whiteSpace: "nowrap"
             }}
           >
-            <span>📊</span> {currentScreen === "stats" && "İstatistik"}
+            <span>📊</span> {isActive("stats") && "İstatistik"}
           </button>
         </div>
         
