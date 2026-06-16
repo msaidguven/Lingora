@@ -13,7 +13,7 @@ const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
-  const [quizType, setQuizType] = useState(null); // "word" veya "sentence"
+  const [quizType, setQuizType] = useState(null);
 
   useEffect(() => {
     const fetchUserLevel = async () => {
@@ -27,26 +27,45 @@ export default function App() {
     fetchUserLevel();
   }, []);
 
+  // Navigasyon fonksiyonu
   const handleNavigate = (screen, type = null) => {
+    console.log("🔄 Navigasyon:", screen, type); // DEBUG
     if (type) {
       setQuizType(type);
     }
     setCurrentScreen(screen);
   };
 
+  // Ana sayfaya dön
   const handleBackToHome = () => {
+    console.log("🏠 Ana sayfaya dönülüyor"); // DEBUG
     setCurrentScreen("home");
     setQuizType(null);
   };
 
-  // Hangi quiz sayfasını göstereceğini belirle
+  // Quiz sayfasını render et
   const renderQuizScreen = () => {
+    console.log("📝 Quiz render:", quizType); // DEBUG
+    
     if (quizType === "word") {
       return <WordQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     } else if (quizType === "sentence") {
       return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     }
-    return <QuizScreen />; // Boş QuizScreen
+    
+    // quizType null ise QuizScreen göster
+    return (
+      <QuizScreen 
+        onStartQuiz={(type) => {
+          console.log("🎯 Quiz başlatılıyor:", type); // DEBUG
+          handleNavigate("quiz", type);
+        }} 
+        onBack={() => {
+          console.log("⬅️ Geri dönüldü"); // DEBUG
+          handleBackToHome();
+        }}
+      />
+    );
   };
 
   return (
@@ -60,7 +79,10 @@ export default function App() {
       
       {currentScreen === "home" && (
         <HomeScreen 
-          onStartQuiz={(type) => handleNavigate("quiz", type)} 
+          onStartQuiz={(type) => {
+            console.log("🏠 Home'dan quiz başlatılıyor:", type); // DEBUG
+            handleNavigate("quiz", type);
+          }} 
         />
       )}
       
