@@ -59,116 +59,110 @@ export default function HomeScreen({ onStartQuiz }) {
   };
 
   const handleOpenNewWords = async () => {
-  if (dailyRemaining === 0) {
-    alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
-    return;
-  }
-  
-  setOpening(true);
-  
-  try {
-    // 1. Mevcut kelimeleri al
-    const { data: userWords } = await supabase
-      .from("en_user_words")
-      .select("word_id")
-      .eq("user_id", FIXED_USER_ID);
-    
-    const learnedIds = userWords?.map(w => w.word_id) || [];
-    
-    // 2. Yeni kelimeleri bul
-    let query = supabase
-      .from("en_words")
-      .select("*")
-      .eq("level", userLevel)
-      .eq("type", "word");
-    
-    if (learnedIds.length > 0) {
-      query = query.not("id", "in", `(${learnedIds.join(",")})`);
-    }
-    
-    const { data: newWords } = await query.limit(dailyRemaining);
-    
-    if (!newWords || newWords.length === 0) {
-      alert("Tüm kelimeleri açtınız!");
-      setOpening(false);
+    if (dailyRemaining === 0) {
+      alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
       return;
     }
     
-    const now = new Date();
-    const today = new Date();
-    const newWordIds = newWords.map(w => w.id);
+    setOpening(true);
     
-    // 3. Kelimeleri ekle
-    const wordInserts = newWords.map(word => ({
-      user_id: FIXED_USER_ID,
-      word_id: word.id,
-      added_at: now.toISOString(),
-      next_review_at: today.toISOString(),
-      review_count: 0,
-      last_score: null,
-      last_reviewed_at: null,
-      ease_factor: 2.5,
-      mastery_level: 0,
-      is_mastered: false
-    }));
-    
-    const { error: wordError } = await supabase
-      .from("en_user_words")
-      .insert(wordInserts);
-    
-    if (wordError) throw wordError;
-    
-    // 4. Cümleleri bul (BURASI ÖNEMLİ - word_id'ye göre cümleleri al)
-    const { data: sentences, error: sentenceQueryError } = await supabase
-      .from("en_example_sentences")
-      .select("*")
-      .in("word_id", newWordIds)
-      .eq("is_approved", true);
-    
-    console.log("Bulunan cümleler:", sentences); // Konsolda kontrol et
-    
-    // 5. Cümleleri ekle (eğer varsa)
-    if (sentences && sentences.length > 0) {
-      const sentenceInserts = sentences.map(sentence => ({
+    try {
+      // 1. Mevcut kelimeleri al
+      const { data: userWords } = await supabase
+        .from("en_user_words")
+        .select("word_id")
+        .eq("user_id", FIXED_USER_ID);
+      
+      const learnedIds = userWords?.map(w => w.word_id) || [];
+      
+      // 2. Yeni kelimeleri bul
+      let query = supabase
+        .from("en_words")
+        .select("*")
+        .eq("level", userLevel)
+        .eq("type", "word");
+      
+      if (learnedIds.length > 0) {
+        query = query.not("id", "in", `(${learnedIds.join(",")})`);
+      }
+      
+      const { data: newWords } = await query.limit(dailyRemaining);
+      
+      if (!newWords || newWords.length === 0) {
+        alert("Tüm kelimeleri açtınız!");
+        setOpening(false);
+        return;
+      }
+      
+      const now = new Date();
+      const today = new Date();
+      const newWordIds = newWords.map(w => w.id);
+      
+      // 3. Kelimeleri ekle
+      const wordInserts = newWords.map(word => ({
         user_id: FIXED_USER_ID,
-        sentence_id: sentence.id,
+        word_id: word.id,
         added_at: now.toISOString(),
         next_review_at: today.toISOString(),
         review_count: 0,
         last_score: null,
         last_reviewed_at: null,
-        ease_factor: 2.5
+        ease_factor: 2.5,
+        mastery_level: 0,
+        is_mastered: false
       }));
       
-      const { error: sentenceError } = await supabase
-        .from("en_user_sentences")
-        .insert(sentenceInserts);
+      const { error: wordError } = await supabase
+        .from("en_user_words")
+        .insert(wordInserts);
       
-      if (sentenceError) {
-        console.error("Cümle ekleme hatası:", sentenceError);
-      } else {
-        console.log(`${sentenceInserts.length} cümle eklendi`);
+      if (wordError) throw wordError;
+      
+      // 4. Yeni kelimelerin cümlelerini bul
+      const { data: sentences } = await supabase
+        .from("en_example_sentences")
+        .select("*")
+        .in("word_id", newWordIds)
+        .eq("is_approved", true);
+      
+      // 5. Cümleleri user_sentences'e ekle (VARSa)
+      if (sentences && sentences.length > 0) {
+        const sentenceInserts = sentences.map(sentence => ({
+          user_id: FIXED_USER_ID,
+          sentence_id: sentence.id,
+          added_at: now.toISOString(),
+          next_review_at: today.toISOString(),
+          review_count: 0,
+          last_score: null,
+          last_reviewed_at: null,
+          ease_factor: 2.5
+        }));
+        
+        const { error: sentenceError } = await supabase
+          .from("en_user_sentences")
+          .insert(sentenceInserts);
+        
+        if (sentenceError) {
+          console.error("Cümle ekleme hatası:", sentenceError);
+        }
       }
-    } else {
-      console.log("Bu kelimelere ait cümle bulunamadı. Önce admin panelden cümle ekleyin.");
+      
+      // 6. Günlük limiti güncelle
+      await supabase
+        .from("en_user_daily_limit")
+        .update({ remaining_today: 0 })
+        .eq("user_id", FIXED_USER_ID);
+      
+      await fetchData();
+      alert(`${newWords.length} yeni kelime eklendi!`);
+      
+    } catch (error) {
+      console.error("Hata:", error);
+      alert("Bir hata oluştu!");
     }
     
-    // 6. Günlük limiti güncelle
-    await supabase
-      .from("en_user_daily_limit")
-      .update({ remaining_today: 0 })
-      .eq("user_id", FIXED_USER_ID);
-    
-    await fetchData();
-    alert(`${newWords.length} yeni kelime eklendi! ${sentences?.length || 0} cümle eklendi.`);
-    
-  } catch (error) {
-    console.error("Hata:", error);
-    alert("Bir hata oluştu!");
-  }
-  
-  setOpening(false);
-};
+    setOpening(false);
+  };
 
   const progress = totalWords > 0 ? (myWordsCount / totalWords) * 100 : 0;
 
