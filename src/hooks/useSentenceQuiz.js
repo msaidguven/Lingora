@@ -81,50 +81,54 @@ export function useSentenceQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allSentences, choiceCount]);
 
-  const saveSentenceResult = async (sentenceId, isCorrect) => {
-    const now = new Date();
-    let nextReviewDate = new Date();
+  // useSentenceQuiz.js - saveSentenceResult
+const saveSentenceResult = async (sentenceId, isCorrect) => {
+  const now = new Date();
+  let nextReviewDate = new Date();
+  
+  const { data: existing } = await supabase
+    .from("en_user_sentences")
+    .select("id, review_count, total_correct, total_wrong")
+    .eq("user_id", FIXED_USER_ID)
+    .eq("sentence_id", sentenceId)
+    .single();
+  
+  if (isCorrect) {
+    const newReviewCount = (existing?.review_count || 0) + 1;
+    const newTotalCorrect = (existing?.total_correct || 0) + 1;
     
-    const { data: existing } = await supabase
+    // Tekrar aralığını hesapla (cümleler için daha kısa aralıklar)
+    if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+    else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+    else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+    else nextReviewDate.setDate(now.getDate() + 14);
+    
+    await supabase
       .from("en_user_sentences")
-      .select("id, review_count")
-      .eq("user_id", FIXED_USER_ID)
-      .eq("sentence_id", sentenceId)
-      .single();
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: newReviewCount,
+        total_correct: newTotalCorrect,     // ⬅️ YENİ
+        last_score: 100,
+        last_reviewed_at: now.toISOString()
+      })
+      .eq("id", existing.id);
+  } else {
+    const newTotalWrong = (existing?.total_wrong || 0) + 1;
+    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
     
-    if (isCorrect) {
-      const newReviewCount = (existing?.review_count || 0) + 1;
-      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-      else nextReviewDate.setDate(now.getDate() + 14);
-      
-      if (existing) {
-        await supabase
-          .from("en_user_sentences")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: newReviewCount,
-            last_score: 100,
-            last_reviewed_at: now.toISOString()
-          })
-          .eq("id", existing.id);
-      }
-    } else {
-      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-      if (existing) {
-        await supabase
-          .from("en_user_sentences")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: 0,
-            last_score: 0,
-            last_reviewed_at: now.toISOString()
-          })
-          .eq("id", existing.id);
-      }
-    }
-  };
+    await supabase
+      .from("en_user_sentences")
+      .update({
+        next_review_at: nextReviewDate.toISOString(),
+        review_count: 0,
+        total_wrong: newTotalWrong,        // ⬅️ YENİ
+        last_score: 0,
+        last_reviewed_at: now.toISOString()
+      })
+      .eq("id", existing.id);
+  }
+};
 
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
