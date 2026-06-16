@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
+export default function QuizScreen({ onStartQuiz, onBack }) {
+  console.log("📱 QuizScreen render edildi");
 
-export default function QuizScreen({ onStartQuiz }) {
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -14,7 +14,6 @@ export default function QuizScreen({ onStartQuiz }) {
       fontFamily: "'Inter', system-ui, sans-serif"
     }}>
       
-      {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 40 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Quiz</h1>
@@ -23,7 +22,6 @@ export default function QuizScreen({ onStartQuiz }) {
         </p>
       </div>
 
-      {/* Butonlar */}
       <div style={{ 
         display: "flex", 
         flexDirection: "column", 
@@ -31,9 +29,12 @@ export default function QuizScreen({ onStartQuiz }) {
         width: "100%", 
         maxWidth: 320 
       }}>
-        {/* Kelime Quiz Butonu */}
+        {/* Kelime Quiz */}
         <button 
-          onClick={() => onStartQuiz("word")}
+          onClick={() => {
+            console.log("📖 Kelime quiz butonuna tıklandı");
+            onStartQuiz("word");
+          }}
           style={{ 
             padding: "20px", 
             borderRadius: 16, 
@@ -43,20 +44,11 @@ export default function QuizScreen({ onStartQuiz }) {
             fontSize: 17, 
             fontWeight: 700, 
             cursor: "pointer",
-            transition: "all 0.2s ease",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 12,
             boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)"
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = "scale(1.02)";
-            e.target.style.boxShadow = "0 6px 25px rgba(99, 102, 241, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = "scale(1)";
-            e.target.style.boxShadow = "0 4px 15px rgba(99, 102, 241, 0.3)";
           }}
         >
           <span style={{ fontSize: 24 }}>📖</span>
@@ -69,9 +61,12 @@ export default function QuizScreen({ onStartQuiz }) {
           <span style={{ fontSize: 20, marginLeft: "auto" }}>→</span>
         </button>
 
-        {/* Cümle Quiz Butonu */}
+        {/* Cümle Quiz */}
         <button 
-          onClick={() => onStartQuiz("sentence")}
+          onClick={() => {
+            console.log("📝 Cümle quiz butonuna tıklandı");
+            onStartQuiz("sentence");
+          }}
           style={{ 
             padding: "20px", 
             borderRadius: 16, 
@@ -81,20 +76,11 @@ export default function QuizScreen({ onStartQuiz }) {
             fontSize: 17, 
             fontWeight: 700, 
             cursor: "pointer",
-            transition: "all 0.2s ease",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 12,
             boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)"
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = "scale(1.02)";
-            e.target.style.boxShadow = "0 6px 25px rgba(59, 130, 246, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = "scale(1)";
-            e.target.style.boxShadow = "0 4px 15px rgba(59, 130, 246, 0.3)";
           }}
         >
           <span style={{ fontSize: 24 }}>📝</span>
@@ -107,9 +93,16 @@ export default function QuizScreen({ onStartQuiz }) {
           <span style={{ fontSize: 20, marginLeft: "auto" }}>→</span>
         </button>
 
-        {/* Geri Dön Butonu */}
+        {/* Geri Dön - DÜZELTİLDİ */}
         <button 
-          onClick={() => window.history.back()}
+          onClick={() => {
+            console.log("⬅️ Geri butonuna tıklandı, onBack çağrılıyor...");
+            if (onBack) {
+              onBack();
+            } else {
+              console.warn("⚠️ onBack fonksiyonu tanımlı değil!");
+            }
+          }}
           style={{ 
             padding: "12px", 
             borderRadius: 12, 
@@ -119,8 +112,8 @@ export default function QuizScreen({ onStartQuiz }) {
             fontSize: 14, 
             fontWeight: 500, 
             cursor: "pointer",
-            transition: "all 0.2s ease",
-            marginTop: 8
+            marginTop: 8,
+            transition: "all 0.2s ease"
           }}
           onMouseEnter={(e) => {
             e.target.style.color = "#e2e8f0";
@@ -135,7 +128,6 @@ export default function QuizScreen({ onStartQuiz }) {
         </button>
       </div>
 
-      {/* Alt Bilgi */}
       <div style={{ 
         marginTop: 40, 
         fontSize: 12, 
