@@ -146,7 +146,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // ============================
-// KELİME DÜZENLEME BİLEŞENİ
+// KELİME DÜZENLEME BİLEŞENİ (CÜMLE KONTROLLÜ)
 // ============================
 function WordEditor({ onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -285,6 +285,7 @@ function WordEditor({ onBack }) {
     }
   };
 
+  // 🔥 CÜMLE EKLEME - KONTROLLÜ
   const addExample = async () => {
     if (!selectedWord) return;
     if (!newExample.en.trim() || !newExample.tr.trim()) {
@@ -294,12 +295,31 @@ function WordEditor({ onBack }) {
 
     setLoading(true);
     try {
+      // 🔍 ÖNCE KONTROL ET: Aynı cümle zaten var mı?
+      const { data: existing, error: checkError } = await supabase
+        .from("en_example_sentences")
+        .select("id")
+        .eq("word_id", selectedWord.id)
+        .eq("sentence_en", newExample.en.trim())
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existing) {
+        setMessage({ type: "error", text: "⚠️ Bu cümle zaten mevcut!" });
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Cümle yoksa ekle
       const { data, error } = await supabase
         .from("en_example_sentences")
         .insert({
           word_id: selectedWord.id,
-          sentence_en: newExample.en,
-          sentence_tr: newExample.tr,
+          sentence_en: newExample.en.trim(),
+          sentence_tr: newExample.tr.trim(),
           difficulty: formData.difficulty,
           order_index: formData.examples.length,
           source: "manual",
@@ -321,6 +341,7 @@ function WordEditor({ onBack }) {
     }
   };
 
+  // 🗑️ CÜMLE SİL
   const deleteExample = async (exampleId) => {
     if (!window.confirm("Bu cümleyi silmek istediğinize emin misiniz?")) return;
 
