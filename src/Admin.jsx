@@ -253,34 +253,42 @@ Kelimeler: `;
   // FONKSİYONLAR
   // ============================
   const handleParse = () => {
-    setMessage(null);
-    setParsedData(null);
-    setResults([]);
+  setMessage(null);
+  setParsedData(null);
+  setResults([]);
+  
+  try {
+    // JSON'u temizle
+    const cleanedJson = cleanJsonInput(jsonInput);
     
-    try {
-      const data = JSON.parse(jsonInput.trim());
-      if (!Array.isArray(data)) {
-        throw new Error("JSON bir array olmalı: [ ... ]");
-      }
-      if (data.length === 0) {
-        throw new Error("Array boş.");
-      }
-      
-      data.forEach((item, index) => {
-        if (!item.word || !item.meaning) {
-          throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
-        }
-        if (item.examples && !Array.isArray(item.examples)) {
-          throw new Error(`"${item.word}" için examples bir array olmalı`);
-        }
-      });
-      
-      setParsedData(data);
-      setMessage({ type: "success", text: `✅ ${data.length} kelime hazır!` });
-    } catch (e) {
-      setMessage({ type: "error", text: "⚠️ " + e.message });
+    if (!cleanedJson) {
+      throw new Error("JSON verisi boş.");
     }
-  };
+    
+    const data = JSON.parse(cleanedJson);
+    
+    if (!Array.isArray(data)) {
+      throw new Error("JSON bir array olmalı: [ ... ]");
+    }
+    if (data.length === 0) {
+      throw new Error("Array boş.");
+    }
+    
+    data.forEach((item, index) => {
+      if (!item.word || !item.meaning) {
+        throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
+      }
+      if (item.examples && !Array.isArray(item.examples)) {
+        throw new Error(`"${item.word}" için examples bir array olmalı`);
+      }
+    });
+    
+    setParsedData(data);
+    setMessage({ type: "success", text: `✅ ${data.length} kelime hazır!` });
+  } catch (e) {
+    setMessage({ type: "error", text: "⚠️ " + e.message });
+  }
+};
 
   // ============================
 // handleInsert - Güncellenmiş (Cümle Kontrolü ile)
@@ -491,6 +499,35 @@ const handleInsert = async () => {
   } else {
     setMessage({ type: "error", text: `⚠️ ${successCount} başarılı, ${failCount} hata` });
   }
+};
+
+// ============================
+// YARDIMCI FONKSİYON - JSON TEMİZLE
+// ============================
+const cleanJsonInput = (input) => {
+  let cleaned = input.trim();
+  
+  // Başındaki ```json veya ``` işaretlerini temizle
+  cleaned = cleaned.replace(/^```json\s*/i, '');
+  cleaned = cleaned.replace(/^```\s*/i, '');
+  
+  // Sonundaki ``` işaretlerini temizle
+  cleaned = cleaned.replace(/\s*```$/i, '');
+  
+  // Başındaki ve sonundaki boşlukları temizle
+  cleaned = cleaned.trim();
+  
+  // Eğer hala JSON başlangıç karakteri yoksa ve [ ile başlamıyorsa
+  // ama içinde [ varsa, ilk [ ile son ] arasını al
+  if (!cleaned.startsWith('[') && !cleaned.startsWith('{')) {
+    const firstBracket = cleaned.indexOf('[');
+    const lastBracket = cleaned.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
+      cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+    }
+  }
+  
+  return cleaned;
 };
 
   const handleCopyPrompt = () => {
