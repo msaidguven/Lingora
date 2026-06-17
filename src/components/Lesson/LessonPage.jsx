@@ -1,4 +1,4 @@
-// LessonPage.jsx - Yeni Adım Adım Versiyon
+// LessonPage.jsx - Her adımda tek soru versiyonu
 import { useState, useEffect } from "react";
 import { supabase } from "../../config.js";
 
@@ -21,23 +21,22 @@ const getLevelColor = (level) => {
 
 // 📝 INFO ADIMI - Bilgi gösterimi
 function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
-  const [showHint, setShowHint] = useState(false);
   const content = step.content;
 
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
       </div>
 
       <div className="step-content info-content">
-        {content.explanation && (
+        {content?.explanation && (
           <p className="explanation-text">{content.explanation}</p>
         )}
 
         {/* Zamir listesi gösterimi */}
-        {content.items && (
+        {content?.items && (
           <div className="items-grid">
             {content.items.map((item, idx) => (
               <div key={idx} className="item-card">
@@ -50,7 +49,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
         )}
 
         {/* Tablo gösterimi */}
-        {content.table && (
+        {content?.table && (
           <div className="table-container">
             <table className="info-table">
               <thead>
@@ -72,7 +71,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
         )}
 
         {/* Kural gösterimi */}
-        {content.rule && (
+        {content?.rule && (
           <div className="rule-box">
             <span className="rule-icon">📌</span>
             <span>{content.rule}</span>
@@ -80,7 +79,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
         )}
 
         {/* Kısa formlar */}
-        {content.short_forms && (
+        {content?.short_forms && (
           <div className="short-forms-box">
             <span className="short-icon">⚡</span>
             <span>{content.short_forms}</span>
@@ -88,7 +87,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
         )}
 
         {/* Örnekler */}
-        {content.examples && (
+        {content?.examples && (
           <div className="examples-box">
             <h4>Örnekler</h4>
             {content.examples.map((ex, idx) => (
@@ -101,14 +100,14 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
           </div>
         )}
 
-        {content.tip && (
+        {content?.tip && (
           <div className="tip-box">
             <span className="tip-icon">💡</span>
             <span>{content.tip}</span>
           </div>
         )}
 
-        {step.id === 'step_9' && content.key_points && (
+        {step.id?.includes('summary') && content?.key_points && (
           <div className="summary-box">
             <h4>🎯 Ana Noktalar</h4>
             <ul>
@@ -149,150 +148,196 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
   );
 }
 
-// ❓ PRACTICE ADIMI - Alıştırma
+// ❓ PRACTICE ADIMI - Tek Soru
 function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
-  const [answers, setAnswers] = useState({});
-  const [showFeedback, setShowFeedback] = useState({});
-  const [allCorrect, setAllCorrect] = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
 
   const questions = step.questions || [];
+  const question = questions[0]; // Her adımda tek soru
 
-  const handleOptionSelect = (qIndex, value) => {
-    const q = questions[qIndex];
-    const isCorrect = value === q.correct;
-    
-    setAnswers(prev => ({ ...prev, [qIndex]: value }));
-    setShowFeedback(prev => ({ 
-      ...prev, 
-      [qIndex]: {
-        show: true,
-        correct: isCorrect,
-        message: isCorrect ? q.feedback_correct : q.feedback_wrong
-      }
-    }));
+  if (!question) {
+    return (
+      <div className="step-container">
+        <div className="step-content">
+          <p>Soru bulunamadı.</p>
+          <button onClick={onNext} className="nav-btn next-btn">İlerle →</button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleOptionSelect = (value) => {
+    if (showFeedback) return;
+    setAnswer(value);
   };
 
-  const handleInputChange = (qIndex, value) => {
-    setAnswers(prev => ({ ...prev, [qIndex]: value }));
-    // Anında kontrol etme - butonla kontrol edilecek
-  };
-
-  const checkFillBlank = (qIndex) => {
-    const q = questions[qIndex];
-    const answer = answers[qIndex] || '';
-    const isCorrect = answer.trim().toLowerCase() === q.correct.toLowerCase();
-    
-    setShowFeedback(prev => ({ 
-      ...prev, 
-      [qIndex]: {
-        show: true,
-        correct: isCorrect,
-        message: isCorrect ? q.feedback_correct : q.feedback_wrong
-      }
-    }));
-  };
-
-  const isAllCorrect = () => {
-    return questions.every((q, idx) => {
-      const feedback = showFeedback[idx];
-      return feedback && feedback.correct;
-    });
-  };
-
-  useEffect(() => {
-    if (Object.keys(showFeedback).length === questions.length) {
-      setAllCorrect(isAllCorrect());
+  const handleCheckAnswer = () => {
+    if (!answer && !question.options) {
+      alert('Lütfen bir cevap yazın!');
+      return;
     }
-  }, [showFeedback, questions]);
+    
+    if (question.options && !answer) {
+      alert('Lütfen bir seçenek seçin!');
+      return;
+    }
+    
+    const correct = answer === question.correct;
+    setIsCorrect(correct);
+    setShowFeedback(true);
+  };
+
+  const handleInputChange = (value) => {
+    if (showFeedback) return;
+    setAnswer(value);
+  };
+
+  const handleNext = () => {
+    if (!showFeedback) {
+      alert('Lütfen önce soruyu cevaplayın!');
+      return;
+    }
+    if (!isCorrect) {
+      alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
+      return;
+    }
+    onNext();
+  };
+
+  const handlePrevious = () => {
+    if (showFeedback) {
+      // Geri giderken state'i sıfırla
+      setShowFeedback(false);
+      setAnswer('');
+      setIsCorrect(false);
+    }
+    onPrevious();
+  };
 
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
       </div>
 
       <div className="step-content practice-content">
+        {/* Kural gösterimi */}
+        {step.rule && (
+          <div className="rule-box">
+            <span className="rule-icon">📌</span>
+            <span>{step.rule}</span>
+          </div>
+        )}
+
         {step.instructions && (
           <p className="instructions-text">{step.instructions}</p>
         )}
 
-        {questions.map((q, qIndex) => (
-          <div key={qIndex} className="practice-question">
-            <p className="question-text">
-              <span className="q-number">{qIndex + 1}.</span> {q.question}
-            </p>
+        <div className="practice-question">
+          <p className="question-text">{question.question}</p>
 
-            {/* Çoktan seçmeli */}
-            {q.options && (
-              <div className="options-group">
-                {q.options.map((option, optIndex) => (
-                  <label key={optIndex} className="option-label">
-                    <input
-                      type="radio"
-                      name={`q${qIndex}`}
-                      value={option}
-                      checked={answers[qIndex] === option}
-                      onChange={() => handleOptionSelect(qIndex, option)}
-                      disabled={showFeedback[qIndex]?.show}
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+          {/* Çoktan seçmeli */}
+          {question.options && (
+            <div className="options-group">
+              {question.options.map((option, optIndex) => (
+                <label 
+                  key={optIndex} 
+                  className={`option-label ${
+                    showFeedback 
+                      ? option === question.correct 
+                        ? 'correct-option' 
+                        : option === answer 
+                          ? 'wrong-option' 
+                          : ''
+                      : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="question"
+                    value={option}
+                    checked={answer === option}
+                    onChange={() => handleOptionSelect(option)}
+                    disabled={showFeedback}
+                  />
+                  <span>{option}</span>
+                  {showFeedback && option === question.correct && (
+                    <span className="check-icon">✅</span>
+                  )}
+                  {showFeedback && option === answer && option !== question.correct && (
+                    <span className="check-icon">❌</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
 
-            {/* Boşluk doldurma */}
-            {!q.options && (
-              <div className="fill-blank-group">
-                <input
-                  type="text"
-                  className="fill-blank-input"
-                  value={answers[qIndex] || ''}
-                  onChange={(e) => handleInputChange(qIndex, e.target.value)}
-                  disabled={showFeedback[qIndex]?.show}
-                  placeholder="Cevabınızı yazın..."
-                />
-                {!showFeedback[qIndex]?.show && (
-                  <button 
-                    className="check-btn"
-                    onClick={() => checkFillBlank(qIndex)}
-                  >
-                    Kontrol Et
-                  </button>
-                )}
-              </div>
-            )}
+          {/* Boşluk doldurma */}
+          {!question.options && (
+            <div className="fill-blank-group">
+              <input
+                type="text"
+                className="fill-blank-input"
+                value={answer}
+                onChange={(e) => handleInputChange(e.target.value)}
+                disabled={showFeedback}
+                placeholder="Cevabınızı yazın..."
+              />
+              {!showFeedback && (
+                <button 
+                  className="check-btn"
+                  onClick={handleCheckAnswer}
+                >
+                  Kontrol Et
+                </button>
+              )}
+            </div>
+          )}
 
-            {/* Feedback */}
-            {showFeedback[qIndex]?.show && (
-              <div className={`feedback ${showFeedback[qIndex].correct ? 'correct' : 'incorrect'}`}>
-                {showFeedback[qIndex].message}
-              </div>
-            )}
-          </div>
-        ))}
+          {/* Çoktan seçmeli için Kontrol Et butonu */}
+          {question.options && !showFeedback && (
+            <button 
+              className="check-btn"
+              onClick={handleCheckAnswer}
+              style={{ marginTop: 12 }}
+            >
+              Kontrol Et
+            </button>
+          )}
+
+          {/* Feedback */}
+          {showFeedback && (
+            <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
+              {isCorrect 
+                ? question.feedback_correct 
+                : question.feedback_wrong}
+            </div>
+          )}
+        </div>
 
         <div className="step-navigation">
           <button 
-            onClick={onPrevious} 
+            onClick={handlePrevious} 
             disabled={isFirst}
             className="nav-btn prev-btn"
           >
             ← Geri
           </button>
           <button 
-            onClick={onNext} 
-            disabled={!allCorrect && Object.keys(showFeedback).length > 0}
+            onClick={handleNext} 
+            disabled={!showFeedback || !isCorrect}
             className="nav-btn next-btn"
           >
             {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
 
-        {Object.keys(showFeedback).length > 0 && !allCorrect && (
+        {showFeedback && !isCorrect && (
           <div className="progress-warning">
-            ⚠️ Tüm soruları doğru cevaplamadan ilerleyemezsiniz.
+            ⚠️ Doğru cevabı bulmadan ilerleyemezsiniz. Tekrar deneyin!
           </div>
         )}
       </div>
@@ -302,45 +347,55 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
 
 // 🎭 DIALOGUE ADIMI - Diyalog
 function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
-  const [answers, setAnswers] = useState({});
-  const [showFeedback, setShowFeedback] = useState({});
-  const [allCorrect, setAllCorrect] = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
 
   const content = step.content || {};
   const scenes = content.scenes || [];
   const practice = step.practice || {};
   const practiceQuestions = practice.questions || [];
+  const question = practiceQuestions[0]; // Tek soru
 
-  const handleInputChange = (qIndex, value) => {
-    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+  const handleInputChange = (value) => {
+    if (showFeedback) return;
+    setAnswer(value);
   };
 
-  const checkAnswer = (qIndex) => {
-    const q = practiceQuestions[qIndex];
-    const answer = answers[qIndex] || '';
-    const isCorrect = answer.trim().toLowerCase() === q.correct.toLowerCase();
-    
-    setShowFeedback(prev => ({ 
-      ...prev, 
-      [qIndex]: {
-        show: true,
-        correct: isCorrect,
-        message: isCorrect ? '✅ Doğru!' : `❌ Doğru cevap: ${q.correct}`
-      }
-    }));
-  };
-
-  useEffect(() => {
-    if (practiceQuestions.length > 0 && 
-        Object.keys(showFeedback).length === practiceQuestions.length) {
-      setAllCorrect(practiceQuestions.every((_, idx) => showFeedback[idx]?.correct));
+  const handleCheckAnswer = () => {
+    if (!answer) {
+      alert('Lütfen bir cevap yazın!');
+      return;
     }
-  }, [showFeedback, practiceQuestions]);
+    
+    const correct = answer.trim().toLowerCase() === question.correct.toLowerCase();
+    setIsCorrect(correct);
+    setShowFeedback(true);
+  };
+
+  const handleNext = () => {
+    if (!showFeedback) {
+      alert('Lütfen önce soruyu cevaplayın!');
+      return;
+    }
+    if (!isCorrect) {
+      alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
+      return;
+    }
+    onNext();
+  };
+
+  const handlePrevious = () => {
+    setShowFeedback(false);
+    setAnswer('');
+    setIsCorrect(false);
+    onPrevious();
+  };
 
   return (
     <div className="step-container">
       <div className="step-header">
-        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
       </div>
 
@@ -361,60 +416,60 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
           ))}
         </div>
 
-        {practiceQuestions.length > 0 && (
+        {question && (
           <div className="dialogue-practice">
-            <h4>{practice.instructions || 'Diyalogdaki boşlukları doldurun:'}</h4>
-            {practiceQuestions.map((q, qIndex) => (
-              <div key={qIndex} className="practice-question">
-                <p className="question-text">{q.question}</p>
-                <div className="fill-blank-group">
-                  <input
-                    type="text"
-                    className="fill-blank-input"
-                    value={answers[qIndex] || ''}
-                    onChange={(e) => handleInputChange(qIndex, e.target.value)}
-                    disabled={showFeedback[qIndex]?.show}
-                    placeholder="Cevabınızı yazın..."
-                  />
-                  {!showFeedback[qIndex]?.show && (
-                    <button 
-                      className="check-btn"
-                      onClick={() => checkAnswer(qIndex)}
-                    >
-                      Kontrol Et
-                    </button>
-                  )}
-                </div>
-                {showFeedback[qIndex]?.show && (
-                  <div className={`feedback ${showFeedback[qIndex].correct ? 'correct' : 'incorrect'}`}>
-                    {showFeedback[qIndex].message}
-                  </div>
+            <h4>{practice.instructions || 'Diyalogdaki boşluğu doldurun:'}</h4>
+            <div className="practice-question">
+              <p className="question-text">{question.question}</p>
+              <div className="fill-blank-group">
+                <input
+                  type="text"
+                  className="fill-blank-input"
+                  value={answer}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  disabled={showFeedback}
+                  placeholder="Cevabınızı yazın..."
+                />
+                {!showFeedback && (
+                  <button 
+                    className="check-btn"
+                    onClick={handleCheckAnswer}
+                  >
+                    Kontrol Et
+                  </button>
                 )}
               </div>
-            ))}
+              {showFeedback && (
+                <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
+                  {isCorrect 
+                    ? question.feedback_correct || '✅ Doğru!'
+                    : question.feedback_wrong || '❌ Yanlış. Tekrar deneyin.'}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         <div className="step-navigation">
           <button 
-            onClick={onPrevious} 
+            onClick={handlePrevious} 
             disabled={isFirst}
             className="nav-btn prev-btn"
           >
             ← Geri
           </button>
           <button 
-            onClick={onNext} 
-            disabled={practiceQuestions.length > 0 && !allCorrect}
+            onClick={handleNext} 
+            disabled={!showFeedback || !isCorrect}
             className="nav-btn next-btn"
           >
             {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
 
-        {practiceQuestions.length > 0 && Object.keys(showFeedback).length > 0 && !allCorrect && (
+        {showFeedback && !isCorrect && (
           <div className="progress-warning">
-            ⚠️ Tüm soruları doğru cevaplamadan ilerleyemezsiniz.
+            ⚠️ Doğru cevabı bulmadan ilerleyemezsiniz. Tekrar deneyin!
           </div>
         )}
       </div>
@@ -423,7 +478,7 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // ============================
-// ANA DERS SAYFASI - YENİ VERSİYON
+// ANA DERS SAYFASI
 // ============================
 export default function LessonPage({ lessonId, onBack }) {
   const [lesson, setLesson] = useState(null);
@@ -479,7 +534,6 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
-      // Yeni format: steps array'i kontrol et
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
         if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
           setSteps(lessonData.content_json.steps);
@@ -681,8 +735,7 @@ export default function LessonPage({ lessonId, onBack }) {
         return (
           <div className="step-container">
             <div className="step-content">
-              <p>Bilinmeyen adım tipi: {step.type}</p>
-              <pre>{JSON.stringify(step, null, 2)}</pre>
+              <p style={{ color: '#94a3b8' }}>Bilinmeyen adım tipi: {step.type}</p>
             </div>
           </div>
         );
@@ -701,7 +754,6 @@ export default function LessonPage({ lessonId, onBack }) {
       setCurrentStepIndex(currentStepIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // Ders tamamlandı
       alert('🎉 Tebrikler! Dersi tamamladınız!');
     }
   };
@@ -755,19 +807,17 @@ export default function LessonPage({ lessonId, onBack }) {
       <header style={{
         background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
         borderBottom: "1px solid #1e293b",
-        padding: "16px 0",
-        position: "relative",
-        overflow: "hidden"
+        padding: "12px 0",
       }}>
         <div style={{
-          maxWidth: 1200,
+          maxWidth: 900,
           margin: "0 auto",
           padding: "0 24px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 12
+          gap: 8
         }}>
           <button 
             onClick={onBack}
@@ -785,7 +835,7 @@ export default function LessonPage({ lessonId, onBack }) {
             ← Geri
           </button>
           
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ 
               fontSize: 12, 
               color: "#64748b",
@@ -807,6 +857,16 @@ export default function LessonPage({ lessonId, onBack }) {
             }}>
               {lesson.level}
             </span>
+            <span style={{
+              fontSize: 12,
+              color: "#94a3b8",
+              background: "#0f0f1a",
+              padding: "4px 10px",
+              borderRadius: 6,
+              border: "1px solid #1e293b"
+            }}>
+              {currentStepIndex + 1} / {totalSteps}
+            </span>
           </div>
         </div>
       </header>
@@ -814,7 +874,7 @@ export default function LessonPage({ lessonId, onBack }) {
       {/* PROGRESS BAR */}
       {totalSteps > 0 && (
         <div style={{ 
-          height: 4, 
+          height: 3, 
           background: "#1e293b",
           position: "sticky",
           top: 0,
@@ -833,7 +893,7 @@ export default function LessonPage({ lessonId, onBack }) {
       <main style={{
         maxWidth: 900,
         margin: "0 auto",
-        padding: "24px"
+        padding: "20px 24px 100px"
       }}>
         {totalSteps > 0 && currentStep ? (
           renderStep(currentStep)
@@ -852,10 +912,15 @@ export default function LessonPage({ lessonId, onBack }) {
       <footer style={{
         background: "#1a1a2e",
         borderTop: "1px solid #1e293b",
-        padding: "12px 0"
+        padding: "12px 0",
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10
       }}>
         <div style={{
-          maxWidth: 1200,
+          maxWidth: 900,
           margin: "0 auto",
           padding: "0 24px",
           display: "flex",
@@ -1102,49 +1167,66 @@ export default function LessonPage({ lessonId, onBack }) {
 
         .practice-question {
           background: #0f0f1a;
-          padding: 16px;
-          border-radius: 10px;
-          margin-bottom: 16px;
+          padding: 20px;
+          border-radius: 12px;
           border: 1px solid #1e293b;
+          margin-bottom: 16px;
         }
 
         .question-text {
           font-weight: 500;
           color: #f1f5f9;
-          margin: 0 0 12px 0;
-        }
-
-        .q-number {
-          color: #6366f1;
-          margin-right: 6px;
+          margin: 0 0 16px 0;
+          font-size: 18px;
         }
 
         .options-group {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 8px;
         }
 
         .option-label {
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 8px 12px;
+          gap: 12px;
+          padding: 12px 16px;
           background: #0a0a14;
-          border-radius: 6px;
+          border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
+          border: 1px solid transparent;
         }
 
-        .option-label:hover {
+        .option-label:hover:not(.correct-option):not(.wrong-option) {
           background: #141425;
+          border-color: #1e293b;
         }
 
         .option-label input[type="radio"] {
           accent-color: #6366f1;
-          width: 16px;
-          height: 16px;
+          width: 18px;
+          height: 18px;
           cursor: pointer;
+        }
+
+        .option-label input[type="radio"]:disabled {
+          cursor: not-allowed;
+        }
+
+        .correct-option {
+          background: #0e2d1f !important;
+          border: 1px solid #10b981 !important;
+        }
+
+        .wrong-option {
+          background: #2d1a0e !important;
+          border: 1px solid #ef4444 !important;
+        }
+
+        .check-icon {
+          margin-left: auto;
+          font-size: 18px;
         }
 
         .fill-blank-group {
@@ -1156,12 +1238,12 @@ export default function LessonPage({ lessonId, onBack }) {
         .fill-blank-input {
           flex: 1;
           min-width: 200px;
-          padding: 10px 14px;
+          padding: 12px 16px;
           background: #0a0a14;
-          border: 1px solid #1e293b;
+          border: 2px solid #1e293b;
           border-radius: 8px;
           color: #e2e8f0;
-          font-size: 14px;
+          font-size: 16px;
           font-family: inherit;
           transition: border-color 0.2s;
         }
@@ -1171,28 +1253,39 @@ export default function LessonPage({ lessonId, onBack }) {
           border-color: #6366f1;
         }
 
+        .fill-blank-input:disabled {
+          opacity: 0.6;
+        }
+
         .check-btn {
-          padding: 10px 20px;
+          padding: 12px 28px;
           background: #6366f1;
           color: #fff;
           border: none;
           border-radius: 8px;
           font-weight: 600;
+          font-size: 15px;
           cursor: pointer;
           font-family: inherit;
           transition: all 0.2s;
+          min-width: 120px;
         }
 
-        .check-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        .check-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .check-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .feedback {
-          margin-top: 10px;
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 14px;
+          margin-top: 12px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 15px;
         }
 
         .feedback.correct {
@@ -1441,16 +1534,20 @@ export default function LessonPage({ lessonId, onBack }) {
             width: 100%;
             justify-content: center;
           }
-          .example-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
-          }
           .fill-blank-group {
             flex-direction: column;
           }
           .check-btn {
             width: 100%;
+          }
+          .option-label {
+            padding: 10px 14px;
+          }
+          .question-text {
+            font-size: 16px;
+          }
+          .step-header .step-title {
+            font-size: 18px;
           }
         }
       `}</style>
