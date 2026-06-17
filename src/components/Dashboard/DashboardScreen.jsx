@@ -351,7 +351,7 @@ export default function DashboardScreen() {
             <StatPill value={summary.totalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
             <StatPill value={summary.totalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             <StatPill value={`%${summary.accuracy}`} label="Başarı" color={getAccColor(summary.accuracy)} bg={getAccTones(summary.accuracy).bg} border={getAccTones(summary.accuracy).border} />
-            <StatPill value={summary.totalAttempts} label="Çözüm" color="#818cf8" bg="rgba(99,102,241,0.07)" border="rgba(99,102,241,0.12)" />
+            <StatPill value={summary.totalAttempts} label="Toplam" color="#818cf8" bg="rgba(99,102,241,0.07)" border="rgba(99,102,241,0.12)" />
           </div>
           <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
             <div style={{
