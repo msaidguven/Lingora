@@ -149,6 +149,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // ❓ PRACTICE ADIMI - Tek Soru
+// ❓ PRACTICE ADIMI - Tek Soru (DÜZELTİLMİŞ)
 function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -156,6 +157,13 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
 
   const questions = step.questions || [];
   const question = questions[0]; // Her adımda tek soru
+
+  // Adım değiştiğinde state'leri sıfırla
+  useEffect(() => {
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
+  }, [step.id]); // step.id değiştiğinde sıfırla
 
   if (!question) {
     return (
@@ -203,16 +211,18 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
       alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
       return;
     }
+    // State'leri sıfırla ve ilerle
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
     onNext();
   };
 
   const handlePrevious = () => {
-    if (showFeedback) {
-      // Geri giderken state'i sıfırla
-      setShowFeedback(false);
-      setAnswer('');
-      setIsCorrect(false);
-    }
+    // State'leri sıfırla ve geri git
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
     onPrevious();
   };
 
@@ -346,6 +356,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // 🎭 DIALOGUE ADIMI - Diyalog
+// 🎭 DIALOGUE ADIMI - Diyalog (DÜZELTİLMİŞ)
 function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -356,6 +367,13 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const practice = step.practice || {};
   const practiceQuestions = practice.questions || [];
   const question = practiceQuestions[0]; // Tek soru
+
+  // Adım değiştiğinde state'leri sıfırla
+  useEffect(() => {
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
+  }, [step.id]);
 
   const handleInputChange = (value) => {
     if (showFeedback) return;
@@ -382,12 +400,16 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
       alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
       return;
     }
+    // State'leri sıfırla ve ilerle
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
     onNext();
   };
 
   const handlePrevious = () => {
-    setShowFeedback(false);
     setAnswer('');
+    setShowFeedback(false);
     setIsCorrect(false);
     onPrevious();
   };
