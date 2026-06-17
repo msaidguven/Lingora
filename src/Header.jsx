@@ -81,16 +81,12 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
       <div style={styles.glow} className="header-glow" />
       
       <div style={styles.bar}>
-        {/* Sol - Kullanıcı Bilgisi */}
+        {/* Sol - Sadece isim (admin linki menüye taşındı) */}
         <div style={styles.userBlock}>
           <div style={styles.username} className="text-primary">
             <i className="ti ti-user" style={styles.userIcon} />
             {user?.username || "Öğrenci"}
           </div>
-          <a href="https://lingora-phi.vercel.app/admin" style={styles.adminLink} className="admin-link">
-            <i className="ti ti-settings" style={{ fontSize: 11 }} aria-hidden="true" />
-            Admin
-          </a>
         </div>
 
         {/* Orta - Navigasyon */}
@@ -147,11 +143,35 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
 
             {menuOpen && (
               <div style={styles.dropdown} className="dropdown-menu">
-                <div style={styles.dropdownHeader}>
-                  <i className="ti ti-settings" style={{ fontSize: 12 }} />
-                  AYARLAR
+                {/* Kullanıcı Bilgisi */}
+                <div style={styles.dropdownUser}>
+                  <div style={styles.dropdownAvatar}>
+                    <i className="ti ti-user-circle" style={styles.dropdownAvatarIcon} />
+                  </div>
+                  <div style={styles.dropdownUserInfo}>
+                    <div style={styles.dropdownUsername}>{user?.username || "Öğrenci"}</div>
+                    <div style={styles.dropdownUserLevel}>
+                      Seviye: <span style={{ color: accent.from, fontWeight: 700 }}>{userLevel || "A1"}</span>
+                    </div>
+                  </div>
                 </div>
-                
+
+                <div style={styles.dropdownDivider} />
+
+                {/* Admin Linki */}
+                <a 
+                  href="https://lingora-phi.vercel.app/admin" 
+                  style={styles.dropdownItemLink} 
+                  className="dropdown-item"
+                >
+                  <i className="ti ti-settings" style={styles.dropdownIcon} />
+                  <span>Admin Paneli</span>
+                  <span style={styles.dropdownBadge}>Yönetici</span>
+                </a>
+
+                <div style={styles.dropdownDivider} />
+
+                {/* Tema Değiştir */}
                 <button style={styles.dropdownItem} className="dropdown-item" onClick={toggleTheme}>
                   <i className={`ti ${theme === "dark" ? "ti-sun" : "ti-moon"}`} style={styles.dropdownIcon} />
                   <span>{theme === "dark" ? "Açık Tema" : "Koyu Tema"}</span>
@@ -162,18 +182,39 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
 
                 <div style={styles.dropdownDivider} />
 
+                {/* Profil */}
                 <button style={styles.dropdownItem} className="dropdown-item">
                   <i className="ti ti-user" style={styles.dropdownIcon} />
                   <span>Profil</span>
+                  <i className="ti ti-chevron-right" style={{ ...styles.dropdownIcon, marginLeft: "auto", fontSize: 12 }} />
                 </button>
 
+                {/* İstatistikler */}
                 <button style={styles.dropdownItem} className="dropdown-item">
-                  <i className="ti ti-logout" style={styles.dropdownIcon} />
+                  <i className="ti ti-chart-bar" style={styles.dropdownIcon} />
+                  <span>İstatistikler</span>
+                  <i className="ti ti-chevron-right" style={{ ...styles.dropdownIcon, marginLeft: "auto", fontSize: 12 }} />
+                </button>
+
+                {/* Ayarlar */}
+                <button style={styles.dropdownItem} className="dropdown-item">
+                  <i className="ti ti-settings" style={styles.dropdownIcon} />
+                  <span>Ayarlar</span>
+                  <i className="ti ti-chevron-right" style={{ ...styles.dropdownIcon, marginLeft: "auto", fontSize: 12 }} />
+                </button>
+
+                <div style={styles.dropdownDivider} />
+
+                {/* Çıkış Yap */}
+                <button style={{ ...styles.dropdownItem, color: "#ef4444" }} className="dropdown-item">
+                  <i className="ti ti-logout" style={{ ...styles.dropdownIcon, color: "#ef4444" }} />
                   <span>Çıkış Yap</span>
                 </button>
 
                 <div style={styles.dropdownFooter}>
                   <span style={styles.dropdownVersion}>v2.1.0</span>
+                  <span style={styles.dropdownVersion}>•</span>
+                  <span style={styles.dropdownVersion}>Lingora</span>
                 </div>
               </div>
             )}
@@ -230,19 +271,6 @@ const css = `
     -webkit-backdrop-filter: blur(10px) !important;
   }
 
-  .admin-link { 
-    color: var(--text-muted) !important; 
-    transition: all 0.3s ease !important;
-    padding: 2px 8px !important;
-    border-radius: 6px !important;
-    background: var(--accent-glow) !important;
-  }
-  .admin-link:hover { 
-    color: #a89cff !important;
-    background: rgba(99, 102, 241, 0.2) !important;
-    transform: translateY(-1px) !important;
-  }
-
   .streak-pill { 
     background: rgba(245,158,11,0.12) !important;
     border: 1px solid rgba(245,158,11,0.2) !important;
@@ -285,6 +313,7 @@ const css = `
     color: var(--text-main) !important; 
     transition: all 0.2s ease !important;
     position: relative !important;
+    text-decoration: none !important;
   }
   .dropdown-item:hover { 
     background: var(--dropdown-hover) !important;
@@ -377,15 +406,6 @@ const styles = {
   userIcon: {
     fontSize: 14,
     opacity: 0.6,
-  },
-  adminLink: {
-    fontSize: 10,
-    textDecoration: "none",
-    letterSpacing: "0.3px",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    fontWeight: 600,
   },
   nav: {
     display: "flex",
@@ -485,24 +505,52 @@ const styles = {
     position: "absolute",
     top: "calc(100% + 12px)",
     right: 0,
-    width: 180,
-    borderRadius: 14,
-    padding: "6px",
+    width: 220,
+    borderRadius: 16,
+    padding: "8px",
     zIndex: 9999,
     display: "flex",
     flexDirection: "column",
     gap: 2,
   },
-  dropdownHeader: {
-    fontSize: 9,
-    fontWeight: 800,
-    color: "var(--text-muted)",
-    padding: "6px 10px 4px 10px",
-    letterSpacing: "0.8px",
-    textTransform: "uppercase",
+  dropdownUser: {
     display: "flex",
     alignItems: "center",
-    gap: 6,
+    gap: 12,
+    padding: "8px 10px 8px 8px",
+    borderRadius: 12,
+  },
+  dropdownAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,124,255,0.2))",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  dropdownAvatarIcon: {
+    fontSize: 24,
+    color: "var(--text-main)",
+    opacity: 0.8,
+  },
+  dropdownUserInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    flex: 1,
+  },
+  dropdownUsername: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "var(--text-main)",
+    fontFamily: "'Manrope', sans-serif",
+  },
+  dropdownUserLevel: {
+    fontSize: 11,
+    color: "var(--text-muted)",
+    fontWeight: 500,
   },
   dropdownItem: {
     background: "none",
@@ -512,36 +560,64 @@ const styles = {
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     fontSize: 12,
     fontWeight: 600,
     textAlign: "left",
     width: "100%",
     fontFamily: "'Inter', sans-serif",
+    color: "var(--text-main)",
+    transition: "all 0.2s ease",
+    textDecoration: "none",
+  },
+  dropdownItemLink: {
+    background: "none",
+    border: "none",
+    borderRadius: 10,
+    padding: "8px 10px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 12,
+    fontWeight: 600,
+    textAlign: "left",
+    width: "100%",
+    fontFamily: "'Inter', sans-serif",
+    color: "var(--text-main)",
+    transition: "all 0.2s ease",
+    textDecoration: "none",
   },
   dropdownIcon: {
     fontSize: 14,
     opacity: 0.7,
+    flexShrink: 0,
   },
   dropdownBadge: {
     marginLeft: "auto",
-    fontSize: 14,
-    opacity: 0.8,
+    fontSize: 10,
+    padding: "2px 8px",
+    borderRadius: 6,
+    background: "rgba(99,102,241,0.15)",
+    color: "rgba(99,102,241,0.8)",
+    fontWeight: 700,
+    letterSpacing: "0.3px",
   },
   dropdownDivider: {
     height: 1,
     background: "var(--border-color)",
-    margin: "2px 4px",
+    margin: "4px 4px",
   },
   dropdownFooter: {
-    padding: "4px 10px 6px 10px",
+    padding: "6px 10px 2px 10px",
     display: "flex",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    gap: 6,
   },
   dropdownVersion: {
     fontSize: 9,
     color: "var(--text-muted)",
-    opacity: 0.5,
+    opacity: 0.4,
     letterSpacing: "0.3px",
   }
 };
