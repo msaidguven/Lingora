@@ -35,6 +35,33 @@ const LESSON_EXAMPLE_JSON = `{
 }`;
 
 // ============================
+// KELİME EKLEME İÇİN ÖRNEK JSON
+// ============================
+const WORD_EXAMPLE_JSON = `[
+  {
+    "word": "happy",
+    "meaning": "mutlu",
+    "level": "A1",
+    "type": "word",
+    "part_of_speech": ["adjective"],
+    "category": ["daily", "emotion"],
+    "difficulty": 1,
+    "synonyms": ["joyful", "cheerful"],
+    "antonyms": ["sad", "unhappy"],
+    "examples": [
+      {
+        "en": "She felt very happy today.",
+        "tr": "Bugün çok mutlu hissetti."
+      },
+      {
+        "en": "I am happy to see you.",
+        "tr": "Seni gördüğüme mutluyum."
+      }
+    ]
+  }
+]`;
+
+// ============================
 // GİRİŞ EKRANI
 // ============================
 function LoginScreen({ onLogin }) {
@@ -78,6 +105,320 @@ function LoginScreen({ onLogin }) {
         <button onClick={handleSubmit} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
           Giriş Yap →
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================
+// KELİME EKLEME BİLEŞENİ
+// ============================
+function WordAdder({ onBack }) {
+  const [jsonInput, setJsonInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [showExample, setShowExample] = useState(false);
+  const [parsedData, setParsedData] = useState(null);
+  const [results, setResults] = useState([]);
+
+  const handleParse = () => {
+    setMessage(null);
+    setParsedData(null);
+    setResults([]);
+    
+    try {
+      const data = JSON.parse(jsonInput.trim());
+      if (!Array.isArray(data)) {
+        throw new Error("JSON bir array olmalı: [ ... ]");
+      }
+      if (data.length === 0) {
+        throw new Error("Array boş.");
+      }
+      
+      data.forEach((item, index) => {
+        if (!item.word || !item.meaning) {
+          throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
+        }
+      });
+      
+      setParsedData(data);
+      setMessage({ type: "success", text: `✅ ${data.length} kelime hazır!` });
+    } catch (e) {
+      setMessage({ type: "error", text: "⚠️ " + e.message });
+    }
+  };
+
+  const handleInsert = async () => {
+    if (!parsedData) return;
+    
+    setLoading(true);
+    setMessage(null);
+    const resultList = [];
+    
+    for (const item of parsedData) {
+      try {
+        const { data: existing, error: checkError } = await supabase
+          .from("en_words")
+          .select("id, word")
+          .eq("word", item.word)
+          .maybeSingle();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
+
+        if (existing) {
+          resultList.push({ 
+            word: item.word, 
+            ok: true, 
+            status: "zaten var",
+            message: "Kelime zaten mevcut"
+          });
+          continue;
+        }
+
+        const { data: inserted, error: insertError } = await supabase
+          .from("en_words")
+          .insert({
+            word: item.word,
+            meaning: item.meaning,
+            level: item.level || "A1",
+            type: item.type || "word",
+            part_of_speech: item.part_of_speech || [],
+            category: item.category || [],
+            difficulty: item.difficulty || 1,
+            synonyms: item.synonyms || [],
+            antonyms: item.antonyms || [],
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        let addedExampleCount = 0;
+        if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
+          for (const example of item.examples) {
+            if (example.en && example.tr) {
+              const { error: exampleError } = await supabase
+                .from("en_example_sentences")
+                .insert({
+                  word_id: inserted.id,
+                  sentence_en: example.en,
+                  sentence_tr: example.tr,
+                  difficulty: item.difficulty || 1,
+                  order_index: 0,
+                  source: "manual",
+                  is_approved: true,
+                });
+              if (!exampleError) addedExampleCount++;
+            }
+          }
+        }
+
+        resultList.push({ 
+          word: item.word, 
+          ok: true, 
+          status: "eklendi",
+          message: `${addedExampleCount} cümle eklendi`
+        });
+
+      } catch (error) {
+        resultList.push({ 
+          word: item.word, 
+          ok: false, 
+          status: "hata",
+          message: error.message
+        });
+      }
+    }
+    
+    setResults(resultList);
+    setLoading(false);
+    
+    const successCount = resultList.filter(r => r.ok).length;
+    const failCount = resultList.filter(r => !r.ok).length;
+    
+    if (failCount === 0) {
+      setMessage({ type: "success", text: `✅ ${successCount} kelime başarıyla eklendi!` });
+      setJsonInput("");
+      setParsedData(null);
+    } else {
+      setMessage({ type: "error", text: `⚠️ ${successCount} başarılı, ${failCount} hata` });
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>📝 Kelime Ekle</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>JSON formatında toplu kelime ekle</div>
+        </div>
+        <button 
+          onClick={onBack} 
+          style={{ 
+            background: "#1e293b", 
+            border: "none", 
+            borderRadius: 8, 
+            padding: "8px 16px", 
+            color: "#94a3b8", 
+            fontSize: 13, 
+            cursor: "pointer" 
+          }}
+        >
+          ← Ana Sayfaya Dön
+        </button>
+      </div>
+
+      {message && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 12, 
+          borderRadius: 10, 
+          background: message.type === "error" ? "#2d1a0e" : "#0e2d1f",
+          border: `1px solid ${message.type === "error" ? "#ef4444" : "#10b981"}`,
+          color: message.type === "error" ? "#ef4444" : "#10b981",
+          fontSize: 14
+        }}>
+          {message.text}
+        </div>
+      )}
+
+      <div style={{ 
+        background: "#1a1a2e", 
+        borderRadius: 14, 
+        padding: 24, 
+        border: "1px solid #1e293b",
+        marginBottom: 20
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <label style={{ fontSize: 11, color: "#64748b", display: "block" }}>JSON Verisi</label>
+          <button
+            onClick={() => setShowExample(!showExample)}
+            style={{
+              background: "none",
+              border: "1px solid #1e293b",
+              borderRadius: 6,
+              color: "#64748b",
+              fontSize: 11,
+              padding: "4px 10px",
+              cursor: "pointer"
+            }}
+          >
+            {showExample ? "Gizle" : "Örnek JSON"}
+          </button>
+        </div>
+        <textarea
+          value={jsonInput}
+          onChange={(e) => setJsonInput(e.target.value)}
+          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "..." } ] } ]'
+          rows={10}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            background: "#0f0f1a",
+            border: "1px solid #1e293b",
+            borderRadius: 8,
+            padding: "12px",
+            color: "#e2e8f0",
+            fontSize: 12,
+            fontFamily: "monospace",
+            lineHeight: 1.6,
+            resize: "vertical",
+            outline: "none"
+          }}
+        />
+        
+        {showExample && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ 
+              fontSize: 11, 
+              color: "#64748b", 
+              marginBottom: 6
+            }}>
+              📄 Örnek JSON Formatı
+            </div>
+            <pre style={{
+              background: "#0f0f1a",
+              padding: 12,
+              borderRadius: 6,
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: 0,
+              overflowX: "auto",
+              lineHeight: 1.5,
+              border: "1px solid #1e293b"
+            }}>
+              {WORD_EXAMPLE_JSON}
+            </pre>
+          </div>
+        )}
+
+        {results.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#f1f5f9" }}>Sonuçlar:</div>
+            {results.map((r, i) => (
+              <div key={i} style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                padding: "4px 0",
+                borderBottom: i < results.length - 1 ? "1px solid #0f0f1a" : "none",
+                fontSize: 13
+              }}>
+                <span style={{ fontWeight: 600 }}>{r.word}</span>
+                <span style={{ 
+                  color: r.ok ? (r.status === "eklendi" ? "#10b981" : "#64748b") : "#ef4444"
+                }}>
+                  {r.ok ? (r.status === "eklendi" ? "✅ Eklendi" : "⏭️ Mevcut") : "❌ Hata"}
+                  {r.message && ` - ${r.message}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          onClick={handleParse}
+          disabled={!jsonInput.trim() || loading}
+          style={{
+            flex: 1,
+            padding: "14px",
+            borderRadius: 12,
+            border: "none",
+            background: jsonInput.trim() && !loading ? "#6366f1" : "#1e1e30",
+            color: jsonInput.trim() && !loading ? "#fff" : "#475569",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: jsonInput.trim() && !loading ? "pointer" : "not-allowed",
+            transition: "all 0.2s"
+          }}
+        >
+          🔍 JSON Kontrol Et
+        </button>
+        
+        {parsedData && (
+          <button
+            onClick={handleInsert}
+            disabled={loading}
+            style={{
+              flex: 2,
+              padding: "14px",
+              borderRadius: 12,
+              border: "none",
+              background: loading ? "#1e1e30" : "#10b981",
+              color: loading ? "#475569" : "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "all 0.2s"
+            }}
+          >
+            {loading ? "⏳ Ekleniyor..." : `📥 ${parsedData.length} Kelime Ekle`}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -248,7 +589,6 @@ function WordEditor({ onBack }) {
     setMessage(null);
 
     try {
-      // Önce cümleleri sil
       const { error: sentenceError } = await supabase
         .from("en_example_sentences")
         .delete()
@@ -256,7 +596,6 @@ function WordEditor({ onBack }) {
 
       if (sentenceError) throw sentenceError;
 
-      // Sonra kelimeyi sil
       const { error: wordError } = await supabase
         .from("en_words")
         .delete()
@@ -266,7 +605,6 @@ function WordEditor({ onBack }) {
 
       setMessage({ type: "success", text: "🗑️ Kelime başarıyla silindi!" });
       
-      // Listeden kaldır
       setSearchResults(prev => prev.filter(w => w.id !== selectedWord.id));
       setSelectedWord(null);
       setFormData({
@@ -336,7 +674,6 @@ function WordEditor({ onBack }) {
         </button>
       </div>
 
-      {/* ARAMA KUTUSU */}
       <div style={{ 
         background: "#1a1a2e", 
         borderRadius: 14, 
@@ -427,7 +764,6 @@ function WordEditor({ onBack }) {
         )}
       </div>
 
-      {/* ARAMA SONUÇLARI */}
       {searchResults.length > 0 && !selectedWord && (
         <div style={{ 
           background: "#1a1a2e", 
@@ -498,7 +834,6 @@ function WordEditor({ onBack }) {
         </div>
       )}
 
-      {/* Kelime Düzenleme Formu */}
       {selectedWord && (
         <div style={{ 
           background: "#1a1a2e", 
@@ -513,9 +848,7 @@ function WordEditor({ onBack }) {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button 
-                onClick={() => {
-                  setSelectedWord(null);
-                }}
+                onClick={() => setSelectedWord(null)}
                 style={{
                   padding: "6px 14px",
                   borderRadius: 8,
@@ -781,7 +1114,6 @@ function WordEditor({ onBack }) {
             </div>
           </div>
 
-          {/* Örnek Cümleler */}
           <div style={{ marginTop: 24, borderTop: "1px solid #1e293b", paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📝 Örnek Cümleler ({formData.examples.length})</div>
             
@@ -837,7 +1169,7 @@ function WordEditor({ onBack }) {
 // ============================
 // DERS EKLEME BİLEŞENİ
 // ============================
-function LessonAdder() {
+function LessonAdder({ onBack }) {
   const [lessonNumber, setLessonNumber] = useState("");
   const [title, setTitle] = useState("");
   const [level, setLevel] = useState("A1");
@@ -919,10 +1251,26 @@ function LessonAdder() {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
-        <div style={{ fontSize: 22, fontWeight: 800 }}>➕ Yeni Ders Ekle</div>
-        <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Her seviye için ders numarası benzersiz olmalıdır</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>➕ Yeni Ders Ekle</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Her seviye için ders numarası benzersiz olmalıdır</div>
+        </div>
+        <button 
+          onClick={onBack} 
+          style={{ 
+            background: "#1e293b", 
+            border: "none", 
+            borderRadius: 8, 
+            padding: "8px 16px", 
+            color: "#94a3b8", 
+            fontSize: 13, 
+            cursor: "pointer" 
+          }}
+        >
+          ← Ana Sayfaya Dön
+        </button>
       </div>
 
       {message && (
@@ -1103,214 +1451,7 @@ function LessonAdder() {
 }
 
 // ============================
-// ANA ADMIN PANELİ
-// ============================
-function AdminPanel({ onLogout }) {
-  const [currentPage, setCurrentPage] = useState("word_add");
-  const [recentLessons, setRecentLessons] = useState([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-
-  const fetchRecentLessons = async () => {
-    setLoadingRecent(true);
-    try {
-      const { data, error } = await supabase
-        .from("en_lessons")
-        .select("lesson_number, title, level, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      setRecentLessons(data || []);
-    } catch (error) {
-      console.error("Son dersler çekilirken hata:", error);
-    } finally {
-      setLoadingRecent(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRecentLessons();
-  }, []);
-
-  // Kelime Düzenleme Sayfası
-  if (currentPage === "word_edit") {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", padding: "28px 20px 48px" }}>
-        <WordEditor onBack={() => setCurrentPage("word_add")} />
-      </div>
-    );
-  }
-
-  // Ders Düzenleme Sayfası
-  if (currentPage === "lesson_edit") {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", padding: "28px 20px 48px" }}>
-        <LessonEditor onBack={() => setCurrentPage("word_add")} />
-      </div>
-    );
-  }
-
-  // Ana Admin Sayfası
-  return (
-    <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
-        <div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>Admin Paneli</div>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Kelime ve Ders Yönetimi</div>
-        </div>
-        <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
-          Çıkış
-        </button>
-      </div>
-
-      {/* Son Eklenen Dersler */}
-      <div style={{ 
-        background: "#1a1a2e", 
-        border: "1px solid #1e293b", 
-        borderRadius: 10, 
-        padding: "14px",
-        marginBottom: 20
-      }}>
-        <div style={{ 
-          fontSize: 10, 
-          letterSpacing: 2, 
-          color: "#6366f1", 
-          fontWeight: 600, 
-          textTransform: "uppercase",
-          marginBottom: 8
-        }}>
-          📚 Son Eklenen Dersler
-        </div>
-        {loadingRecent ? (
-          <div style={{ fontSize: 12, color: "#64748b" }}>Yükleniyor...</div>
-        ) : recentLessons.length > 0 ? (
-          <div>
-            {recentLessons.map((lesson, index) => (
-              <div 
-                key={index} 
-                style={{ 
-                  display: "flex", 
-                  justifyContent: "space-between", 
-                  alignItems: "center",
-                  padding: "6px 0",
-                  borderBottom: index < recentLessons.length - 1 ? "1px solid #0f0f1a" : "none",
-                  fontSize: 13
-                }}
-              >
-                <div>
-                  <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{lesson.title}</span>
-                  <span style={{ fontSize: 11, color: "#475569", marginLeft: 6 }}>#{lesson.lesson_number}</span>
-                </div>
-                <span style={{ 
-                  fontSize: 10, 
-                  color: "#64748b", 
-                  background: "#0f0f1a", 
-                  padding: "1px 8px", 
-                  borderRadius: 4 
-                }}>
-                  {lesson.level || "A1"}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: "#64748b" }}>Henüz ders yok</div>
-        )}
-      </div>
-
-      {/* Ana Menü Butonları */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Kelime Ekle */}
-        <button
-          onClick={() => setCurrentPage("word_add")}
-          style={{
-            background: "#1a1a2e",
-            border: "1px solid #1e293b",
-            borderRadius: 12,
-            padding: "20px",
-            color: "#e2e8f0",
-            cursor: "pointer",
-            textAlign: "center",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Ekle</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Toplu kelime ekle</div>
-        </button>
-
-        {/* Kelime Düzenle */}
-        <button
-          onClick={() => setCurrentPage("word_edit")}
-          style={{
-            background: "#1a1a2e",
-            border: "1px solid #1e293b",
-            borderRadius: 12,
-            padding: "20px",
-            color: "#e2e8f0",
-            cursor: "pointer",
-            textAlign: "center",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>✏️</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Düzenle</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Ara, düzenle, sil</div>
-        </button>
-
-        {/* Ders Ekle */}
-        <button
-          onClick={() => setCurrentPage("lesson_add")}
-          style={{
-            background: "#1a1a2e",
-            border: "1px solid #1e293b",
-            borderRadius: 12,
-            padding: "20px",
-            color: "#e2e8f0",
-            cursor: "pointer",
-            textAlign: "center",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Ekle</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Yeni ders oluştur</div>
-        </button>
-
-        {/* Ders Düzenle */}
-        <button
-          onClick={() => setCurrentPage("lesson_edit")}
-          style={{
-            background: "#1a1a2e",
-            border: "1px solid #1e293b",
-            borderRadius: 12,
-            padding: "20px",
-            color: "#e2e8f0",
-            cursor: "pointer",
-            textAlign: "center",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📖</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Düzenle</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Ders içeriğini düzenle</div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ============================
-// DERS DÜZENLEME BİLEŞENİ (EKSİK PARÇA)
+// DERS DÜZENLEME BİLEŞENİ
 // ============================
 function LessonEditor({ onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -1525,7 +1666,6 @@ function LessonEditor({ onBack }) {
         </button>
       </div>
 
-      {/* ARAMA KUTUSU */}
       <div style={{ 
         background: "#1a1a2e", 
         borderRadius: 14, 
@@ -1616,7 +1756,6 @@ function LessonEditor({ onBack }) {
         )}
       </div>
 
-      {/* ARAMA SONUÇLARI */}
       {searchResults.length > 0 && !selectedLesson && (
         <div style={{ 
           background: "#1a1a2e", 
@@ -1679,7 +1818,6 @@ function LessonEditor({ onBack }) {
         </div>
       )}
 
-      {/* Ders Düzenleme Formu */}
       {selectedLesson && (
         <div style={{ 
           background: "#1a1a2e", 
@@ -1694,9 +1832,7 @@ function LessonEditor({ onBack }) {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button 
-                onClick={() => {
-                  setSelectedLesson(null);
-                }}
+                onClick={() => setSelectedLesson(null)}
                 style={{
                   padding: "6px 14px",
                   borderRadius: 8,
@@ -1854,7 +1990,6 @@ function LessonEditor({ onBack }) {
             </div>
           </div>
 
-          {/* JSON İçerik */}
           <div style={{ marginTop: 24, borderTop: "1px solid #1e293b", paddingTop: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>📦 İçerik (JSON)</div>
@@ -1925,6 +2060,216 @@ function LessonEditor({ onBack }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================
+// ANA ADMIN PANELİ
+// ============================
+function AdminPanel({ onLogout }) {
+  const [currentPage, setCurrentPage] = useState("main");
+  const [recentLessons, setRecentLessons] = useState([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+
+  const fetchRecentLessons = async () => {
+    setLoadingRecent(true);
+    try {
+      const { data, error } = await supabase
+        .from("en_lessons")
+        .select("lesson_number, title, level, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentLessons(data || []);
+    } catch (error) {
+      console.error("Son dersler çekilirken hata:", error);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentLessons();
+  }, []);
+
+  // Sayfa render fonksiyonu
+  const renderPage = () => {
+    switch(currentPage) {
+      case "word_add":
+        return <WordAdder onBack={() => setCurrentPage("main")} />;
+      case "word_edit":
+        return <WordEditor onBack={() => setCurrentPage("main")} />;
+      case "lesson_add":
+        return <LessonAdder onBack={() => setCurrentPage("main")} />;
+      case "lesson_edit":
+        return <LessonEditor onBack={() => setCurrentPage("main")} />;
+      default:
+        return null;
+    }
+  };
+
+  // Ana Menü
+  if (currentPage !== "main") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", padding: "28px 20px 48px" }}>
+        {renderPage()}
+      </div>
+    );
+  }
+
+  // Ana Sayfa
+  return (
+    <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Admin Paneli</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Kelime ve Ders Yönetimi</div>
+        </div>
+        <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
+          Çıkış
+        </button>
+      </div>
+
+      {/* Son Eklenen Dersler */}
+      <div style={{ 
+        background: "#1a1a2e", 
+        border: "1px solid #1e293b", 
+        borderRadius: 10, 
+        padding: "14px",
+        marginBottom: 20
+      }}>
+        <div style={{ 
+          fontSize: 10, 
+          letterSpacing: 2, 
+          color: "#6366f1", 
+          fontWeight: 600, 
+          textTransform: "uppercase",
+          marginBottom: 8
+        }}>
+          📚 Son Eklenen Dersler
+        </div>
+        {loadingRecent ? (
+          <div style={{ fontSize: 12, color: "#64748b" }}>Yükleniyor...</div>
+        ) : recentLessons.length > 0 ? (
+          <div>
+            {recentLessons.map((lesson, index) => (
+              <div 
+                key={index} 
+                style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  padding: "6px 0",
+                  borderBottom: index < recentLessons.length - 1 ? "1px solid #0f0f1a" : "none",
+                  fontSize: 13
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{lesson.title}</span>
+                  <span style={{ fontSize: 11, color: "#475569", marginLeft: 6 }}>#{lesson.lesson_number}</span>
+                </div>
+                <span style={{ 
+                  fontSize: 10, 
+                  color: "#64748b", 
+                  background: "#0f0f1a", 
+                  padding: "1px 8px", 
+                  borderRadius: 4 
+                }}>
+                  {lesson.level || "A1"}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: "#64748b" }}>Henüz ders yok</div>
+        )}
+      </div>
+
+      {/* Ana Menü Butonları */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <button
+          onClick={() => setCurrentPage("word_add")}
+          style={{
+            background: "#1a1a2e",
+            border: "1px solid #1e293b",
+            borderRadius: 12,
+            padding: "20px",
+            color: "#e2e8f0",
+            cursor: "pointer",
+            textAlign: "center",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Ekle</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Toplu kelime ekle</div>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage("word_edit")}
+          style={{
+            background: "#1a1a2e",
+            border: "1px solid #1e293b",
+            borderRadius: 12,
+            padding: "20px",
+            color: "#e2e8f0",
+            cursor: "pointer",
+            textAlign: "center",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>✏️</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Düzenle</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Ara, düzenle, sil</div>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage("lesson_add")}
+          style={{
+            background: "#1a1a2e",
+            border: "1px solid #1e293b",
+            borderRadius: 12,
+            padding: "20px",
+            color: "#e2e8f0",
+            cursor: "pointer",
+            textAlign: "center",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Ekle</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Yeni ders oluştur</div>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage("lesson_edit")}
+          style={{
+            background: "#1a1a2e",
+            border: "1px solid #1e293b",
+            borderRadius: 12,
+            padding: "20px",
+            color: "#e2e8f0",
+            cursor: "pointer",
+            textAlign: "center",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📖</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Düzenle</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Ders içeriğini düzenle</div>
+        </button>
+      </div>
     </div>
   );
 }
