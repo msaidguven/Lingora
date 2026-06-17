@@ -37,12 +37,7 @@ const PROMPT_TEXT = `Aşağıdaki kelimeleri analiz et. SADECE JSON array dönd�
   }
 ]
 
-Kelimeler: [Aşağıda verildi]
-
-ANLAMLARI ARASINA VİRGÜL KOYARAK PROMPTTAKİ GİBİ DOLDURABİLİR MİSİN. 
-NOT BU KELİMELERİN HEPSİ A1 SEVİYESİNDE. A1 OLARAK KAYDET
-
-`;
+Kelimeler: [KELİMELERİ BURAYA YAZ]`;
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -124,14 +119,13 @@ function AdminPanel({ onLogout }) {
     
     for (const item of parsed) {
       try {
-        // 1. Kelime var mı kontrol et - maybeSingle kullan
+        // 1. Kelime var mı kontrol et
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
           .select("id, word, meaning, level")
           .eq("word", item.word)
           .maybeSingle();
 
-        // Eğer checkError varsa ve "not found" değilse hata fırlat
         if (checkError && checkError.code !== 'PGRST116') {
           throw checkError;
         }
@@ -141,11 +135,48 @@ function AdminPanel({ onLogout }) {
         let exampleStatus = "yok";
 
         if (existing) {
-          // Kelime zaten var - hiçbir şey yapma
-          wordStatus = "zaten var";
+          // Kelime zaten var - sadece ID'sini al, güncelleme yapma
           wordData = existing;
-          // Cümle kontrolü yapma, çünkü kelime zaten var
-          exampleStatus = "yok";
+          wordStatus = "zaten var";
+          
+          // 2. Cümle kontrol et - kelime var olsa bile cümle eklenebilir
+          if (item.example && wordData) {
+            // Aynı cümle var mı kontrol et
+            const { data: existingExample, error: exampleCheckError } = await supabase
+              .from("en_example_sentences")
+              .select("id")
+              .eq("word_id", wordData.id)
+              .eq("sentence_en", item.example)
+              .maybeSingle();
+
+            if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
+              console.error("Cümle kontrol hatası:", exampleCheckError);
+            }
+
+            if (!existingExample) {
+              // Aynı cümle YOKSA ekle
+              const { error: insertExampleError } = await supabase
+                .from("en_example_sentences")
+                .insert({
+                  word_id: wordData.id,
+                  sentence_en: item.example,
+                  sentence_tr: item.example_tr || null,
+                  difficulty: item.difficulty || null,
+                  order_index: 0,
+                  source: "manual",
+                  is_approved: true,
+                });
+
+              if (insertExampleError) {
+                console.error("Cümle eklenemedi:", insertExampleError);
+                exampleStatus = "hata";
+              } else {
+                exampleStatus = "eklendi";
+              }
+            } else {
+              exampleStatus = "zaten var";
+            }
+          }
         } else {
           // Yeni kelime ekle
           const { data: inserted, error: insertError } = await supabase
@@ -168,7 +199,7 @@ function AdminPanel({ onLogout }) {
           wordData = inserted;
           wordStatus = "eklendi";
 
-          // 2. Sadece yeni kelime eklendiyse cümle ekle
+          // Yeni kelimeye cümle ekle
           if (item.example && wordData) {
             const { error: insertExampleError } = await supabase
               .from("en_example_sentences")
@@ -188,8 +219,6 @@ function AdminPanel({ onLogout }) {
             } else {
               exampleStatus = "eklendi";
             }
-          } else if (!item.example) {
-            exampleStatus = "yok";
           }
         }
 
@@ -233,6 +262,7 @@ function AdminPanel({ onLogout }) {
   const addedCount = results.filter(r => r.status === "eklendi").length;
   const existsCount = results.filter(r => r.status === "zaten var").length;
   const exampleAddedCount = results.filter(r => r.exampleStatus === "eklendi").length;
+  const exampleExistsCount = results.filter(r => r.exampleStatus === "zaten var").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
@@ -340,10 +370,12 @@ function AdminPanel({ onLogout }) {
                   {addedCount > 0 && `✅ ${addedCount} kelime eklendi`}
                   {addedCount > 0 && existsCount > 0 && ", "}
                   {existsCount > 0 && `⏭️ ${existsCount} kelime zaten mevcut`}
-                  {addedCount === 0 && existsCount > 0 && `ℹ️ ${existsCount} kelime zaten mevcut, hiçbir şey eklenmedi`}
-                  {exampleAddedCount > 0 && (
+                  {addedCount === 0 && existsCount > 0 && `ℹ️ ${existsCount} kelime zaten mevcut`}
+                  {(exampleAddedCount > 0 || exampleExistsCount > 0) && (
                     <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4, color: "#94a3b8" }}>
-                      📝 {exampleAddedCount} yeni cümle eklendi
+                      {exampleAddedCount > 0 && `📝 ${exampleAddedCount} yeni cümle eklendi`}
+                      {exampleAddedCount > 0 && exampleExistsCount > 0 && ", "}
+                      {exampleExistsCount > 0 && `⏭️ ${exampleExistsCount} cümle zaten mevcut`}
                     </div>
                   )}
                 </>
@@ -358,13 +390,14 @@ function AdminPanel({ onLogout }) {
                   {r.exampleStatus && r.exampleStatus !== "yok" && (
                     <span style={{ 
                       fontSize: 10, 
-                      color: r.exampleStatus === "eklendi" ? "#10b981" : "#ef4444",
+                      color: r.exampleStatus === "eklendi" ? "#10b981" : r.exampleStatus === "zaten var" ? "#64748b" : "#ef4444",
                       marginLeft: 8,
-                      background: r.exampleStatus === "eklendi" ? "#10b98122" : "#ef444422",
+                      background: r.exampleStatus === "eklendi" ? "#10b98122" : r.exampleStatus === "zaten var" ? "#1e293b" : "#ef444422",
                       padding: "2px 6px",
                       borderRadius: 4
                     }}>
                       {r.exampleStatus === "eklendi" && "📝 +cümle"}
+                      {r.exampleStatus === "zaten var" && "⏭️ cümle var"}
                       {r.exampleStatus === "hata" && "❌ cümle hatası"}
                     </span>
                   )}
