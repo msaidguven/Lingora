@@ -287,7 +287,7 @@ export default function HomeScreen({ onStartQuiz }) {
         <div style={styles.quizStack} className="reveal" data-delay="3">
           <QuizButton
             icon="📖"
-            label="Kelime Quiz"
+            label="Kelime Çalış"
             count={dueCount}
             accentFrom="#6366f1"
             accentTo="#a855f7"
@@ -295,7 +295,7 @@ export default function HomeScreen({ onStartQuiz }) {
           />
           <QuizButton
             icon="📝"
-            label="Cümle Quiz"
+            label="Cümle Çalış"
             count={dueSentenceCount}
             accentFrom="#3b82f6"
             accentTo="#6366f1"

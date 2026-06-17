@@ -53,7 +53,7 @@ export default function QuizScreen({ onStartQuiz, onBack }) {
         >
           <span style={{ fontSize: 24 }}>📖</span>
           <div style={{ textAlign: "left" }}>
-            <div>Kelime Quiz</div>
+            <div>Kelime Çalış</div>
             <div style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
               Kelime tekrarı ve öğrenme
             </div>
@@ -85,7 +85,7 @@ export default function QuizScreen({ onStartQuiz, onBack }) {
         >
           <span style={{ fontSize: 24 }}>📝</span>
           <div style={{ textAlign: "left" }}>
-            <div>Cümle Quiz</div>
+            <div>Cümle Çalış</div>
             <div style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>
               Cümle tekrarı ve öğrenme
             </div>
