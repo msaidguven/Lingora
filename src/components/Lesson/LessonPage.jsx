@@ -150,6 +150,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
 
 // ❓ PRACTICE ADIMI - Tek Soru
 // ❓ PRACTICE ADIMI - Tek Soru (DÜZELTİLMİŞ)
+// ❓ PRACTICE ADIMI - Tek Soru (OTOMATİK KONTROL)
 function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -163,7 +164,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
-  }, [step.id]); // step.id değiştiğinde sıfırla
+  }, [step.id]);
 
   if (!question) {
     return (
@@ -176,30 +177,41 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
     );
   }
 
+  // Çoktan seçmeli için - seçeneğe tıklayınca otomatik kontrol
   const handleOptionSelect = (value) => {
-    if (showFeedback) return;
+    if (showFeedback) return; // Zaten cevaplanmışsa tıklamayı engelle
+    
     setAnswer(value);
-  };
-
-  const handleCheckAnswer = () => {
-    if (!answer && !question.options) {
-      alert('Lütfen bir cevap yazın!');
-      return;
-    }
     
-    if (question.options && !answer) {
-      alert('Lütfen bir seçenek seçin!');
-      return;
-    }
-    
-    const correct = answer === question.correct;
+    // Otomatik kontrol et
+    const correct = value === question.correct;
     setIsCorrect(correct);
     setShowFeedback(true);
   };
 
+  // Boşluk doldurma için - input değiştiğinde
   const handleInputChange = (value) => {
     if (showFeedback) return;
     setAnswer(value);
+  };
+
+  // Boşluk doldurma için - Enter tuşu veya manuel kontrol
+  const handleInputCheck = () => {
+    if (!answer) {
+      alert('Lütfen bir cevap yazın!');
+      return;
+    }
+    
+    const correct = answer.trim().toLowerCase() === question.correct.toLowerCase();
+    setIsCorrect(correct);
+    setShowFeedback(true);
+  };
+
+  // Enter tuşu ile kontrol
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !showFeedback && answer) {
+      handleInputCheck();
+    }
   };
 
   const handleNext = () => {
@@ -249,39 +261,40 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
         <div className="practice-question">
           <p className="question-text">{question.question}</p>
 
-          {/* Çoktan seçmeli */}
+          {/* Çoktan seçmeli - Otomatik kontrol */}
           {question.options && (
             <div className="options-group">
-              {question.options.map((option, optIndex) => (
-                <label 
-                  key={optIndex} 
-                  className={`option-label ${
-                    showFeedback 
-                      ? option === question.correct 
-                        ? 'correct-option' 
-                        : option === answer 
-                          ? 'wrong-option' 
-                          : ''
-                      : ''
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="question"
-                    value={option}
-                    checked={answer === option}
-                    onChange={() => handleOptionSelect(option)}
-                    disabled={showFeedback}
-                  />
-                  <span>{option}</span>
-                  {showFeedback && option === question.correct && (
-                    <span className="check-icon">✅</span>
-                  )}
-                  {showFeedback && option === answer && option !== question.correct && (
-                    <span className="check-icon">❌</span>
-                  )}
-                </label>
-              ))}
+              {question.options.map((option, optIndex) => {
+                const isSelected = answer === option;
+                const isCorrectOption = showFeedback && option === question.correct;
+                const isWrongOption = showFeedback && isSelected && option !== question.correct;
+                
+                return (
+                  <label 
+                    key={optIndex} 
+                    className={`option-label 
+                      ${showFeedback ? (isCorrectOption ? 'correct-option' : isWrongOption ? 'wrong-option' : '') : ''}
+                      ${isSelected && !showFeedback ? 'selected-option' : ''}
+                    `}
+                  >
+                    <input
+                      type="radio"
+                      name="question"
+                      value={option}
+                      checked={isSelected}
+                      onChange={() => handleOptionSelect(option)}
+                      disabled={showFeedback}
+                    />
+                    <span>{option}</span>
+                    {showFeedback && isCorrectOption && (
+                      <span className="check-icon">✅</span>
+                    )}
+                    {showFeedback && isWrongOption && (
+                      <span className="check-icon">❌</span>
+                    )}
+                  </label>
+                );
+              })}
             </div>
           )}
 
@@ -293,29 +306,19 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
                 className="fill-blank-input"
                 value={answer}
                 onChange={(e) => handleInputChange(e.target.value)}
+                onKeyPress={handleKeyPress}
                 disabled={showFeedback}
                 placeholder="Cevabınızı yazın..."
               />
               {!showFeedback && (
                 <button 
                   className="check-btn"
-                  onClick={handleCheckAnswer}
+                  onClick={handleInputCheck}
                 >
                   Kontrol Et
                 </button>
               )}
             </div>
-          )}
-
-          {/* Çoktan seçmeli için Kontrol Et butonu */}
-          {question.options && !showFeedback && (
-            <button 
-              className="check-btn"
-              onClick={handleCheckAnswer}
-              style={{ marginTop: 12 }}
-            >
-              Kontrol Et
-            </button>
           )}
 
           {/* Feedback */}
