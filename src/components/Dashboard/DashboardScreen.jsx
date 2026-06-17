@@ -26,6 +26,8 @@ const calcAcc = (correct, wrong) => {
 // Stats sayfasındaki 4'lü stat pili (Doğru / Yanlış / Başarı / Tekrar) ile aynı görsel dil
 const StatPill = ({ value, label, color, bg, border }) => (
   <div style={{
+    flex: 1,
+    minWidth: 0,
     background: bg,
     border: `1px solid ${border}`,
     borderRadius: 10,
@@ -40,6 +42,8 @@ const StatPill = ({ value, label, color, bg, border }) => (
 // Stats kartlarındaki dış kabuk: gradient yüzey + sol accent çizgisi + sağ üst ambient ışık
 const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
   <div style={{
+    flex: 1,
+    minWidth: 0,
     background: "linear-gradient(160deg, #14142a 0%, #111126 100%)",
     borderRadius: 18,
     padding: "18px 20px",
@@ -252,7 +256,7 @@ export default function DashboardScreen() {
 
           {todayStats ? (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                 <StatPill value={todayStats.word_correct || 0} label="Kel. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
                 <StatPill value={todayStats.word_wrong || 0} label="Kel. Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
                 <StatPill value={todayStats.sentence_correct || 0} label="Cüm. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
@@ -296,7 +300,7 @@ export default function DashboardScreen() {
         </SurfaceCard>
 
         {/* ── KELİME / CÜMLE ÖZETİ ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
           <SurfaceCard accentColor="#818cf8">
             <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
               📖 Kelime
@@ -307,7 +311,7 @@ export default function DashboardScreen() {
               </span>
               <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
               <StatPill value={summary.wordTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
               <StatPill value={summary.wordTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             </div>
@@ -323,7 +327,7 @@ export default function DashboardScreen() {
               </span>
               <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
               <StatPill value={summary.sentenceTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
               <StatPill value={summary.sentenceTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             </div>
@@ -335,7 +339,7 @@ export default function DashboardScreen() {
           <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
             📊 Genel Toplam
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <StatPill value={summary.totalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
             <StatPill value={summary.totalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             <StatPill value={`%${summary.accuracy}`} label="Başarı" color={getAccColor(summary.accuracy)} bg={getAccTones(summary.accuracy).bg} border={getAccTones(summary.accuracy).border} />
@@ -354,7 +358,7 @@ export default function DashboardScreen() {
         </SurfaceCard>
 
         {/* ── EN İYİ / EN KÖTÜ GÜN ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
           <SurfaceCard accentColor="#10b981">
             <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
               🔥 En İyi Gün
@@ -364,7 +368,7 @@ export default function DashboardScreen() {
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
                   {formatDate(summary.bestDay.stat_date)}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6 }}>
                   <StatPill value={summary.bestDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
                   <StatPill value={summary.bestDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
                 </div>
@@ -383,7 +387,7 @@ export default function DashboardScreen() {
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
                   {formatDate(summary.worstDay.stat_date)}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6 }}>
                   <StatPill value={summary.worstDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
                   <StatPill value={summary.worstDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
                 </div>
@@ -406,73 +410,86 @@ export default function DashboardScreen() {
           </div>
 
           {last30Days.length > 0 ? (
-            <div style={{ maxHeight: 350, overflowY: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <th style={{ textAlign: "left", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>Tarih</th>
-                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📖</th>
-                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📝</th>
-                    <th style={{ textAlign: "right", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📊</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {last30Days.slice().reverse().map((day) => {
-                    const total = (day.total_correct || 0) + (day.total_wrong || 0);
-                    const today = isToday(day.stat_date);
+            <div style={{ maxHeight: 380, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              {last30Days.slice().reverse().map((day) => {
+                const total = (day.total_correct || 0) + (day.total_wrong || 0);
+                const today = isToday(day.stat_date);
 
-                    const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
-                    const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
-                    const wordAcc = calcAcc(day.word_correct, day.word_wrong);
-                    const sentenceAcc = calcAcc(day.sentence_correct, day.sentence_wrong);
-                    const totalAcc = total > 0 ? Math.round(((day.total_correct || 0) / total) * 100) : 0;
+                const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
+                const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
+                const wordAcc = calcAcc(day.word_correct, day.word_wrong);
+                const sentenceAcc = calcAcc(day.sentence_correct, day.sentence_wrong);
+                const totalAcc = total > 0 ? Math.round(((day.total_correct || 0) / total) * 100) : 0;
 
-                    return (
-                      <tr
-                        key={day.stat_date}
-                        style={{
-                          borderBottom: "1px solid rgba(255,255,255,0.03)",
-                          background: today ? "rgba(99,102,241,0.08)" : "transparent",
-                          fontWeight: today ? 700 : 400
-                        }}
-                      >
-                        <td style={{ padding: "8px 4px", color: today ? "#818cf8" : "#e2e8f0" }}>
-                          {formatDate(day.stat_date)}
-                          <span style={{ fontSize: 9, color: "#334155", marginLeft: 4 }}>
-                            {getDayName(day.stat_date)}
-                          </span>
-                          {today && <span style={{ fontSize: 9, color: "#818cf8", marginLeft: 4 }}>⭐</span>}
-                        </td>
-                        <td style={{ textAlign: "center", padding: "8px 4px", fontSize: 11 }}>
+                return (
+                  <div
+                    key={day.stat_date}
+                    style={{
+                      borderRadius: 12,
+                      padding: "9px 12px",
+                      background: today ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.02)",
+                      border: today ? "1px solid rgba(99,102,241,0.25)" : "1px solid rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    {/* Üst satır: tarih + genel başarı */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: total > 0 ? 6 : 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: today ? 700 : 600, color: today ? "#818cf8" : "#e2e8f0" }}>
+                        {formatDate(day.stat_date)}
+                        <span style={{ fontSize: 9, color: "#475569", marginLeft: 5, fontWeight: 500 }}>
+                          {getDayName(day.stat_date)}
+                        </span>
+                        {today && <span style={{ fontSize: 10, marginLeft: 4 }}>⭐</span>}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: getAccColor(totalAcc) }}>
+                        {total > 0 ? `%${totalAcc}` : <span style={{ color: "#334155", fontWeight: 500 }}>Veri yok</span>}
+                      </span>
+                    </div>
+
+                    {/* Alt satır: kelime ve cümle yan yana, tek satır */}
+                    {total > 0 && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          background: "rgba(255,255,255,0.025)",
+                          borderRadius: 8,
+                          padding: "5px 8px",
+                        }}>
+                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📖</span>
                           {wordTotal > 0 ? (
-                            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                              <span style={{ display: "inline-flex", gap: 5 }}>
-                                <span style={{ color: "#34d399" }}>✅ {day.word_correct || 0}</span>
-                                <span style={{ color: "#f87171" }}>❌ {day.word_wrong || 0}</span>
-                              </span>
-                              <span style={{ fontSize: 9, color: getAccColor(wordAcc) }}>%{wordAcc}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                              <span style={{ color: "#34d399", fontWeight: 700 }}>✅{day.word_correct || 0}</span>
+                              <span style={{ color: "#f87171", fontWeight: 700 }}>❌{day.word_wrong || 0}</span>
+                              <span style={{ color: getAccColor(wordAcc), fontWeight: 700 }}>%{wordAcc}</span>
                             </span>
-                          ) : <span style={{ color: "#334155" }}>-</span>}
-                        </td>
-                        <td style={{ textAlign: "center", padding: "8px 4px", fontSize: 11 }}>
+                          ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
+                        </div>
+
+                        <div style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          background: "rgba(255,255,255,0.025)",
+                          borderRadius: 8,
+                          padding: "5px 8px",
+                        }}>
+                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📝</span>
                           {sentenceTotal > 0 ? (
-                            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                              <span style={{ display: "inline-flex", gap: 5 }}>
-                                <span style={{ color: "#34d399" }}>✅ {day.sentence_correct || 0}</span>
-                                <span style={{ color: "#f87171" }}>❌ {day.sentence_wrong || 0}</span>
-                              </span>
-                              <span style={{ fontSize: 9, color: getAccColor(sentenceAcc) }}>%{sentenceAcc}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                              <span style={{ color: "#34d399", fontWeight: 700 }}>✅{day.sentence_correct || 0}</span>
+                              <span style={{ color: "#f87171", fontWeight: 700 }}>❌{day.sentence_wrong || 0}</span>
+                              <span style={{ color: getAccColor(sentenceAcc), fontWeight: 700 }}>%{sentenceAcc}</span>
                             </span>
-                          ) : <span style={{ color: "#334155" }}>-</span>}
-                        </td>
-                        <td style={{ textAlign: "right", padding: "8px 4px", fontWeight: 700, color: getAccColor(totalAcc) }}>
-                          {total > 0 ? `%${totalAcc}` : <span style={{ color: "#334155" }}>-</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "20px 0" }}>
