@@ -13,7 +13,7 @@ const LEVEL_COLOR = {
 // NAV_ITEMS'den stats'i kaldır
 const NAV_ITEMS = [
   { key: "home",      icon: "ti-home",             label: "ANASAYFA"   },
-  { key: "dashboard", icon: "ti-layout-dashboard",  label: "RAPORLAR" },
+  { key: "dashboard", icon: "ti-layout-dashboard",  label: "İSTATİSTİK" },
   { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
   // stats buradan kaldırıldı
 ];
@@ -192,7 +192,7 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
                   onClick={goToStats}
                 >
                   <i className="ti ti-chart-line" style={styles.dropdownIcon} />
-                  <span>İstatistikler</span>
+                  <span>Öğrendiğim Kelimeler</span>
                   {isActive("stats") && (
                     <span style={styles.dropdownBadge}>Aktif</span>
                   )}
