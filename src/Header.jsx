@@ -76,19 +76,24 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
   return (
     <div style={styles.wrapper} className="header-wrapper">
       <style>{css}</style>
+      
+      {/* Arka plan gradient efekti */}
       <div style={styles.glow} className="header-glow" />
+      
       <div style={styles.bar}>
-
-        {/* Kullanıcı */}
+        {/* Sol - Kullanıcı Bilgisi */}
         <div style={styles.userBlock}>
-          <div style={styles.username} className="text-primary">{user?.username || "Öğrenci"}</div>
+          <div style={styles.username} className="text-primary">
+            <i className="ti ti-user" style={styles.userIcon} />
+            {user?.username || "Öğrenci"}
+          </div>
           <a href="https://lingora-phi.vercel.app/admin" style={styles.adminLink} className="admin-link">
             <i className="ti ti-settings" style={{ fontSize: 11 }} aria-hidden="true" />
             Admin
           </a>
         </div>
 
-        {/* Navigasyon */}
+        {/* Orta - Navigasyon */}
         <div style={styles.nav} className="nav-container">
           {NAV_ITEMS.map(({ key, icon, label }) => {
             const active = isActive(key);
@@ -117,34 +122,63 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
           })}
         </div>
 
-        {/* Streak */}
-        <div style={styles.streak} className="streak-pill">
-          <i className="ti ti-flame" style={styles.flameIcon} aria-hidden="true" />
-          <span style={styles.streakValue}>{user?.streak_days || 0}</span>
+        {/* Sağ - Streak ve Menü */}
+        <div style={styles.rightSection}>
+          {/* Streak */}
+          <div style={styles.streak} className="streak-pill">
+            <i className="ti ti-flame" style={styles.flameIcon} aria-hidden="true" />
+            <span style={styles.streakValue}>{user?.streak_days || 0}</span>
+          </div>
+
+          {/* Profil / Ayarlar Açılır Menüsü */}
+          <div style={styles.menuContainer} ref={menuRef}>
+            <button 
+              style={styles.menuToggleBtn} 
+              className="menu-toggle-btn"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Ayarları Aç"
+            >
+              <div style={styles.avatarWrapper}>
+                <i className="ti ti-user-circle" style={styles.avatarIcon} />
+                <span style={styles.menuLabel}>Menü</span>
+                <i className={`ti ${menuOpen ? "ti-chevron-up" : "ti-chevron-down"}`} style={styles.chevronIcon} />
+              </div>
+            </button>
+
+            {menuOpen && (
+              <div style={styles.dropdown} className="dropdown-menu">
+                <div style={styles.dropdownHeader}>
+                  <i className="ti ti-settings" style={{ fontSize: 12 }} />
+                  AYARLAR
+                </div>
+                
+                <button style={styles.dropdownItem} className="dropdown-item" onClick={toggleTheme}>
+                  <i className={`ti ${theme === "dark" ? "ti-sun" : "ti-moon"}`} style={styles.dropdownIcon} />
+                  <span>{theme === "dark" ? "Açık Tema" : "Koyu Tema"}</span>
+                  <span style={styles.dropdownBadge}>
+                    {theme === "dark" ? "🌙" : "☀️"}
+                  </span>
+                </button>
+
+                <div style={styles.dropdownDivider} />
+
+                <button style={styles.dropdownItem} className="dropdown-item">
+                  <i className="ti ti-user" style={styles.dropdownIcon} />
+                  <span>Profil</span>
+                </button>
+
+                <button style={styles.dropdownItem} className="dropdown-item">
+                  <i className="ti ti-logout" style={styles.dropdownIcon} />
+                  <span>Çıkış Yap</span>
+                </button>
+
+                <div style={styles.dropdownFooter}>
+                  <span style={styles.dropdownVersion}>v2.1.0</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Profil / Ayarlar Açılır Menüsü */}
-        <div style={styles.menuContainer} ref={menuRef}>
-          <button 
-            style={styles.menuToggleBtn} 
-            className="menu-toggle-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Ayarları Aç"
-          >
-            <i className="ti ti-user-circle" style={{ fontSize: 20 }} />
-          </button>
-
-          {menuOpen && (
-            <div style={styles.dropdown} className="dropdown-menu">
-              <div style={styles.dropdownHeader}>AYARLAR</div>
-              <button style={styles.dropdownItem} className="dropdown-item" onClick={toggleTheme}>
-                <i className={`ti ${theme === "dark" ? "ti-sun" : "ti-moon"}`} style={{ fontSize: 13 }} />
-                <span>{theme === "dark" ? "Açık Tema" : "Koyu Tema"}</span>
-              </button>
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
   );
@@ -152,70 +186,145 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
 
 const css = `
   :root, [data-theme="dark"] {
-    --bg-wrapper: rgba(10, 9, 21, 0.85);
-    --bg-nav: #100e1f;
+    --bg-wrapper: rgba(10, 9, 21, 0.75);
+    --bg-nav: rgba(16, 14, 31, 0.8);
     --text-main: #ece9fa;
     --text-muted: #5b5683;
     --border-color: rgba(255, 255, 255, 0.06);
-    --dropdown-bg: #16142c;
+    --dropdown-bg: rgba(22, 20, 44, 0.95);
     --dropdown-hover: rgba(255, 255, 255, 0.05);
     --glow-opacity: 0.16;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --accent-glow: rgba(99, 102, 241, 0.1);
   }
 
   [data-theme="light"] {
-    --bg-wrapper: rgba(245, 245, 247, 0.85);
-    --bg-nav: #ffffff;
+    --bg-wrapper: rgba(255, 255, 255, 0.75);
+    --bg-nav: rgba(255, 255, 255, 0.8);
     --text-main: #1d1d1f;
     --text-muted: #86868b;
-    --border-color: rgba(0, 0, 0, 0.08);
-    --dropdown-bg: #ffffff;
-    --dropdown-hover: rgba(0, 0, 0, 0.05);
+    --border-color: rgba(0, 0, 0, 0.06);
+    --dropdown-bg: rgba(255, 255, 255, 0.95);
+    --dropdown-hover: rgba(0, 0, 0, 0.03);
     --glow-opacity: 0.04;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --accent-glow: rgba(99, 102, 241, 0.05);
   }
 
-  .header-wrapper { background: var(--bg-wrapper) !important; border-bottom: 1px solid var(--border-color) !important; }
-  .header-glow { background: radial-gradient(circle, rgba(99,102,241,var(--glow-opacity)), transparent 75%) !important; }
-  .text-primary { color: var(--text-main) !important; }
-  .admin-link { color: var(--text-muted) !important; }
-  .nav-container { background: var(--bg-nav) !important; border: 1px solid var(--border-color) !important; }
-  
-  @keyframes flicker {
-    0%, 100% { filter: drop-shadow(0 0 3px rgba(245,158,11,0.6)); transform: scale(1); }
-    50% { filter: drop-shadow(0 0 7px rgba(245,158,11,0.9)); transform: scale(1.06); }
-  }
-  @keyframes headerFade {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes dropdownFade {
-    from { opacity: 0; transform: translateY(6px) scale(0.96); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+  .header-wrapper { 
+    background: var(--bg-wrapper) !important; 
+    border-bottom: 1px solid var(--border-color) !important;
+    overflow: visible !important;
+    box-shadow: 0 4px 30px var(--shadow-color) !important;
   }
 
-  .nav-btn { transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease; }
-  .nav-btn:active { transform: scale(0.94); }
-  .nav-btn-active i { animation: headerFade 0.3s ease; }
+  .header-glow { 
+    background: radial-gradient(circle, rgba(99,102,241,var(--glow-opacity)), transparent 75%) !important;
+    animation: glowPulse 4s ease-in-out infinite;
+  }
 
-  .admin-link { transition: color 0.2s ease; }
-  .admin-link:hover { color: #a89cff !important; }
+  .nav-container { 
+    background: var(--bg-nav) !important; 
+    border: 1px solid var(--border-color) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
 
-  .streak-pill i { animation: flicker 2.4s ease-in-out infinite; }
+  .admin-link { 
+    color: var(--text-muted) !important; 
+    transition: all 0.3s ease !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    background: var(--accent-glow) !important;
+  }
+  .admin-link:hover { 
+    color: #a89cff !important;
+    background: rgba(99, 102, 241, 0.2) !important;
+    transform: translateY(-1px) !important;
+  }
 
-  .menu-toggle-btn { color: var(--text-muted); transition: color 0.2s, transform 0.2s; }
-  .menu-toggle-btn:hover { color: var(--text-main); transform: scale(1.05); }
-  
+  .streak-pill { 
+    background: rgba(245,158,11,0.12) !important;
+    border: 1px solid rgba(245,158,11,0.2) !important;
+    transition: all 0.3s ease !important;
+  }
+  .streak-pill:hover {
+    background: rgba(245,158,11,0.18) !important;
+    transform: scale(1.02) !important;
+  }
+
+  .streak-pill i { 
+    animation: flicker 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(245,158,11,0.4));
+  }
+
+  .menu-toggle-btn { 
+    color: var(--text-muted) !important; 
+    transition: all 0.3s ease !important;
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    background: var(--accent-glow) !important;
+  }
+  .menu-toggle-btn:hover { 
+    color: var(--text-main) !important;
+    background: rgba(99, 102, 241, 0.15) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+  }
+
   .dropdown-menu { 
     background: var(--dropdown-bg) !important; 
     border: 1px solid var(--border-color) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0, 0.25);
-    animation: dropdownFade 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 20px 60px var(--shadow-color) !important;
+    animation: dropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
   }
-  .dropdown-item { color: var(--text-main) !important; transition: background 0.15s; }
-  .dropdown-item:hover { background: var(--dropdown-hover) !important; }
+
+  .dropdown-item { 
+    color: var(--text-main) !important; 
+    transition: all 0.2s ease !important;
+    position: relative !important;
+  }
+  .dropdown-item:hover { 
+    background: var(--dropdown-hover) !important;
+    transform: translateX(4px) !important;
+  }
+
+  .nav-btn { 
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative !important;
+  }
+  .nav-btn:active { transform: scale(0.92) !important; }
+  .nav-btn-active { 
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.3) !important;
+  }
+  .nav-btn-active i { animation: headerFade 0.3s ease !important; }
+
+  @keyframes flicker {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(245,158,11,0.6)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 8px rgba(245,158,11,0.9)); transform: scale(1.06); }
+  }
+
+  @keyframes headerFade {
+    from { opacity: 0; transform: translateY(-4px) scale(0.8); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes dropdownFade {
+    from { opacity: 0; transform: translateY(8px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .nav-btn, .admin-link, .menu-toggle-btn, .dropdown-item { transition: none !important; }
-    .streak-pill i, .dropdown-menu { animation: none !important; }
+    .streak-pill i, .dropdown-menu, .header-glow { animation: none !important; }
   }
 `;
 
@@ -223,92 +332,110 @@ const styles = {
   wrapper: {
     position: "sticky",
     top: 0,
-    zIndex: 1000, /* Sayfa içi diğer elemanların üstünde kalması için yükseltildi */
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+    zIndex: 1000,
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-    overflow: "visible", /* Taşmaları kesmemesi için visible yapıldı */
+    overflow: "visible",
   },
   glow: {
     position: "absolute",
-    top: -40,
+    top: -50,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 320,
-    height: 80,
+    width: 400,
+    height: 100,
     pointerEvents: "none",
+    opacity: 0.6,
   },
   bar: {
     position: "relative",
-    maxWidth: 480,
+    maxWidth: 500,
     margin: "0 auto",
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    padding: "10px 14px",
+    gap: 10,
+    padding: "12px 16px",
     overflow: "visible",
   },
   userBlock: {
     display: "flex",
     flexDirection: "column",
-    gap: 3,
-    minWidth: 55,
+    gap: 4,
+    minWidth: 60,
+    flexShrink: 0,
   },
   username: {
     fontSize: 13,
     fontWeight: 700,
     letterSpacing: "-0.2px",
     fontFamily: "'Manrope', sans-serif",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  userIcon: {
+    fontSize: 14,
+    opacity: 0.6,
   },
   adminLink: {
     fontSize: 10,
     textDecoration: "none",
-    letterSpacing: "0.2px",
+    letterSpacing: "0.3px",
     display: "flex",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
+    fontWeight: 600,
   },
   nav: {
     display: "flex",
-    flex: "1 1 auto", /* Esnek yapıldı, butona yer bırakacak */
-    borderRadius: 14,
-    padding: 4,
-    gap: 3,
+    flex: "1 1 auto",
+    borderRadius: 16,
+    padding: 5,
+    gap: 4,
     minWidth: 0,
   },
   navBtn: {
     flex: 1,
     border: "none",
-    borderRadius: 10,
-    padding: "8px 2px",
+    borderRadius: 12,
+    padding: "8px 4px",
     cursor: "pointer",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: 3,
     minWidth: 0,
+    fontSize: 9,
   },
   navIcon: {
-    fontSize: 16,
+    fontSize: 17,
+    transition: "transform 0.2s ease",
   },
   navLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: 700,
-    letterSpacing: "0.2px",
+    letterSpacing: "0.4px",
     fontFamily: "'Manrope', sans-serif",
+    textTransform: "uppercase",
+  },
+  rightSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
   },
   streak: {
     display: "flex",
     alignItems: "center",
-    gap: 4,
-    background: "rgba(245,158,11,0.1)",
-    border: "1px solid rgba(245,158,11,0.25)",
-    borderRadius: 12,
-    padding: "8px 9px",
+    gap: 5,
+    borderRadius: 14,
+    padding: "7px 10px",
     flexShrink: 0,
+    cursor: "default",
   },
   flameIcon: {
-    fontSize: 15,
+    fontSize: 16,
     color: "#f59e0b",
   },
   streakValue: {
@@ -327,20 +454,41 @@ const styles = {
   menuToggleBtn: {
     background: "none",
     border: "none",
-    padding: "4px",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarWrapper: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "inherit",
+  },
+  avatarIcon: {
+    fontSize: 20,
+  },
+  menuLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.3px",
+    fontFamily: "'Manrope', sans-serif",
+    opacity: 0.8,
+  },
+  chevronIcon: {
+    fontSize: 12,
+    transition: "transform 0.2s ease",
+  },
   dropdown: {
     position: "absolute",
     top: "calc(100% + 12px)",
     right: 0,
-    width: 120,
-    borderRadius: 12,
-    padding: "5px",
-    zIndex: 1100, /* Diğer her şeyin (kartlar, tablolar vs.) kesinlikle önünde görünmesi için */
+    width: 180,
+    borderRadius: 14,
+    padding: "6px",
+    zIndex: 9999,
     display: "flex",
     flexDirection: "column",
     gap: 2,
@@ -349,21 +497,51 @@ const styles = {
     fontSize: 9,
     fontWeight: 800,
     color: "var(--text-muted)",
-    padding: "4px 8px 2px 8px",
-    letterSpacing: "0.5px",
+    padding: "6px 10px 4px 10px",
+    letterSpacing: "0.8px",
+    textTransform: "uppercase",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   },
   dropdownItem: {
     background: "none",
     border: "none",
-    borderRadius: 8,
-    padding: "6px 8px",
+    borderRadius: 10,
+    padding: "8px 10px",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    fontSize: 11,
+    gap: 8,
+    fontSize: 12,
     fontWeight: 600,
     textAlign: "left",
     width: "100%",
+    fontFamily: "'Inter', sans-serif",
+  },
+  dropdownIcon: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  dropdownBadge: {
+    marginLeft: "auto",
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  dropdownDivider: {
+    height: 1,
+    background: "var(--border-color)",
+    margin: "2px 4px",
+  },
+  dropdownFooter: {
+    padding: "4px 10px 6px 10px",
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  dropdownVersion: {
+    fontSize: 9,
+    color: "var(--text-muted)",
+    opacity: 0.5,
+    letterSpacing: "0.3px",
   }
 };
