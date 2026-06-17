@@ -8,6 +8,7 @@ import StatsScreen from "./StatsScreen.jsx";
 import DashboardScreen from "./components/Dashboard/DashboardScreen.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 
+
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
 export default function App() {

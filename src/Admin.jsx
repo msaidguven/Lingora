@@ -1,7 +1,65 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
+import WordEditor from "./components/Admin/WordEditor.jsx";
+
 const ADMIN_PASSWORD = "123456";
+
+
+function AdminPanel({ onLogout }) {
+  const [currentPage, setCurrentPage] = useState("add"); // "add" veya "edit"
+
+
+
+if (currentPage === "edit") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", padding: "28px 20px 48px" }}>
+        <WordEditor onBack={() => setCurrentPage("add")} />
+      </div>
+    );
+  }
+
+    return (
+    <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Admin — Kelime Ekle</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>JSON formatında toplu kelime ekle</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          {/* Yeni: Düzenleme Sayfasına Git Butonu */}
+          <button 
+            onClick={() => setCurrentPage("edit")} 
+            style={{ 
+              background: "#6366f1", 
+              border: "none", 
+              borderRadius: 8, 
+              padding: "6px 12px", 
+              color: "#fff", 
+              fontSize: 12, 
+              cursor: "pointer" 
+            }}
+          >
+            ✏️ Kelime Düzenle
+          </button>
+          
+          <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
+            Çıkış
+          </button>
+          
+          {/* Son Eklenen Kelimeler kısmı mevcut */}
+          {/* ... */}
+        </div>
+      </div>
+      
+      {/* Mevcut içerik (JSON ekleme) */}
+      {/* ... */}
+    </div>
+  );
+}
+
+
 
 const EXAMPLE_JSON = `[
   {
@@ -50,8 +108,11 @@ Her kelime için:
 - A2 ise A2 seviyesinde 5 cümle vb.
 - Her cümle için Türkçe çeviri de ekle
 
+
 Kelimeler: [Aşağıda verildi]
 
+kelimenin diğer anlamlarını virgül ile ayır. 
+örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
 Tüm kelimeler A1 seviyesindedir, bunu dikkate al.
 
 [
