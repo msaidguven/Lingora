@@ -111,95 +111,6 @@ function AdminPanel({ onLogout }) {
     }
   };
 
-  const handleInsert = async () => {
-    if (!parsed) return;
-    setStatus("loading");
-    setResults([]);
-    const resultList = [];
-    
-    try {
-      // 1. Tüm kelimeleri tek seferde upsert et
-      const { data: wordData, error: wordError } = await supabase
-        .from("en_words")
-        .upsert(
-          parsed.map(item => ({
-            word: item.word,
-            meaning: item.meaning,
-            level: item.level || null,
-            type: item.type || "word",
-            part_of_speech: item.part_of_speech || [],
-            category: item.category || [],
-            difficulty: item.difficulty || null,
-            synonyms: item.synonyms || [],
-            antonyms: item.antonyms || [],
-          })),
-          { 
-            onConflict: 'word',
-            ignoreDuplicates: false // false = varsa güncelle
-          }
-        )
-        .select();
-
-      if (wordError) throw wordError;
-
-      // 2. Her kelime için örnek cümleleri ekle
-      for (const item of parsed) {
-        const word = wordData.find(w => w.word === item.word);
-        if (item.example && word) {
-          // Önce mevcut cümle var mı kontrol et (opsiyonel)
-          const { data: existingExample } = await supabase
-            .from("en_example_sentences")
-            .select("id")
-            .eq("word_id", word.id)
-            .eq("sentence_en", item.example)
-            .single();
-
-          if (!existingExample) {
-            const { error: exampleError } = await supabase
-              .from("en_example_sentences")
-              .insert({
-                word_id: word.id,
-                sentence_en: item.example,
-                sentence_tr: item.example_tr || null,
-                difficulty: item.difficulty || null,
-                order_index: 0,
-                source: "manual",
-                is_approved: true,
-              });
-
-            if (exampleError) console.error("Cümle eklenemedi:", exampleError);
-          }
-        }
-      }
-
-      // 3. Sonuçları hazırla
-      parsed.forEach(item => {
-        const word = wordData.find(w => w.word === item.word);
-        // Kelimenin önceden var olup olmadığını kontrol etmek için
-        // Basitçe tüm kelimeleri "eklendi" veya "güncellendi" olarak işaretle
-        // Daha doğru sonuç için ayrı bir kontrol yapabiliriz
-        resultList.push({ 
-          word: item.word, 
-          ok: true, 
-          status: "eklendi/güncellendi" 
-        });
-      });
-
-      setResults(resultList);
-      setStatus("success");
-      
-    } catch (e) {
-      console.error("Hata:", e);
-      // Hata durumunda her kelime için hata göster
-      parsed.forEach(item => {
-        resultList.push({ word: item.word, ok: false, error: e.message });
-      });
-      setResults(resultList);
-      setStatus("error");
-    }
-  };
-
-  // Daha doğru sonuçlar için kelimeleri tek tek kontrol edip ekleyen versiyon
   const handleInsertWithCheck = async () => {
     if (!parsed) return;
     setStatus("loading");
@@ -208,7 +119,7 @@ function AdminPanel({ onLogout }) {
     
     for (const item of parsed) {
       try {
-        // Önce kelime var mı kontrol et
+        // 1. Önce kelime var mı kontrol et
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
           .select("id, word, meaning, level")
@@ -217,6 +128,7 @@ function AdminPanel({ onLogout }) {
 
         let wordData;
         let isUpdate = false;
+        let exampleStatus = "yok";
 
         if (existing) {
           // Kelime varsa güncelle
@@ -262,8 +174,9 @@ function AdminPanel({ onLogout }) {
           isUpdate = false;
         }
 
-        // Örnek cümle ekle
+        // 2. Örnek cümle kontrol et (SADECE yoksa ekle)
         if (item.example && wordData) {
+          // Aynı cümle var mı kontrol et
           const { data: existingExample } = await supabase
             .from("en_example_sentences")
             .select("id")
@@ -272,7 +185,8 @@ function AdminPanel({ onLogout }) {
             .single();
 
           if (!existingExample) {
-            const { error: exampleError } = await supabase
+            // Aynı cümle YOKSA ekle
+            const { error: insertExampleError } = await supabase
               .from("en_example_sentences")
               .insert({
                 word_id: wordData.id,
@@ -284,18 +198,34 @@ function AdminPanel({ onLogout }) {
                 is_approved: true,
               });
 
-            if (exampleError) console.error("Cümle eklenemedi:", exampleError);
+            if (insertExampleError) {
+              console.error("Cümle eklenemedi:", insertExampleError);
+              exampleStatus = "hata";
+            } else {
+              exampleStatus = "eklendi";
+            }
+          } else {
+            // Aynı cümle VARSA hiçbir şey yapma
+            exampleStatus = "zaten var";
           }
+        } else if (!item.example) {
+          exampleStatus = "yok";
         }
 
         resultList.push({ 
           word: item.word, 
           ok: true, 
-          status: isUpdate ? "güncellendi" : "eklendi" 
+          status: isUpdate ? "güncellendi" : "eklendi",
+          exampleStatus: exampleStatus
         });
         
       } catch (e) {
-        resultList.push({ word: item.word, ok: false, error: e.message });
+        resultList.push({ 
+          word: item.word, 
+          ok: false, 
+          error: e.message,
+          exampleStatus: "hata"
+        });
       }
     }
     
@@ -321,6 +251,8 @@ function AdminPanel({ onLogout }) {
   const failCount = results.filter(r => !r.ok).length;
   const addedCount = results.filter(r => r.status === "eklendi").length;
   const updatedCount = results.filter(r => r.status === "güncellendi").length;
+  const exampleAddedCount = results.filter(r => r.exampleStatus === "eklendi").length;
+  const exampleExistsCount = results.filter(r => r.exampleStatus === "zaten var").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
@@ -384,6 +316,11 @@ function AdminPanel({ onLogout }) {
                 <div>
                   <span style={{ fontWeight: 700 }}>{item.word}</span>
                   <span style={{ color: "#64748b", marginLeft: 8 }}>{item.meaning}</span>
+                  {item.example && (
+                    <span style={{ fontSize: 10, color: "#475569", marginLeft: 8 }}>
+                      📝 {item.example.substring(0, 20)}...
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: "#10b981", background: "#10b98122", padding: "2px 6px", borderRadius: 5 }}>{item.level}</span>
@@ -420,25 +357,52 @@ function AdminPanel({ onLogout }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: failCount === 0 ? "#10b981" : "#f59e0b", marginBottom: 10 }}>
               {failCount === 0 ? (
                 <>
-                  ✅ {addedCount > 0 && `${addedCount} kelime eklendi`}
+                  {addedCount > 0 && `✅ ${addedCount} kelime eklendi`}
                   {addedCount > 0 && updatedCount > 0 && ", "}
                   {updatedCount > 0 && `🔄 ${updatedCount} kelime güncellendi`}
-                  {addedCount === 0 && updatedCount === 0 && "Hiçbir değişiklik yapılmadı"}
+                  {addedCount === 0 && updatedCount === 0 && "ℹ️ Hiçbir değişiklik yapılmadı"}
+                  {(exampleAddedCount > 0 || exampleExistsCount > 0) && (
+                    <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4, color: "#94a3b8" }}>
+                      {exampleAddedCount > 0 && `📝 ${exampleAddedCount} yeni cümle eklendi`}
+                      {exampleAddedCount > 0 && exampleExistsCount > 0 && ", "}
+                      {exampleExistsCount > 0 && `⏭️ ${exampleExistsCount} cümle zaten mevcut`}
+                    </div>
+                  )}
                 </>
               ) : (
                 `${successCount} başarılı, ${failCount} hata`
               )}
             </div>
             {results.map((r, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: "1px solid #0f0f1a" }}>
-                <span style={{ fontWeight: 600 }}>{r.word}</span>
-                {r.ok ? (
-                  <span style={{ color: r.status === "eklendi" ? "#10b981" : "#f59e0b" }}>
-                    {r.status === "eklendi" ? "✅ Yeni eklendi" : "🔄 Güncellendi"}
-                  </span>
-                ) : (
-                  <span style={{ color: "#ef4444" }}>❌ {r.error}</span>
-                )}
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid #0f0f1a" }}>
+                <div>
+                  <span style={{ fontWeight: 600 }}>{r.word}</span>
+                  {r.exampleStatus && r.exampleStatus !== "yok" && (
+                    <span style={{ 
+                      fontSize: 10, 
+                      color: r.exampleStatus === "eklendi" ? "#10b981" : r.exampleStatus === "zaten var" ? "#64748b" : "#ef4444",
+                      marginLeft: 8,
+                      background: r.exampleStatus === "eklendi" ? "#10b98122" : r.exampleStatus === "zaten var" ? "#1e293b" : "#ef444422",
+                      padding: "2px 6px",
+                      borderRadius: 4
+                    }}>
+                      {r.exampleStatus === "eklendi" && "📝 +cümle"}
+                      {r.exampleStatus === "zaten var" && "⏭️ cümle var"}
+                      {r.exampleStatus === "hata" && "❌ cümle hatası"}
+                    </span>
+                  )}
+                  {!r.ok && (
+                    <span style={{ fontSize: 10, color: "#ef4444", marginLeft: 8 }}>
+                      ❌ {r.error}
+                    </span>
+                  )}
+                </div>
+                <span style={{ 
+                  color: r.ok ? (r.status === "eklendi" ? "#10b981" : "#f59e0b") : "#ef4444",
+                  fontSize: 12
+                }}>
+                  {r.ok ? (r.status === "eklendi" ? "✅ Yeni" : "🔄 Güncellendi") : "❌ Hata"}
+                </span>
               </div>
             ))}
           </div>
