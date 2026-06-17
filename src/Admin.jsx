@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
 const ADMIN_PASSWORD = "123456";
@@ -150,6 +150,39 @@ function AdminPanel({ onLogout }) {
   const [results, setResults] = useState([]);
   const [showExample, setShowExample] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [recentWords, setRecentWords] = useState([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+
+  // Son 3 kelimeyi çek
+  const fetchRecentWords = async () => {
+    setLoadingRecent(true);
+    try {
+      const { data, error } = await supabase
+        .from("en_words")
+        .select("word, meaning, level, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      setRecentWords(data || []);
+    } catch (error) {
+      console.error("Son kelimeler çekilirken hata:", error);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  // Komponent yüklendiğinde ve kelime eklendiğinde son kelimeleri çek
+  useEffect(() => {
+    fetchRecentWords();
+  }, []);
+
+  // Yeni kelime eklendiğinde listeyi güncelle
+  useEffect(() => {
+    if (results.length > 0 && results.some(r => r.ok && r.status === "eklendi")) {
+      fetchRecentWords();
+    }
+  }, [results]);
 
   const handleParse = () => {
     setParseError(null);
@@ -159,7 +192,6 @@ function AdminPanel({ onLogout }) {
       if (!Array.isArray(data)) throw new Error("JSON bir array olmalı: [ ... ]");
       if (data.length === 0) throw new Error("Array boş.");
       
-      // examples alanının varlığını kontrol et
       data.forEach((item, index) => {
         if (!item.examples || !Array.isArray(item.examples) || item.examples.length === 0) {
           throw new Error(`"${item.word}" kelimesi için examples array'i eksik veya boş`);
@@ -185,7 +217,6 @@ function AdminPanel({ onLogout }) {
     
     for (const item of parsed) {
       try {
-        // 1. Kelime var mı kontrol et
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
           .select("id, word, meaning, level")
@@ -203,14 +234,11 @@ function AdminPanel({ onLogout }) {
         let errorExampleCount = 0;
 
         if (existing) {
-          // Kelime zaten var
           wordData = existing;
           wordStatus = "zaten var";
           
-          // 2. Cümleleri kontrol et ve ekle
           if (item.examples && Array.isArray(item.examples) && wordData) {
             for (const example of item.examples) {
-              // Aynı cümle var mı kontrol et
               const { data: existingExample, error: exampleCheckError } = await supabase
                 .from("en_example_sentences")
                 .select("id")
@@ -225,7 +253,6 @@ function AdminPanel({ onLogout }) {
               }
 
               if (!existingExample) {
-                // Aynı cümle YOKSA ekle
                 const { error: insertExampleError } = await supabase
                   .from("en_example_sentences")
                   .insert({
@@ -250,7 +277,6 @@ function AdminPanel({ onLogout }) {
             }
           }
         } else {
-          // Yeni kelime ekle
           const { data: inserted, error: insertError } = await supabase
             .from("en_words")
             .insert({
@@ -271,7 +297,6 @@ function AdminPanel({ onLogout }) {
           wordData = inserted;
           wordStatus = "eklendi";
 
-          // Yeni kelimeye cümleleri ekle
           if (item.examples && Array.isArray(item.examples) && wordData) {
             for (const example of item.examples) {
               const { error: insertExampleError } = await supabase
@@ -296,7 +321,6 @@ function AdminPanel({ onLogout }) {
           }
         }
 
-        // Sonuç mesajını oluştur
         let exampleStatus = "yok";
         if (addedExampleCount > 0 && existingExampleCount === 0 && errorExampleCount === 0) {
           exampleStatus = `${addedExampleCount} cümle eklendi`;
@@ -363,9 +387,64 @@ function AdminPanel({ onLogout }) {
           <div style={{ fontSize: 22, fontWeight: 800 }}>Admin — Kelime Ekle</div>
           <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>JSON formatında toplu kelime ekle</div>
         </div>
-        <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
-          Çıkış
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
+            Çıkış
+          </button>
+          
+          {/* Son Eklenen Kelimeler */}
+          <div style={{ 
+            background: "#1a1a2e", 
+            border: "1px solid #1e293b", 
+            borderRadius: 10, 
+            padding: "10px 14px",
+            minWidth: 180,
+            maxWidth: 220
+          }}>
+            <div style={{ 
+              fontSize: 10, 
+              letterSpacing: 2, 
+              color: "#6366f1", 
+              fontWeight: 600, 
+              textTransform: "uppercase",
+              marginBottom: 6
+            }}>
+              📚 Son Eklenenler
+            </div>
+            {loadingRecent ? (
+              <div style={{ fontSize: 12, color: "#64748b" }}>Yükleniyor...</div>
+            ) : recentWords.length > 0 ? (
+              <div>
+                {recentWords.map((word, index) => (
+                  <div 
+                    key={index} 
+                    style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center",
+                      padding: "4px 0",
+                      borderBottom: index < recentWords.length - 1 ? "1px solid #0f0f1a" : "none",
+                      fontSize: 12
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{word.word}</span>
+                    <span style={{ 
+                      fontSize: 9, 
+                      color: "#64748b", 
+                      background: "#0f0f1a", 
+                      padding: "1px 6px", 
+                      borderRadius: 4 
+                    }}>
+                      {word.level || "A1"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#64748b" }}>Henüz kelime yok</div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ background: "#1a1a2e", borderRadius: 14, padding: 16, marginBottom: 20, border: "1px solid #1e293b" }}>
