@@ -1,6 +1,75 @@
 import { useState, useEffect } from "react";
 import { getDailyStats, getTodayStats } from "../../utils/dailyStats.js";
 
+// ── Yardımcılar ──────────────────────────────────────────────
+
+const getAccColor = (acc) => {
+  if (acc >= 85) return "#10b981";
+  if (acc >= 60) return "#f59e0b";
+  if (acc > 0) return "#ef4444";
+  return "#64748b";
+};
+
+const getAccTones = (acc) => {
+  const color = getAccColor(acc);
+  if (acc >= 85) return { color, bg: "rgba(16,185,129,0.07)", border: "rgba(16,185,129,0.12)" };
+  if (acc >= 60) return { color, bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.12)" };
+  if (acc > 0) return { color, bg: "rgba(239,68,68,0.07)", border: "rgba(239,68,68,0.12)" };
+  return { color, bg: "rgba(100,116,139,0.07)", border: "rgba(100,116,139,0.12)" };
+};
+
+const calcAcc = (correct, wrong) => {
+  const total = (correct || 0) + (wrong || 0);
+  return total > 0 ? Math.round(((correct || 0) / total) * 100) : 0;
+};
+
+// Stats sayfasındaki 4'lü stat pili (Doğru / Yanlış / Başarı / Tekrar) ile aynı görsel dil
+const StatPill = ({ value, label, color, bg, border }) => (
+  <div style={{
+    background: bg,
+    border: `1px solid ${border}`,
+    borderRadius: 10,
+    padding: "8px 4px",
+    textAlign: "center"
+  }}>
+    <div style={{ fontSize: 16, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+    <div style={{ fontSize: 9, color: `${color}70`, fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</div>
+  </div>
+);
+
+// Stats kartlarındaki dış kabuk: gradient yüzey + sol accent çizgisi + sağ üst ambient ışık
+const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
+  <div style={{
+    background: "linear-gradient(160deg, #14142a 0%, #111126 100%)",
+    borderRadius: 18,
+    padding: "18px 20px",
+    border: "1px solid rgba(255,255,255,0.05)",
+    boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+    position: "relative",
+    overflow: "hidden",
+    ...style
+  }}>
+    <div style={{
+      position: "absolute",
+      left: 0, top: 12, bottom: 12,
+      width: 3,
+      background: `linear-gradient(180deg, ${accentColor}, ${accentColor}55)`,
+      borderRadius: "0 3px 3px 0",
+    }} />
+    <div style={{
+      position: "absolute",
+      top: -20, right: -20,
+      width: 80, height: 80,
+      borderRadius: "50%",
+      background: `radial-gradient(circle, ${accentColor}12 0%, transparent 70%)`,
+      pointerEvents: "none"
+    }} />
+    <div style={{ paddingLeft: 10, position: "relative" }}>
+      {children}
+    </div>
+  </div>
+);
+
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [todayStats, setTodayStats] = useState(null);
@@ -26,22 +95,19 @@ export default function DashboardScreen() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    
+
     try {
-      // Bugün
       const today = await getTodayStats();
       setTodayStats(today);
-      
-      // Son 30 gün
+
       const stats = await getDailyStats(30);
       setLast30Days(stats);
-      
-      // Özet hesapla
+
       let totalCorrect = 0, totalWrong = 0;
       let wordTotalCorrect = 0, wordTotalWrong = 0;
       let sentenceTotalCorrect = 0, sentenceTotalWrong = 0;
       let bestDay = null, worstDay = null;
-      
+
       stats.forEach(day => {
         totalCorrect += day.total_correct || 0;
         totalWrong += day.total_wrong || 0;
@@ -49,7 +115,7 @@ export default function DashboardScreen() {
         wordTotalWrong += day.word_wrong || 0;
         sentenceTotalCorrect += day.sentence_correct || 0;
         sentenceTotalWrong += day.sentence_wrong || 0;
-        
+
         const total = (day.total_correct || 0) + (day.total_wrong || 0);
         if (total > 0) {
           if (!bestDay || total > ((bestDay.total_correct || 0) + (bestDay.total_wrong || 0))) {
@@ -60,16 +126,16 @@ export default function DashboardScreen() {
           }
         }
       });
-      
+
       const totalAttempts = totalCorrect + totalWrong;
       const accuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
-      const wordAccuracy = (wordTotalCorrect + wordTotalWrong) > 0 
-        ? Math.round((wordTotalCorrect / (wordTotalCorrect + wordTotalWrong)) * 100) 
+      const wordAccuracy = (wordTotalCorrect + wordTotalWrong) > 0
+        ? Math.round((wordTotalCorrect / (wordTotalCorrect + wordTotalWrong)) * 100)
         : 0;
-      const sentenceAccuracy = (sentenceTotalCorrect + sentenceTotalWrong) > 0 
-        ? Math.round((sentenceTotalCorrect / (sentenceTotalCorrect + sentenceTotalWrong)) * 100) 
+      const sentenceAccuracy = (sentenceTotalCorrect + sentenceTotalWrong) > 0
+        ? Math.round((sentenceTotalCorrect / (sentenceTotalCorrect + sentenceTotalWrong)) * 100)
         : 0;
-      
+
       setSummary({
         totalCorrect,
         totalWrong,
@@ -84,7 +150,7 @@ export default function DashboardScreen() {
         bestDay,
         worstDay
       });
-      
+
     } catch (error) {
       console.error('Dashboard verisi çekme hatası:', error);
     } finally {
@@ -92,362 +158,315 @@ export default function DashboardScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "70vh", background: "#0b0b14" }}>
-        <div style={{ color: "#64748b" }}>Yükleniyor...</div>
-      </div>
-    );
-  }
-
-  // Tarih formatı
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('tr-TR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: '2-digit' 
+    return date.toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit'
     });
   };
 
-  // Gün ismi
   const getDayName = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('tr-TR', { weekday: 'short' });
   };
 
-  // Bugün mü kontrolü
   const isToday = (dateStr) => {
     const today = new Date().toISOString().split('T')[0];
     return dateStr === today;
   };
 
-  // Bugünün doğruluk oranlarını hesapla
-  const getTodayAccuracy = (correct, wrong) => {
-    const total = correct + wrong;
-    return total > 0 ? Math.round((correct / total) * 100) : 0;
-  };
-
-  // Doğru/yanlış sayısını rozet (chip) olarak gösteren küçük yardımcı bileşen.
-  // "x3" gibi çarpma işlemiyle karışmaması için ikon ile sayı arasına net boşluk,
-  // hafif arka plan ve renkli kenarlık eklenir.
-  const StatChip = ({ icon, value, variant, size = 13 }) => {
-    const palette = variant === "correct"
-      ? { bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.35)", color: "#34d399" }
-      : { bg: "rgba(239, 68, 68, 0.14)", border: "rgba(239, 68, 68, 0.4)", color: "#f87171" };
-
+  if (loading) {
     return (
-      <span style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "2px 7px",
-        borderRadius: 999,
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        fontSize: size,
-        fontWeight: 700,
-        color: palette.color,
-        lineHeight: 1.4
-      }}>
-        <span style={{ fontSize: size - 1 }}>{icon}</span>
-        <span>{value}</span>
-      </span>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "70vh", background: "#0a0a18", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{
+            width: 44, height: 44,
+            border: "3px solid rgba(99,102,241,0.15)",
+            borderTopColor: "#6366f1",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            boxShadow: "0 0 20px rgba(99,102,241,0.2)"
+          }} />
+          <div style={{ color: "#475569", fontSize: 13, fontWeight: 500, letterSpacing: "0.05em" }}>Veriler yükleniyor...</div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
     );
-  };
+  }
+
+  const todayWordAcc = todayStats ? calcAcc(todayStats.word_correct, todayStats.word_wrong) : 0;
+  const todaySentenceAcc = todayStats ? calcAcc(todayStats.sentence_correct, todayStats.sentence_wrong) : 0;
+  const todayTotalAcc = todayStats ? (todayStats.accuracy || calcAcc(todayStats.total_correct, todayStats.total_wrong)) : 0;
 
   return (
-    <div style={{ 
-      background: "#0b0b14", 
-      minHeight: "100vh", 
-      color: "#f8fafc", 
+    <div style={{
+      background: "#0a0a18",
+      minHeight: "100vh",
+      color: "#f8fafc",
       fontFamily: "system-ui, -apple-system, sans-serif",
-      padding: "20px 16px 40px"
+      padding: "24px 16px 48px"
     }}>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1e1e38; border-radius: 6px; }
+      `}</style>
+
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
-        
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 11, letterSpacing: "3px", color: "#818cf8", fontWeight: 700 }}>📊 DASHBOARD</div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "#ffffff" }}>
+
+        {/* ── HEADER ── */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: "4px",
+            color: "#6366f1",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            marginBottom: 8,
+            opacity: 0.7
+          }}>
+            DASHBOARD
+          </div>
+          <h1 style={{
+            fontSize: 26,
+            fontWeight: 900,
+            margin: 0,
+            color: "#f1f5f9",
+            letterSpacing: "-0.8px",
+            background: "linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent"
+          }}>
             Çalışma İstatistiklerim
           </h1>
         </div>
 
-        {/* 📅 Bugün - Ayrı ayrı gösterim */}
-        <div style={{ 
-          background: "#131324", 
-          borderRadius: 16, 
-          padding: "16px 18px",
-          border: "1px solid #1e1e38",
-          marginBottom: 16
-        }}>
-          <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500, marginBottom: 12 }}>📅 Bugün</div>
-          
+        {/* ── BUGÜN ── */}
+        <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 14 }}>
+            📅 Bugün
+          </div>
+
           {todayStats ? (
             <>
-              {/* Kelime */}
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                padding: "8px 12px",
-                background: "#1a1a30",
-                borderRadius: 8,
-                marginBottom: 6
-              }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>📖 Kelime</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-                  <StatChip icon="✅" value={todayStats.word_correct || 0} variant="correct" />
-                  <StatChip icon="❌" value={todayStats.word_wrong || 0} variant="wrong" />
-                  <span style={{ 
-                    color: getTodayAccuracy(todayStats.word_correct, todayStats.word_wrong) >= 70 ? "#10b981" : "#f59e0b", 
-                    fontWeight: 700 
-                  }}>
-                    %{getTodayAccuracy(todayStats.word_correct, todayStats.word_wrong)}
-                  </span>
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 10 }}>
+                <StatPill value={todayStats.word_correct || 0} label="Kel. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+                <StatPill value={todayStats.word_wrong || 0} label="Kel. Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
+                <StatPill value={todayStats.sentence_correct || 0} label="Cüm. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+                <StatPill value={todayStats.sentence_wrong || 0} label="Cüm. Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
               </div>
-              
-              {/* Cümle */}
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                padding: "8px 12px",
-                background: "#1a1a30",
-                borderRadius: 8,
-                marginBottom: 8
-              }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>📝 Cümle</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-                  <StatChip icon="✅" value={todayStats.sentence_correct || 0} variant="correct" />
-                  <StatChip icon="❌" value={todayStats.sentence_wrong || 0} variant="wrong" />
-                  <span style={{ 
-                    color: getTodayAccuracy(todayStats.sentence_correct, todayStats.sentence_wrong) >= 70 ? "#10b981" : "#f59e0b", 
-                    fontWeight: 700 
-                  }}>
-                    %{getTodayAccuracy(todayStats.sentence_correct, todayStats.sentence_wrong)}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Toplam - Çizgi ile ayrılmış */}
-              <div style={{ 
-                borderTop: "1px solid #1e1e38", 
-                marginTop: 8, 
-                paddingTop: 8,
+
+              <div style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center"
+                alignItems: "center",
+                borderTop: "1px solid rgba(255,255,255,0.05)",
+                paddingTop: 12,
+                marginTop: 4
               }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#f8fafc" }}>📊 Toplam</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 600 }}>
-                  <StatChip icon="✅" value={todayStats.total_correct || 0} variant="correct" />
-                  <StatChip icon="❌" value={todayStats.total_wrong || 0} variant="wrong" />
-                  <span style={{ color: "#f59e0b" }}>🎯 %{todayStats.accuracy || 0}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>📊 Toplam</span>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>✅ {todayStats.total_correct || 0}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>❌ {todayStats.total_wrong || 0}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: getAccColor(todayTotalAcc) }}>%{todayTotalAcc}</span>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{
+                    width: `${todayTotalAcc}%`,
+                    height: "100%",
+                    background: `linear-gradient(90deg, ${getAccColor(todayTotalAcc)}99, ${getAccColor(todayTotalAcc)})`,
+                    borderRadius: 4,
+                    transition: "width 0.4s ease",
+                    boxShadow: `0 0 8px ${getAccColor(todayTotalAcc)}60`
+                  }} />
                 </div>
               </div>
             </>
           ) : (
-            <div style={{ textAlign: "center", color: "#64748b", fontSize: 13, padding: "12px 0" }}>
+            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "16px 0" }}>
               Bugün henüz çalışma yok 🌱
             </div>
           )}
-        </div>
+        </SurfaceCard>
 
-        {/* 📊 Özet Kartları - Kelime ve Cümle ayrı */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-          {/* Kelime Özeti */}
-          <div style={{ 
-            background: "linear-gradient(135deg, #1a1a2e, #16213e)", 
-            borderRadius: 14, 
-            padding: "14px 16px",
-            border: "1px solid #1e293b"
-          }}>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>📖 Kelime</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#818cf8" }}>
+        {/* ── KELİME / CÜMLE ÖZETİ ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+          <SurfaceCard accentColor="#818cf8">
+            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+              📖 Kelime
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: getAccColor(summary.wordAccuracy) }}>
                 %{summary.wordAccuracy}
               </span>
-              <span style={{ fontSize: 12, color: "#64748b" }}>başarı</span>
+              <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              <StatChip icon="✅" value={summary.wordTotalCorrect} variant="correct" size={11} />
-              <StatChip icon="❌" value={summary.wordTotalWrong} variant="wrong" size={11} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              <StatPill value={summary.wordTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+              <StatPill value={summary.wordTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             </div>
-          </div>
-          
-          {/* Cümle Özeti */}
-          <div style={{ 
-            background: "linear-gradient(135deg, #1a1a2e, #16213e)", 
-            borderRadius: 14, 
-            padding: "14px 16px",
-            border: "1px solid #1e293b"
-          }}>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>📝 Cümle</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#818cf8" }}>
+          </SurfaceCard>
+
+          <SurfaceCard accentColor="#60a5fa">
+            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+              📝 Cümle
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: getAccColor(summary.sentenceAccuracy) }}>
                 %{summary.sentenceAccuracy}
               </span>
-              <span style={{ fontSize: 12, color: "#64748b" }}>başarı</span>
+              <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              <StatChip icon="✅" value={summary.sentenceTotalCorrect} variant="correct" size={11} />
-              <StatChip icon="❌" value={summary.sentenceTotalWrong} variant="wrong" size={11} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              <StatPill value={summary.sentenceTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+              <StatPill value={summary.sentenceTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
             </div>
-          </div>
+          </SurfaceCard>
         </div>
 
-        {/* Genel Özet */}
-        <div style={{ 
-          background: "linear-gradient(135deg, #1a1a2e, #16213e)", 
-          borderRadius: 14, 
-          padding: "14px 16px",
-          border: "1px solid #1e293b",
-          marginBottom: 16
-        }}>
-          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>📊 Genel Toplam</div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              <StatChip icon="✅" value={summary.totalCorrect} variant="correct" size={16} />
-              <StatChip icon="❌" value={summary.totalWrong} variant="wrong" size={16} />
-            </div>
-            <div>
-              <span style={{ fontSize: 24, fontWeight: 800, color: "#f59e0b" }}>%{summary.accuracy}</span>
-            </div>
+        {/* ── GENEL TOPLAM ── */}
+        <SurfaceCard accentColor="#fbbf24" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
+            📊 Genel Toplam
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
-            {summary.totalAttempts} toplam çözüm
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 12 }}>
+            <StatPill value={summary.totalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+            <StatPill value={summary.totalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
+            <StatPill value={`%${summary.accuracy}`} label="Başarı" color={getAccColor(summary.accuracy)} bg={getAccTones(summary.accuracy).bg} border={getAccTones(summary.accuracy).border} />
+            <StatPill value={summary.totalAttempts} label="Çözüm" color="#818cf8" bg="rgba(99,102,241,0.07)" border="rgba(99,102,241,0.12)" />
           </div>
-        </div>
+          <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{
+              width: `${summary.accuracy}%`,
+              height: "100%",
+              background: `linear-gradient(90deg, ${getAccColor(summary.accuracy)}99, ${getAccColor(summary.accuracy)})`,
+              borderRadius: 4,
+              transition: "width 0.4s ease",
+              boxShadow: `0 0 8px ${getAccColor(summary.accuracy)}60`
+            }} />
+          </div>
+        </SurfaceCard>
 
-        {/* En iyi / En kötü gün */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-          <div style={{ background: "#131324", borderRadius: 12, padding: "12px 14px", border: "1px solid #1e1e38" }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>🔥 En İyi Gün</div>
+        {/* ── EN İYİ / EN KÖTÜ GÜN ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+          <SurfaceCard accentColor="#10b981">
+            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
+              🔥 En İyi Gün
+            </div>
             {summary.bestDay ? (
               <>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#10b981" }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
                   {formatDate(summary.bestDay.stat_date)}
                 </div>
-                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                  <StatChip icon="✅" value={summary.bestDay.total_correct} variant="correct" size={11} />
-                  <StatChip icon="❌" value={summary.bestDay.total_wrong} variant="wrong" size={11} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <StatPill value={summary.bestDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+                  <StatPill value={summary.bestDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 12, color: "#64748b" }}>Veri yok</div>
+              <div style={{ fontSize: 12, color: "#334155" }}>Veri yok</div>
             )}
-          </div>
-          <div style={{ background: "#131324", borderRadius: 12, padding: "12px 14px", border: "1px solid #1e1e38" }}>
-            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>📉 En Kötü Gün</div>
+          </SurfaceCard>
+
+          <SurfaceCard accentColor="#ef4444">
+            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
+              📉 En Kötü Gün
+            </div>
             {summary.worstDay ? (
               <>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
                   {formatDate(summary.worstDay.stat_date)}
                 </div>
-                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                  <StatChip icon="✅" value={summary.worstDay.total_correct} variant="correct" size={11} />
-                  <StatChip icon="❌" value={summary.worstDay.total_wrong} variant="wrong" size={11} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <StatPill value={summary.worstDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
+                  <StatPill value={summary.worstDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 12, color: "#64748b" }}>Veri yok</div>
+              <div style={{ fontSize: 12, color: "#334155" }}>Veri yok</div>
             )}
-          </div>
+          </SurfaceCard>
         </div>
 
-        {/* 📋 Son 30 Gün Tablosu - Kelime ve Cümle ayrı */}
-        <div style={{ 
-          background: "#131324", 
-          borderRadius: 16, 
-          padding: "16px 18px",
-          border: "1px solid #1e1e38",
-          marginBottom: 16
-        }}>
+        {/* ── SON 30 GÜN TABLOSU ── */}
+        <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>📋 Son 30 Gün</div>
-            <div style={{ fontSize: 11, color: "#475569" }}>
+            <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              📋 Son 30 Gün
+            </div>
+            <div style={{ fontSize: 11, color: "#334155" }}>
               {last30Days.filter(d => (d.total_correct || 0) + (d.total_wrong || 0) > 0).length} gün çalışılmış
             </div>
           </div>
-          
+
           {last30Days.length > 0 ? (
-            <div style={{ 
-              maxHeight: 350, 
-              overflowY: "auto",
-              scrollbarWidth: "thin",
-              scrollbarColor: "#1e1e38 transparent"
-            }}>
+            <div style={{ maxHeight: 350, overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #1e1e38" }}>
-                    <th style={{ textAlign: "left", padding: "6px 4px", color: "#64748b", fontWeight: 600, fontSize: 10 }}>Tarih</th>
-                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#64748b", fontWeight: 600, fontSize: 10 }}>📖</th>
-                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#64748b", fontWeight: 600, fontSize: 10 }}>📝</th>
-                    <th style={{ textAlign: "right", padding: "6px 4px", color: "#64748b", fontWeight: 600, fontSize: 10 }}>📊</th>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <th style={{ textAlign: "left", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>Tarih</th>
+                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📖</th>
+                    <th style={{ textAlign: "center", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📝</th>
+                    <th style={{ textAlign: "right", padding: "6px 4px", color: "#475569", fontWeight: 600, fontSize: 10 }}>📊</th>
                   </tr>
                 </thead>
                 <tbody>
                   {last30Days.slice().reverse().map((day) => {
                     const total = (day.total_correct || 0) + (day.total_wrong || 0);
                     const today = isToday(day.stat_date);
-                    
-                    // Başarı renkleri
+
                     const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
                     const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
-                    const wordAcc = wordTotal > 0 ? Math.round(((day.word_correct || 0) / wordTotal) * 100) : 0;
-                    const sentenceAcc = sentenceTotal > 0 ? Math.round(((day.sentence_correct || 0) / sentenceTotal) * 100) : 0;
+                    const wordAcc = calcAcc(day.word_correct, day.word_wrong);
+                    const sentenceAcc = calcAcc(day.sentence_correct, day.sentence_wrong);
                     const totalAcc = total > 0 ? Math.round(((day.total_correct || 0) / total) * 100) : 0;
-                    
-                    const getColor = (acc) => {
-                      if (acc >= 80) return "#10b981";
-                      if (acc >= 60) return "#f59e0b";
-                      if (acc > 0) return "#ef4444";
-                      return "#64748b";
-                    };
-                    
+
                     return (
-                      <tr 
-                        key={day.stat_date} 
-                        style={{ 
-                          borderBottom: "1px solid #1a1a30",
-                          background: today ? "rgba(99, 102, 241, 0.08)" : "transparent",
+                      <tr
+                        key={day.stat_date}
+                        style={{
+                          borderBottom: "1px solid rgba(255,255,255,0.03)",
+                          background: today ? "rgba(99,102,241,0.08)" : "transparent",
                           fontWeight: today ? 700 : 400
                         }}
                       >
-                        <td style={{ padding: "6px 4px", color: today ? "#818cf8" : "#e2e8f0" }}>
+                        <td style={{ padding: "8px 4px", color: today ? "#818cf8" : "#e2e8f0" }}>
                           {formatDate(day.stat_date)}
-                          <span style={{ fontSize: 9, color: "#475569", marginLeft: 4 }}>
+                          <span style={{ fontSize: 9, color: "#334155", marginLeft: 4 }}>
                             {getDayName(day.stat_date)}
                           </span>
                           {today && <span style={{ fontSize: 9, color: "#818cf8", marginLeft: 4 }}>⭐</span>}
                         </td>
-                        <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 11 }}>
+                        <td style={{ textAlign: "center", padding: "8px 4px", fontSize: 11 }}>
                           {wordTotal > 0 ? (
                             <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                               <span style={{ display: "inline-flex", gap: 5 }}>
                                 <span style={{ color: "#34d399" }}>✅ {day.word_correct || 0}</span>
                                 <span style={{ color: "#f87171" }}>❌ {day.word_wrong || 0}</span>
                               </span>
-                              <span style={{ fontSize: 9, color: getColor(wordAcc) }}>%{wordAcc}</span>
+                              <span style={{ fontSize: 9, color: getAccColor(wordAcc) }}>%{wordAcc}</span>
                             </span>
-                          ) : "-"}
+                          ) : <span style={{ color: "#334155" }}>-</span>}
                         </td>
-                        <td style={{ textAlign: "center", padding: "6px 4px", fontSize: 11 }}>
+                        <td style={{ textAlign: "center", padding: "8px 4px", fontSize: 11 }}>
                           {sentenceTotal > 0 ? (
                             <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                               <span style={{ display: "inline-flex", gap: 5 }}>
                                 <span style={{ color: "#34d399" }}>✅ {day.sentence_correct || 0}</span>
                                 <span style={{ color: "#f87171" }}>❌ {day.sentence_wrong || 0}</span>
                               </span>
-                              <span style={{ fontSize: 9, color: getColor(sentenceAcc) }}>%{sentenceAcc}</span>
+                              <span style={{ fontSize: 9, color: getAccColor(sentenceAcc) }}>%{sentenceAcc}</span>
                             </span>
-                          ) : "-"}
+                          ) : <span style={{ color: "#334155" }}>-</span>}
                         </td>
-                        <td style={{ textAlign: "right", padding: "6px 4px", fontWeight: 700, color: getColor(totalAcc) }}>
-                          {total > 0 ? `%${totalAcc}` : "-"}
+                        <td style={{ textAlign: "right", padding: "8px 4px", fontWeight: 700, color: getAccColor(totalAcc) }}>
+                          {total > 0 ? `%${totalAcc}` : <span style={{ color: "#334155" }}>-</span>}
                         </td>
                       </tr>
                     );
@@ -456,90 +475,82 @@ export default function DashboardScreen() {
               </table>
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#64748b", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "20px 0" }}>
               Henüz veri yok
             </div>
           )}
-        </div>
+        </SurfaceCard>
 
-        {/* 📈 Grafik - Kelime ve Cümle ayrı renklerle */}
-        <div style={{ 
-          background: "#131324", 
-          borderRadius: 16, 
-          padding: "16px 18px",
-          border: "1px solid #1e1e38"
-        }}>
-          <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500, marginBottom: 12 }}>📈 Günlük Çalışma Grafiği</div>
-          
-          {/* Lejant */}
-          <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 11 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 12, height: 12, background: "#6366f1", borderRadius: 3 }}></span>
+        {/* ── GRAFİK ── */}
+        <SurfaceCard accentColor="#3b82f6">
+          <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
+            📈 Günlük Çalışma Grafiği
+          </div>
+
+          <div style={{ display: "flex", gap: 16, marginBottom: 14, fontSize: 11 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 10, height: 10, background: "#6366f1", borderRadius: 3, boxShadow: "0 0 6px rgba(99,102,241,0.5)" }}></span>
               <span style={{ color: "#94a3b8" }}>Kelime</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 12, height: 12, background: "#3b82f6", borderRadius: 3 }}></span>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 10, height: 10, background: "#3b82f6", borderRadius: 3, boxShadow: "0 0 6px rgba(59,130,246,0.5)" }}></span>
               <span style={{ color: "#94a3b8" }}>Cümle</span>
             </div>
           </div>
-          
+
           {last30Days.length > 0 ? (
             <div>
-              <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 80 }}>
+              <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 84 }}>
                 {last30Days.slice(-30).map((day, index) => {
                   const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
                   const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
-                  const maxTotal = Math.max(...last30Days.map(d => 
-                    (d.word_correct || 0) + (d.word_wrong || 0) + 
+                  const maxTotal = Math.max(...last30Days.map(d =>
+                    (d.word_correct || 0) + (d.word_wrong || 0) +
                     (d.sentence_correct || 0) + (d.sentence_wrong || 0)
                   ), 1);
                   const total = wordTotal + sentenceTotal;
-                  const height = maxTotal > 0 ? (total / maxTotal) * 70 : 0;
-                  const wordHeight = maxTotal > 0 ? (wordTotal / maxTotal) * 70 : 0;
                   const isTodayDate = isToday(day.stat_date);
-                  
+
                   return (
-                    <div key={index} style={{ 
-                      flex: 1, 
-                      display: "flex", 
-                      flexDirection: "column", 
+                    <div key={index} style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       position: "relative"
                     }}>
-                      <div style={{ 
-                        width: "100%", 
-                        height: Math.max(height, total > 0 ? 4 : 0),
+                      <div style={{
+                        width: "100%",
+                        height: 70,
                         display: "flex",
                         flexDirection: "column-reverse",
                         borderRadius: 3,
                         overflow: "hidden",
-                        background: "#1a1a30",
-                        minHeight: total > 0 ? 4 : 0
+                        background: "rgba(255,255,255,0.03)",
                       }}>
-                        {/* Cümle (mavi) */}
                         {sentenceTotal > 0 && (
-                          <div style={{ 
-                            height: `${(sentenceTotal / maxTotal) * 70}%`,
+                          <div style={{
+                            height: `${(sentenceTotal / maxTotal) * 100}%`,
                             background: isTodayDate ? "#60a5fa" : "#3b82f6",
-                            borderRadius: "0 0 3px 3px",
                             transition: "height 0.3s ease",
-                            minHeight: 2
+                            minHeight: 2,
+                            boxShadow: isTodayDate ? "0 0 6px rgba(96,165,250,0.5)" : "none"
                           }} />
                         )}
-                        {/* Kelime (mor) */}
                         {wordTotal > 0 && (
-                          <div style={{ 
-                            height: `${(wordTotal / maxTotal) * 70}%`,
+                          <div style={{
+                            height: `${(wordTotal / maxTotal) * 100}%`,
                             background: isTodayDate ? "#a78bfa" : "#6366f1",
                             borderRadius: "3px 3px 0 0",
                             transition: "height 0.3s ease",
-                            minHeight: 2
+                            minHeight: 2,
+                            boxShadow: isTodayDate ? "0 0 6px rgba(167,139,250,0.5)" : "none"
                           }} />
                         )}
                       </div>
-                      <div style={{ 
-                        fontSize: 7, 
-                        color: isTodayDate ? "#818cf8" : "#475569", 
+                      <div style={{
+                        fontSize: 7,
+                        color: isTodayDate ? "#818cf8" : "#334155",
                         marginTop: 4,
                         fontWeight: isTodayDate ? 700 : 400
                       }}>
@@ -549,17 +560,17 @@ export default function DashboardScreen() {
                   );
                 })}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#475569", marginTop: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#334155", marginTop: 8 }}>
                 <span>{new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')}</span>
                 <span style={{ color: "#818cf8" }}>⭐ Bugün</span>
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#64748b", fontSize: 13, padding: "12px 0" }}>
+            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "12px 0" }}>
               Henüz veri yok
             </div>
           )}
-        </div>
+        </SurfaceCard>
 
       </div>
     </div>
