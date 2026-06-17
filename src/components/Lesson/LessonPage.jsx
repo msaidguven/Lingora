@@ -5,6 +5,68 @@ import { supabase } from "../../config.js";
 // ============================
 // YARDIMCI FONKSİYONLAR
 // ============================
+
+// 📝 SUMMARY ADIMI - Ders Özeti
+function SummaryStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const content = step.content || {};
+
+  return (
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+        <h2 className="step-title">{step.title}</h2>
+      </div>
+
+      <div className="step-content summary-content">
+        <div className="summary-box">
+          <div className="summary-icon">🎯</div>
+          <h3>Ana Noktalar</h3>
+          <ul>
+            {content.key_points?.map((point, idx) => (
+              <li key={idx}>{point}</li>
+            ))}
+          </ul>
+        </div>
+
+        {content.practice_tasks && content.practice_tasks.length > 0 && (
+          <div className="summary-box" style={{ marginTop: 20 }}>
+            <div className="summary-icon">✍️</div>
+            <h3>Pratik Görevleri</h3>
+            <ul>
+              {content.practice_tasks.map((task, idx) => (
+                <li key={idx}>{task}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="summary-complete">
+          <div className="complete-icon">🎉</div>
+          <h3>Tebrikler!</h3>
+          <p>Bu dersi başarıyla tamamladınız. Öğrendiklerinizi pekiştirmek için pratik görevlerini yapmayı unutmayın.</p>
+        </div>
+
+        <div className="step-navigation">
+          <button 
+            onClick={onPrevious} 
+            disabled={isFirst}
+            className="nav-btn prev-btn"
+          >
+            ← Geri
+          </button>
+          <button 
+            onClick={onNext} 
+            className="nav-btn next-btn"
+          >
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 const getLevelColor = (level) => {
   const colors = {
     A1: "#10b981",
@@ -759,36 +821,55 @@ export default function LessonPage({ lessonId, onBack }) {
   };
 
   const renderStep = (step) => {
-    if (!step) return null;
-    
-    const isFirst = currentStepIndex === 0;
-    const isLast = currentStepIndex === steps.length - 1;
-    
-    const props = {
-      step,
-      onNext: goToNextStep,
-      onPrevious: goToPreviousStep,
-      isFirst,
-      isLast
-    };
-    
-    switch(step.type) {
-      case 'info':
-        return <InfoStep {...props} />;
-      case 'practice':
-        return <PracticeStep {...props} />;
-      case 'dialogue':
-        return <DialogueStep {...props} />;
-      default:
-        return (
-          <div className="step-container">
-            <div className="step-content">
-              <p style={{ color: '#94a3b8' }}>Bilinmeyen adım tipi: {step.type}</p>
+  if (!step) return null;
+  
+  const isFirst = currentStepIndex === 0;
+  const isLast = currentStepIndex === steps.length - 1;
+  
+  const props = {
+    step,
+    onNext: goToNextStep,
+    onPrevious: goToPreviousStep,
+    isFirst,
+    isLast
+  };
+  
+  switch(step.type) {
+    case 'info':
+      return <InfoStep {...props} />;
+    case 'practice':
+      return <PracticeStep {...props} />;
+    case 'dialogue':
+      return <DialogueStep {...props} />;
+    case 'summary':
+      return <SummaryStep {...props} />;
+    default:
+      // Bilinmeyen tip için hata mesajı
+      console.warn(`Bilinmeyen adım tipi: ${step.type}`, step);
+      return (
+        <div className="step-container">
+          <div className="step-content">
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              color: '#94a3b8'
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+              <h3 style={{ color: '#f1f5f9', marginBottom: 8 }}>Bilinmeyen Adım Tipi</h3>
+              <p>Bu adım için görüntülenecek bileşen bulunamadı: <strong>{step.type}</strong></p>
+              <button 
+                onClick={goToNextStep}
+                className="nav-btn next-btn"
+                style={{ marginTop: 16 }}
+              >
+                Geç →
+              </button>
             </div>
           </div>
-        );
-    }
-  };
+        </div>
+      );
+  }
+};
 
   const goToPreviousStep = () => {
     if (currentStepIndex > 0) {
@@ -1646,6 +1727,71 @@ export default function LessonPage({ lessonId, onBack }) {
 .check-icon {
   margin-left: auto;
   font-size: 20px;
+}
+
+
+/* Summary */
+.summary-content {
+  padding: 28px;
+}
+
+.summary-box {
+  background: #0f0f1a;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #1e293b;
+}
+
+.summary-box h3 {
+  color: #f1f5f9;
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summary-box ul {
+  margin: 0;
+  padding-left: 24px;
+  color: #cbd5e1;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.summary-box li {
+  margin: 4px 0;
+}
+
+.summary-icon {
+  font-size: 24px;
+}
+
+.summary-complete {
+  background: linear-gradient(135deg, #0e2d1f, #0f1a2e);
+  padding: 30px;
+  border-radius: 12px;
+  border: 2px solid #10b981;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.complete-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.summary-complete h3 {
+  color: #10b981;
+  font-size: 22px;
+  margin: 0 0 8px 0;
+}
+
+.summary-complete p {
+  color: #94a3b8;
+  font-size: 15px;
+  margin: 0;
+  line-height: 1.6;
 }
         }
       `}</style>
