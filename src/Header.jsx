@@ -10,11 +10,12 @@ const LEVEL_COLOR = {
   B2: { from: "#f97316", to: "#ea580c" },
 };
 
+// NAV_ITEMS'den stats'i kaldır
 const NAV_ITEMS = [
   { key: "home",      icon: "ti-home",             label: "ANASAYFA"   },
   { key: "dashboard", icon: "ti-layout-dashboard",  label: "PANEL" },
   { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
-  { key: "stats",     icon: "ti-chart-line",        label: "İSTATİSTİK" },
+  // stats buradan kaldırıldı
 ];
 
 export default function Header({ currentScreen, onNavigate, userLevel, quizType = null }) {
@@ -71,6 +72,12 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
     if (quizType === "word") return "ti-book";
     if (quizType === "sentence") return "ti-message";
     return "ti-tournament";
+  };
+
+  // Stats'a gitme fonksiyonu
+  const goToStats = () => {
+    onNavigate("stats");
+    setMenuOpen(false); // Menüyü kapat
   };
 
   return (
@@ -174,17 +181,27 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
 
                 <div style={styles.dropdownDivider} />
 
+                {/* İstatistikler - Menü içine eklendi */}
+                <button 
+                  style={{
+                    ...styles.dropdownItem,
+                    background: isActive("stats") ? `linear-gradient(135deg, ${accent.from}, ${accent.to})` : "none",
+                    color: isActive("stats") ? "#ffffff" : "var(--text-main)",
+                  }} 
+                  className="dropdown-item" 
+                  onClick={goToStats}
+                >
+                  <i className="ti ti-chart-line" style={styles.dropdownIcon} />
+                  <span>İstatistikler</span>
+                  {isActive("stats") && (
+                    <span style={styles.dropdownBadge}>Aktif</span>
+                  )}
+                </button>
+
                 {/* Profil */}
                 <button style={styles.dropdownItem} className="dropdown-item">
                   <i className="ti ti-user" style={styles.dropdownIcon} />
                   <span>Profil</span>
-                  <i className="ti ti-chevron-right" style={{ ...styles.dropdownIcon, marginLeft: "auto", fontSize: 12 }} />
-                </button>
-
-                {/* İstatistikler */}
-                <button style={styles.dropdownItem} className="dropdown-item">
-                  <i className="ti ti-chart-bar" style={styles.dropdownIcon} />
-                  <span>İstatistikler</span>
                   <i className="ti ti-chevron-right" style={{ ...styles.dropdownIcon, marginLeft: "auto", fontSize: 12 }} />
                 </button>
 
@@ -378,7 +395,7 @@ const styles = {
     gap: 10,
     padding: "12px 16px",
     overflow: "visible",
-    justifyContent: "center", // Ortala
+    justifyContent: "center",
   },
   nav: {
     display: "flex",
@@ -387,7 +404,7 @@ const styles = {
     padding: 5,
     gap: 4,
     minWidth: 0,
-    maxWidth: 320, // Maksimum genişlik sınırı
+    maxWidth: 280, // Stats kaldırıldığı için biraz daraltıldı
   },
   navBtn: {
     flex: 1,
