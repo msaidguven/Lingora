@@ -39,6 +39,26 @@ const StatPill = ({ value, label, color, bg, border }) => (
   </div>
 );
 
+// Küçük, satır-içi kullanım için renkli çerçeveli mini rozet (Son 30 Gün listesinde)
+const MiniBadge = ({ icon, value, color, bg, border }) => (
+  <span style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
+    padding: "2px 6px",
+    borderRadius: 7,
+    background: bg,
+    border: `1px solid ${border}`,
+    fontSize: 10,
+    fontWeight: 700,
+    color,
+    lineHeight: 1.4
+  }}>
+    <span style={{ fontSize: 9 }}>{icon}</span>
+    <span>{value}</span>
+  </span>
+);
+
 // Stats kartlarındaki dış kabuk: gradient yüzey + sol accent çizgisi + sağ üst ambient ışık
 const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
   <div style={{
@@ -272,9 +292,9 @@ export default function DashboardScreen() {
                 marginTop: 4
               }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>📊 Toplam</span>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>✅ {todayStats.total_correct || 0}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>❌ {todayStats.total_wrong || 0}</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <MiniBadge icon="✅" value={todayStats.total_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
+                  <MiniBadge icon="❌" value={todayStats.total_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
                   <span style={{ fontSize: 15, fontWeight: 800, color: getAccColor(todayTotalAcc) }}>%{todayTotalAcc}</span>
                 </div>
               </div>
@@ -459,10 +479,10 @@ export default function DashboardScreen() {
                         }}>
                           <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📖</span>
                           {wordTotal > 0 ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                              <span style={{ color: "#34d399", fontWeight: 700 }}>✅{day.word_correct || 0}</span>
-                              <span style={{ color: "#f87171", fontWeight: 700 }}>❌{day.word_wrong || 0}</span>
-                              <span style={{ color: getAccColor(wordAcc), fontWeight: 700 }}>%{wordAcc}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <MiniBadge icon="✅" value={day.word_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
+                              <MiniBadge icon="❌" value={day.word_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
+                              <span style={{ fontSize: 11, color: getAccColor(wordAcc), fontWeight: 700 }}>%{wordAcc}</span>
                             </span>
                           ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
                         </div>
@@ -478,10 +498,10 @@ export default function DashboardScreen() {
                         }}>
                           <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📝</span>
                           {sentenceTotal > 0 ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                              <span style={{ color: "#34d399", fontWeight: 700 }}>✅{day.sentence_correct || 0}</span>
-                              <span style={{ color: "#f87171", fontWeight: 700 }}>❌{day.sentence_wrong || 0}</span>
-                              <span style={{ color: getAccColor(sentenceAcc), fontWeight: 700 }}>%{sentenceAcc}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <MiniBadge icon="✅" value={day.sentence_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
+                              <MiniBadge icon="❌" value={day.sentence_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
+                              <span style={{ fontSize: 11, color: getAccColor(sentenceAcc), fontWeight: 700 }}>%{sentenceAcc}</span>
                             </span>
                           ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
                         </div>
