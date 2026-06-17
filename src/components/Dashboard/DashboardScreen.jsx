@@ -252,20 +252,8 @@ export default function DashboardScreen() {
             marginBottom: 8,
             opacity: 0.7
           }}>
-            DASHBOARD
+            Çalışma İstatistikleri
           </div>
-          <h1 style={{
-            fontSize: 26,
-            fontWeight: 900,
-            margin: 0,
-            color: "#f1f5f9",
-            letterSpacing: "-0.8px",
-            background: "linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}>
-            Çalışma İstatistiklerim
-          </h1>
         </div>
 
         {/* ── BUGÜN ── */}
