@@ -290,7 +290,7 @@ Kelimeler: `;
   }
 };
 
-  // ============================s
+  // ============================
 // handleInsert - Güncellenmiş (Cümle Kontrolü ile)
 // ============================
 const handleInsert = async () => {

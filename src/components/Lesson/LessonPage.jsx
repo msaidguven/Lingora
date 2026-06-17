@@ -1,4 +1,4 @@
-// LessonPage.jsx
+// LessonPage.jsx - Yeni Adım Adım Versiyon
 import { useState, useEffect } from "react";
 import { supabase } from "../../config.js";
 
@@ -16,347 +16,405 @@ const getLevelColor = (level) => {
 };
 
 // ============================
-// BÖLÜM BİLEŞENLERİ
+// ADIM BİLEŞENLERİ
 // ============================
 
-// 📖 TEORİ BÖLÜMÜ
-function TheorySection({ section }) {
-  if (!section || !section.content) return null;
-  
-  const contentLines = typeof section.content === 'string' 
-    ? section.content.split('\n') 
-    : [];
+// 📝 INFO ADIMI - Bilgi gösterimi
+function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const [showHint, setShowHint] = useState(false);
+  const content = step.content;
 
   return (
-    <div className="section theory-section">
-      <h3 className="section-title">{section.title || "📖 Teori"}</h3>
-      <div className="theory-content">
-        {contentLines.map((line, i) => {
-          if (line.trim().startsWith('KURAL:')) {
-            return <div key={i} className="rule-box">{line}</div>;
-          }
-          if (line.trim().startsWith('DİKKAT:')) {
-            return <div key={i} className="warning-box">{line}</div>;
-          }
-          if (line.trim().startsWith('Örnek:')) {
-            return <div key={i} className="example-box">{line}</div>;
-          }
-          if (line.trim() === '') {
-            return <br key={i} />;
-          }
-          if (line.trim().match(/^\d\./)) {
-            return <div key={i} className="theory-heading">{line}</div>;
-          }
-          return <p key={i} className="theory-text">{line}</p>;
-        })}
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <h2 className="step-title">{step.title}</h2>
       </div>
-      
-      {section.key_rules && section.key_rules.length > 0 && (
-        <div className="key-rules">
-          <h4>🔑 Ana Kurallar</h4>
-          <ul>
-            {section.key_rules.map((rule, i) => (
-              <li key={i}>{rule}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
-      {section.common_mistakes && section.common_mistakes.length > 0 && (
-        <div className="common-mistakes">
-          <h4>⚠️ Sık Yapılan Hatalar</h4>
-          <ul>
-            {section.common_mistakes.map((mistake, i) => (
-              <li key={i}>{mistake}</li>
+      <div className="step-content info-content">
+        {content.explanation && (
+          <p className="explanation-text">{content.explanation}</p>
+        )}
+
+        {/* Zamir listesi gösterimi */}
+        {content.items && (
+          <div className="items-grid">
+            {content.items.map((item, idx) => (
+              <div key={idx} className="item-card">
+                <span className="item-pronoun">{item.pronoun}</span>
+                <span className="item-arrow">→</span>
+                <span className="item-meaning">{item.meaning}</span>
+              </div>
             ))}
-          </ul>
+          </div>
+        )}
+
+        {/* Tablo gösterimi */}
+        {content.table && (
+          <div className="table-container">
+            <table className="info-table">
+              <thead>
+                <tr>
+                  <th>Özne</th>
+                  <th>To Be</th>
+                </tr>
+              </thead>
+              <tbody>
+                {content.table.map((row, idx) => (
+                  <tr key={idx}>
+                    <td>{row.subject}</td>
+                    <td className="verb-cell">{row.verb}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Kural gösterimi */}
+        {content.rule && (
+          <div className="rule-box">
+            <span className="rule-icon">📌</span>
+            <span>{content.rule}</span>
+          </div>
+        )}
+
+        {/* Kısa formlar */}
+        {content.short_forms && (
+          <div className="short-forms-box">
+            <span className="short-icon">⚡</span>
+            <span>{content.short_forms}</span>
+          </div>
+        )}
+
+        {/* Örnekler */}
+        {content.examples && (
+          <div className="examples-box">
+            <h4>Örnekler</h4>
+            {content.examples.map((ex, idx) => (
+              <div key={idx} className="example-row">
+                <span className="example-correct">✅ {ex.correct}</span>
+                <span className="example-wrong">❌ {ex.wrong}</span>
+                <span className="example-note">({ex.note})</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {content.tip && (
+          <div className="tip-box">
+            <span className="tip-icon">💡</span>
+            <span>{content.tip}</span>
+          </div>
+        )}
+
+        {step.id === 'step_9' && content.key_points && (
+          <div className="summary-box">
+            <h4>🎯 Ana Noktalar</h4>
+            <ul>
+              {content.key_points.map((point, idx) => (
+                <li key={idx}>{point}</li>
+              ))}
+            </ul>
+            {content.practice_tasks && (
+              <>
+                <h4>✍️ Pratik Görevleri</h4>
+                <ul>
+                  {content.practice_tasks.map((task, idx) => (
+                    <li key={idx}>{task}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="step-navigation">
+          <button 
+            onClick={onPrevious} 
+            disabled={isFirst}
+            className="nav-btn prev-btn"
+          >
+            ← Geri
+          </button>
+          <button 
+            onClick={onNext} 
+            className="nav-btn next-btn"
+          >
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-// 📚 KELİME BÖLÜMÜ
-function VocabularySection({ section }) {
-  const words = section.words || section.vocabulary || [];
-  if (words.length === 0) return null;
+// ❓ PRACTICE ADIMI - Alıştırma
+function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const [answers, setAnswers] = useState({});
+  const [showFeedback, setShowFeedback] = useState({});
+  const [allCorrect, setAllCorrect] = useState(false);
+
+  const questions = step.questions || [];
+
+  const handleOptionSelect = (qIndex, value) => {
+    const q = questions[qIndex];
+    const isCorrect = value === q.correct;
+    
+    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+    setShowFeedback(prev => ({ 
+      ...prev, 
+      [qIndex]: {
+        show: true,
+        correct: isCorrect,
+        message: isCorrect ? q.feedback_correct : q.feedback_wrong
+      }
+    }));
+  };
+
+  const handleInputChange = (qIndex, value) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+    // Anında kontrol etme - butonla kontrol edilecek
+  };
+
+  const checkFillBlank = (qIndex) => {
+    const q = questions[qIndex];
+    const answer = answers[qIndex] || '';
+    const isCorrect = answer.trim().toLowerCase() === q.correct.toLowerCase();
+    
+    setShowFeedback(prev => ({ 
+      ...prev, 
+      [qIndex]: {
+        show: true,
+        correct: isCorrect,
+        message: isCorrect ? q.feedback_correct : q.feedback_wrong
+      }
+    }));
+  };
+
+  const isAllCorrect = () => {
+    return questions.every((q, idx) => {
+      const feedback = showFeedback[idx];
+      return feedback && feedback.correct;
+    });
+  };
+
+  useEffect(() => {
+    if (Object.keys(showFeedback).length === questions.length) {
+      setAllCorrect(isAllCorrect());
+    }
+  }, [showFeedback, questions]);
 
   return (
-    <div className="section vocabulary-section">
-      <h3 className="section-title">{section.title || "📚 Kelimeler"}</h3>
-      <div className="vocabulary-grid">
-        {words.map((word, i) => (
-          <div key={i} className="vocabulary-card">
-            <div className="vocabulary-word">
-              {word.word}
-              {word.article && <span className="article-badge">{word.article}</span>}
-              {word.part_of_speech && (
-                <span className="pos-badge">{word.part_of_speech}</span>
-              )}
-            </div>
-            <div className="vocabulary-meaning">{word.meaning}</div>
-            {word.example && (
-              <div className="vocabulary-example">
-                <span className="example-en">"{word.example}"</span>
-                <span className="example-tr">({word.example_tr})</span>
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <h2 className="step-title">{step.title}</h2>
+      </div>
+
+      <div className="step-content practice-content">
+        {step.instructions && (
+          <p className="instructions-text">{step.instructions}</p>
+        )}
+
+        {questions.map((q, qIndex) => (
+          <div key={qIndex} className="practice-question">
+            <p className="question-text">
+              <span className="q-number">{qIndex + 1}.</span> {q.question}
+            </p>
+
+            {/* Çoktan seçmeli */}
+            {q.options && (
+              <div className="options-group">
+                {q.options.map((option, optIndex) => (
+                  <label key={optIndex} className="option-label">
+                    <input
+                      type="radio"
+                      name={`q${qIndex}`}
+                      value={option}
+                      checked={answers[qIndex] === option}
+                      onChange={() => handleOptionSelect(qIndex, option)}
+                      disabled={showFeedback[qIndex]?.show}
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
               </div>
             )}
-            {word.category && (
-              <div className="vocabulary-category">
-                <span className="category-tag">{word.category}</span>
+
+            {/* Boşluk doldurma */}
+            {!q.options && (
+              <div className="fill-blank-group">
+                <input
+                  type="text"
+                  className="fill-blank-input"
+                  value={answers[qIndex] || ''}
+                  onChange={(e) => handleInputChange(qIndex, e.target.value)}
+                  disabled={showFeedback[qIndex]?.show}
+                  placeholder="Cevabınızı yazın..."
+                />
+                {!showFeedback[qIndex]?.show && (
+                  <button 
+                    className="check-btn"
+                    onClick={() => checkFillBlank(qIndex)}
+                  >
+                    Kontrol Et
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Feedback */}
+            {showFeedback[qIndex]?.show && (
+              <div className={`feedback ${showFeedback[qIndex].correct ? 'correct' : 'incorrect'}`}>
+                {showFeedback[qIndex].message}
               </div>
             )}
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
 
-// 💬 ÖRNEK CÜMLELER BÖLÜMÜ
-function ExampleSentencesSection({ section }) {
-  const sentences = section.sentences || section.example_sentences || [];
-  if (sentences.length === 0) return null;
+        <div className="step-navigation">
+          <button 
+            onClick={onPrevious} 
+            disabled={isFirst}
+            className="nav-btn prev-btn"
+          >
+            ← Geri
+          </button>
+          <button 
+            onClick={onNext} 
+            disabled={!allCorrect && Object.keys(showFeedback).length > 0}
+            className="nav-btn next-btn"
+          >
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
 
-  return (
-    <div className="section examples-section">
-      <h3 className="section-title">{section.title || "💬 Örnek Cümleler"}</h3>
-      <div className="examples-grid">
-        {sentences.map((sentence, i) => (
-          <div key={i} className="example-card">
-            <div className="example-en">🇬🇧 {sentence.en}</div>
-            <div className="example-tr">🇹🇷 {sentence.tr}</div>
-            {sentence.structure && (
-              <div className="example-structure">📐 {sentence.structure}</div>
-            )}
+        {Object.keys(showFeedback).length > 0 && !allCorrect && (
+          <div className="progress-warning">
+            ⚠️ Tüm soruları doğru cevaplamadan ilerleyemezsiniz.
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 }
 
-// 🎭 DİYALOG BÖLÜMÜ
-function DialogueSection({ section }) {
-  const scenes = section.scenes || section.dialogue || [];
-  if (scenes.length === 0) return null;
+// 🎭 DIALOGUE ADIMI - Diyalog
+function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const [answers, setAnswers] = useState({});
+  const [showFeedback, setShowFeedback] = useState({});
+  const [allCorrect, setAllCorrect] = useState(false);
 
-  const isSimpleDialogue = !section.scenes;
+  const content = step.content || {};
+  const scenes = content.scenes || [];
+  const practice = step.practice || {};
+  const practiceQuestions = practice.questions || [];
+
+  const handleInputChange = (qIndex, value) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+  };
+
+  const checkAnswer = (qIndex) => {
+    const q = practiceQuestions[qIndex];
+    const answer = answers[qIndex] || '';
+    const isCorrect = answer.trim().toLowerCase() === q.correct.toLowerCase();
+    
+    setShowFeedback(prev => ({ 
+      ...prev, 
+      [qIndex]: {
+        show: true,
+        correct: isCorrect,
+        message: isCorrect ? '✅ Doğru!' : `❌ Doğru cevap: ${q.correct}`
+      }
+    }));
+  };
+
+  useEffect(() => {
+    if (practiceQuestions.length > 0 && 
+        Object.keys(showFeedback).length === practiceQuestions.length) {
+      setAllCorrect(practiceQuestions.every((_, idx) => showFeedback[idx]?.correct));
+    }
+  }, [showFeedback, practiceQuestions]);
 
   return (
-    <div className="section dialogue-section">
-      <h3 className="section-title">{section.title || "🎭 Diyalog"}</h3>
-      {section.context && (
-        <div className="dialogue-context">📌 {section.context}</div>
-      )}
-      <div className="dialogue-container">
-        {isSimpleDialogue ? (
-          scenes.map((line, i) => (
-            <div key={i} className={`dialogue-line ${line.speaker === 'A' ? 'speaker-a' : 'speaker-b'}`}>
-              <span className="speaker-name">{line.speaker}:</span>
-              <span className="dialogue-text">{line.text}</span>
-            </div>
-          ))
-        ) : (
-          scenes.map((scene, i) => (
-            <div key={i} className={`dialogue-line ${i % 2 === 0 ? 'speaker-a' : 'speaker-b'}`}>
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id.split('_')[1]}</span>
+        <h2 className="step-title">{step.title}</h2>
+      </div>
+
+      <div className="step-content dialogue-content">
+        {content.context && (
+          <div className="dialogue-context">📌 {content.context}</div>
+        )}
+
+        <div className="dialogue-container">
+          {scenes.map((scene, idx) => (
+            <div key={idx} className={`dialogue-line ${idx % 2 === 0 ? 'speaker-a' : 'speaker-b'}`}>
               <div className="dialogue-speaker">
                 <span className="speaker-name">{scene.speaker}:</span>
                 <span className="dialogue-text">{scene.text}</span>
               </div>
-              <div className="dialogue-details">
-                <span className="dialogue-translation">🇹🇷 {scene.translation}</span>
-                {scene.grammar_note && (
-                  <span className="dialogue-grammar">📝 {scene.grammar_note}</span>
+              <div className="dialogue-translation">🇹🇷 {scene.translation}</div>
+            </div>
+          ))}
+        </div>
+
+        {practiceQuestions.length > 0 && (
+          <div className="dialogue-practice">
+            <h4>{practice.instructions || 'Diyalogdaki boşlukları doldurun:'}</h4>
+            {practiceQuestions.map((q, qIndex) => (
+              <div key={qIndex} className="practice-question">
+                <p className="question-text">{q.question}</p>
+                <div className="fill-blank-group">
+                  <input
+                    type="text"
+                    className="fill-blank-input"
+                    value={answers[qIndex] || ''}
+                    onChange={(e) => handleInputChange(qIndex, e.target.value)}
+                    disabled={showFeedback[qIndex]?.show}
+                    placeholder="Cevabınızı yazın..."
+                  />
+                  {!showFeedback[qIndex]?.show && (
+                    <button 
+                      className="check-btn"
+                      onClick={() => checkAnswer(qIndex)}
+                    >
+                      Kontrol Et
+                    </button>
+                  )}
+                </div>
+                {showFeedback[qIndex]?.show && (
+                  <div className={`feedback ${showFeedback[qIndex].correct ? 'correct' : 'incorrect'}`}>
+                    {showFeedback[qIndex].message}
+                  </div>
                 )}
               </div>
-            </div>
-          ))
-        )}
-      </div>
-      {section.roleplay_questions && section.roleplay_questions.length > 0 && (
-        <div className="roleplay-section">
-          <h4>🎭 Rol Yapma Aktiviteleri</h4>
-          <ul>
-            {section.roleplay_questions.map((q, i) => (
-              <li key={i}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ❓ QUIZ BÖLÜMÜ
-function QuizSection({ section }) {
-  const [answers, setAnswers] = useState({});
-  const [showResults, setShowResults] = useState(false);
-  const questions = section.questions || [];
-  if (questions.length === 0) return null;
-
-  const handleAnswer = (questionId, answer) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
-  };
-
-  const getScore = () => {
-    let correct = 0;
-    questions.forEach(q => {
-      const qId = q.id || questions.indexOf(q);
-      if (answers[qId] === q.correct) correct++;
-    });
-    return correct;
-  };
-
-  const isQuestionCorrect = (question) => {
-    const qId = question.id || questions.indexOf(question);
-    return answers[qId] && answers[qId] === question.correct;
-  };
-
-  const renderQuestion = (question, index) => {
-    const qId = question.id || index;
-
-    if (question.type === 'multiple_choice' || (!question.type && question.options)) {
-      return (
-        <div key={qId} className="quiz-question">
-          <p className="question-text">
-            <span className="question-number">{index + 1}.</span> {question.question}
-          </p>
-          <div className="options-group">
-            {question.options.map((option, optIndex) => (
-              <label key={optIndex} className="option-label">
-                <input
-                  type="radio"
-                  name={`question-${qId}`}
-                  value={option}
-                  checked={answers[qId] === option}
-                  onChange={() => handleAnswer(qId, option)}
-                  disabled={showResults}
-                />
-                <span>{option}</span>
-              </label>
             ))}
           </div>
-          {showResults && (
-            <div className={`feedback ${isQuestionCorrect(question) ? 'correct' : 'incorrect'}`}>
-              {isQuestionCorrect(question) ? '✅ Doğru!' : '❌ Yanlış'}
-              {question.explanation && (
-                <span className="explanation"> - {question.explanation}</span>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
+        )}
 
-    if (question.type === 'fill_blank') {
-      return (
-        <div key={qId} className="quiz-question">
-          <p className="question-text">
-            <span className="question-number">{index + 1}.</span> {question.question}
-          </p>
-          <input
-            type="text"
-            className="fill-blank-input"
-            value={answers[qId] || ''}
-            onChange={(e) => handleAnswer(qId, e.target.value)}
-            disabled={showResults}
-            placeholder="Cevabınızı yazın..."
-          />
-          {showResults && (
-            <div className={`feedback ${answers[qId] === question.correct ? 'correct' : 'incorrect'}`}>
-              {answers[qId] === question.correct ? '✅ Doğru!' : `❌ Doğru cevap: ${question.correct}`}
-              {question.explanation && (
-                <span className="explanation"> - {question.explanation}</span>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <div className="section quiz-section">
-      <h3 className="section-title">{section.title || "❓ Kendini Test Et"}</h3>
-      <div className="quiz-container">
-        {questions.map((question, index) => renderQuestion(question, index))}
-        
-        {!showResults && questions.length > 0 && (
+        <div className="step-navigation">
           <button 
-            className="check-answers-btn"
-            onClick={() => setShowResults(true)}
+            onClick={onPrevious} 
+            disabled={isFirst}
+            className="nav-btn prev-btn"
           >
-            ✅ Cevapları Kontrol Et
+            ← Geri
           </button>
-        )}
-        
-        {showResults && (
-          <div className="quiz-results">
-            <div className="score-box">
-              <span className="score-number">{getScore()}</span>
-              <span className="score-total"> / {questions.length}</span>
-              <span className="score-label">doğru</span>
-            </div>
-            <button 
-              className="reset-quiz-btn"
-              onClick={() => {
-                setAnswers({});
-                setShowResults(false);
-              }}
-            >
-              🔄 Quiz'i Yeniden Başlat
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          <button 
+            onClick={onNext} 
+            disabled={practiceQuestions.length > 0 && !allCorrect}
+            className="nav-btn next-btn"
+          >
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
 
-// 📝 ÖZET BÖLÜMÜ
-function SummarySection({ section }) {
-  if (!section) return null;
-
-  const keyPoints = section.key_points || [];
-  const practiceTasks = section.practice_tasks || [];
-
-  if (keyPoints.length === 0 && practiceTasks.length === 0 && !section.next_lesson_preview) {
-    return null;
-  }
-
-  return (
-    <div className="section summary-section">
-      <h3 className="section-title">{section.title || "📝 Ders Özeti"}</h3>
-      <div className="summary-content">
-        {keyPoints.length > 0 && (
-          <div className="summary-points">
-            <h4>🎯 Ana Noktalar</h4>
-            <ul>
-              {keyPoints.map((point, i) => (
-                <li key={i}>{point}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {practiceTasks.length > 0 && (
-          <div className="practice-tasks">
-            <h4>✍️ Pratik Görevleri</h4>
-            <ul>
-              {practiceTasks.map((task, i) => (
-                <li key={i}>{task}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {section.next_lesson_preview && (
-          <div className="next-lesson-preview">
-            <h4>🔜 Sıradaki Ders</h4>
-            <p>{section.next_lesson_preview}</p>
+        {practiceQuestions.length > 0 && Object.keys(showFeedback).length > 0 && !allCorrect && (
+          <div className="progress-warning">
+            ⚠️ Tüm soruları doğru cevaplamadan ilerleyemezsiniz.
           </div>
         )}
       </div>
@@ -365,14 +423,14 @@ function SummarySection({ section }) {
 }
 
 // ============================
-// ANA DERS SAYFASI
+// ANA DERS SAYFASI - YENİ VERSİYON
 // ============================
 export default function LessonPage({ lessonId, onBack }) {
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [steps, setSteps] = useState([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   useEffect(() => {
     if (lessonId) {
@@ -385,7 +443,7 @@ export default function LessonPage({ lessonId, onBack }) {
   const fetchLesson = async (id) => {
     setLoading(true);
     setError(null);
-    setCurrentSectionIndex(0);
+    setCurrentStepIndex(0);
     
     try {
       let query = supabase
@@ -421,19 +479,17 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
+      // Yeni format: steps array'i kontrol et
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
-        if (lessonData.content_json.theory_text || 
-            lessonData.content_json.vocabulary || 
-            lessonData.content_json.example_sentences) {
-          const parsedSections = parseLegacyFormat(lessonData.content_json);
-          setSections(parsedSections);
-        } else if (lessonData.content_json.sections && Array.isArray(lessonData.content_json.sections)) {
-          setSections(lessonData.content_json.sections);
+        if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
+          setSteps(lessonData.content_json.steps);
         } else {
-          setSections([]);
+          // Eski formatı dönüştür
+          const convertedSteps = convertLegacyToSteps(lessonData.content_json);
+          setSteps(convertedSteps);
         }
       } else {
-        setSections([]);
+        setSteps([]);
       }
       
       setLesson(lessonData);
@@ -448,7 +504,7 @@ export default function LessonPage({ lessonId, onBack }) {
   const fetchFirstLesson = async () => {
     setLoading(true);
     setError(null);
-    setCurrentSectionIndex(0);
+    setCurrentStepIndex(0);
     
     try {
       const { data, error } = await supabase
@@ -480,18 +536,14 @@ export default function LessonPage({ lessonId, onBack }) {
       }
       
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
-        if (lessonData.content_json.theory_text || 
-            lessonData.content_json.vocabulary || 
-            lessonData.content_json.example_sentences) {
-          const parsedSections = parseLegacyFormat(lessonData.content_json);
-          setSections(parsedSections);
-        } else if (lessonData.content_json.sections && Array.isArray(lessonData.content_json.sections)) {
-          setSections(lessonData.content_json.sections);
+        if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
+          setSteps(lessonData.content_json.steps);
         } else {
-          setSections([]);
+          const convertedSteps = convertLegacyToSteps(lessonData.content_json);
+          setSteps(convertedSteps);
         }
       } else {
-        setSections([]);
+        setSteps([]);
       }
       
       setLesson(lessonData);
@@ -503,126 +555,166 @@ export default function LessonPage({ lessonId, onBack }) {
     }
   };
 
-  const parseLegacyFormat = (content) => {
-    const sections = [];
-    
+  const convertLegacyToSteps = (content) => {
+    const steps = [];
+    let stepCounter = 1;
+
+    // Theory -> Info step
     if (content.theory_text) {
-      sections.push({
-        type: 'theory',
-        title: '📖 Teori',
-        content: content.theory_text,
-        key_rules: content.key_rules || [],
-        common_mistakes: content.common_mistakes || []
+      steps.push({
+        id: `step_${stepCounter++}`,
+        type: 'info',
+        title: 'Teori',
+        content: {
+          explanation: content.theory_text,
+          rule: content.key_rules?.join('\n'),
+          tip: content.common_mistakes?.join('\n')
+        }
       });
     }
-    
+
+    // Vocabulary -> Info step
     if (content.vocabulary && content.vocabulary.length > 0) {
-      sections.push({
-        type: 'vocabulary',
-        title: '📚 Kelimeler',
-        vocabulary: content.vocabulary
+      steps.push({
+        id: `step_${stepCounter++}`,
+        type: 'info',
+        title: 'Yeni Kelimeler',
+        content: {
+          items: content.vocabulary.map(v => ({
+            pronoun: v.word,
+            meaning: v.meaning
+          }))
+        }
       });
     }
-    
+
+    // Example sentences -> Practice step
     if (content.example_sentences && content.example_sentences.length > 0) {
-      sections.push({
-        type: 'example_sentences',
-        title: '💬 Örnek Cümleler',
-        example_sentences: content.example_sentences
+      const questions = content.example_sentences.slice(0, 5).map(s => ({
+        question: `Doğru ifade: "${s.tr}"`,
+        options: [s.en],
+        correct: s.en,
+        feedback_correct: '✅ Doğru!',
+        feedback_wrong: '❌ Tekrar dene.'
+      }));
+      
+      steps.push({
+        id: `step_${stepCounter++}`,
+        type: 'practice',
+        title: 'Örnek Cümleler',
+        instructions: 'Aşağıdaki cümleleri inceleyin:',
+        questions: questions
       });
     }
-    
+
+    // Dialogue -> Dialogue step
     if (content.dialogue && content.dialogue.length > 0) {
-      sections.push({
+      steps.push({
+        id: `step_${stepCounter++}`,
         type: 'dialogue',
-        title: '🎭 Diyalog',
-        dialogue: content.dialogue
+        title: 'Diyalog',
+        content: {
+          scenes: content.dialogue
+        }
       });
     }
-    
+
+    // Quiz -> Practice step
     if (content.quiz && content.quiz.length > 0) {
-      sections.push({
-        type: 'quiz',
-        title: '❓ Quiz',
-        questions: content.quiz.map(q => ({ ...q, type: q.type || 'multiple_choice' }))
+      const practiceQuestions = content.quiz.slice(0, 5).map(q => ({
+        question: q.question,
+        options: q.options,
+        correct: q.correct,
+        feedback_correct: `✅ Doğru! ${q.explanation || ''}`,
+        feedback_wrong: `❌ ${q.explanation || 'Tekrar dene.'}`
+      }));
+      
+      steps.push({
+        id: `step_${stepCounter++}`,
+        type: 'practice',
+        title: 'Quiz',
+        instructions: 'Aşağıdaki soruları cevaplayın:',
+        questions: practiceQuestions
       });
     }
-    
+
+    // Summary -> Info step
     if (content.summary) {
-      const summaryText = typeof content.summary === 'string' ? content.summary : JSON.stringify(content.summary);
-      sections.push({
-        type: 'summary',
-        title: '📝 Özet',
-        key_points: [summaryText],
-        practice_tasks: content.practice_tasks || []
+      steps.push({
+        id: `step_${stepCounter}`,
+        type: 'info',
+        title: 'Ders Özeti',
+        content: {
+          key_points: typeof content.summary === 'string' 
+            ? [content.summary] 
+            : content.summary.key_points || [],
+          practice_tasks: content.summary.practice_tasks || []
+        }
       });
     }
-    
-    return sections;
+
+    return steps;
   };
 
-  const renderSection = (section) => {
-    if (!section) return null;
+  const renderStep = (step) => {
+    if (!step) return null;
     
-    switch(section.type) {
-      case 'theory':
-        return <TheorySection section={section} />;
-      case 'vocabulary':
-        return <VocabularySection section={section} />;
-      case 'example_sentences':
-        return <ExampleSentencesSection section={section} />;
+    const isFirst = currentStepIndex === 0;
+    const isLast = currentStepIndex === steps.length - 1;
+    
+    const props = {
+      step,
+      onNext: goToNextStep,
+      onPrevious: goToPreviousStep,
+      isFirst,
+      isLast
+    };
+    
+    switch(step.type) {
+      case 'info':
+        return <InfoStep {...props} />;
+      case 'practice':
+        return <PracticeStep {...props} />;
       case 'dialogue':
-        return <DialogueSection section={section} />;
-      case 'quiz':
-        return <QuizSection section={section} />;
-      case 'summary':
-        return <SummarySection section={section} />;
+        return <DialogueStep {...props} />;
       default:
         return (
-          <div className="section unknown-section">
-            <h3 className="section-title">{section.title || 'Bölüm'}</h3>
-            <pre style={{ color: '#94a3b8', fontSize: 13, overflow: 'auto' }}>
-              {JSON.stringify(section, null, 2)}
-            </pre>
+          <div className="step-container">
+            <div className="step-content">
+              <p>Bilinmeyen adım tipi: {step.type}</p>
+              <pre>{JSON.stringify(step, null, 2)}</pre>
+            </div>
           </div>
         );
     }
   };
 
-  // Navigasyon fonksiyonları
-  const goToPreviousSection = () => {
-    if (currentSectionIndex > 0) {
-      setCurrentSectionIndex(currentSectionIndex - 1);
+  const goToPreviousStep = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const goToNextSection = () => {
-    if (currentSectionIndex < sections.length - 1) {
-      setCurrentSectionIndex(currentSectionIndex + 1);
+  const goToNextStep = () => {
+    if (currentStepIndex < steps.length - 1) {
+      setCurrentStepIndex(currentStepIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Ders tamamlandı
+      alert('🎉 Tebrikler! Dersi tamamladınız!');
     }
   };
 
-  const goToSection = (index) => {
-    if (index >= 0 && index < sections.length) {
-      setCurrentSectionIndex(index);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  // Önceki/Sonraki Ders
   const handlePrevLesson = () => {
     if (lesson && lesson.lesson_number > 1) {
-      const prev = lesson.lesson_number - 1;
-      fetchLesson(prev.toString());
+      fetchLesson((lesson.lesson_number - 1).toString());
     }
   };
 
   const handleNextLesson = () => {
     if (lesson) {
-      const next = lesson.lesson_number + 1;
-      fetchLesson(next.toString());
+      fetchLesson((lesson.lesson_number + 1).toString());
     }
   };
 
@@ -648,9 +740,9 @@ export default function LessonPage({ lessonId, onBack }) {
     );
   }
 
-  const currentSection = sections[currentSectionIndex];
-  const totalSections = sections.length;
-  const progress = totalSections > 0 ? ((currentSectionIndex + 1) / totalSections) * 100 : 0;
+  const currentStep = steps[currentStepIndex];
+  const totalSteps = steps.length;
+  const progress = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
 
   return (
     <div className="lesson-page" style={{ 
@@ -659,40 +751,11 @@ export default function LessonPage({ lessonId, onBack }) {
       color: "#e2e8f0",
       fontFamily: "'Inter', system-ui, sans-serif"
     }}>
-      {/* BACK BUTTON */}
-      <div style={{ 
-        maxWidth: 1200, 
-        margin: "0 auto", 
-        padding: "16px 24px 0",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <button 
-          onClick={onBack}
-          style={{
-            background: "#1e293b",
-            border: "none",
-            borderRadius: 8,
-            padding: "8px 16px",
-            color: "#94a3b8",
-            fontSize: 13,
-            cursor: "pointer",
-            fontFamily: "inherit"
-          }}
-        >
-          ← Ana Sayfaya Dön
-        </button>
-        <span style={{ fontSize: 12, color: "#475569" }}>
-          {lesson.level} Seviyesi
-        </span>
-      </div>
-
       {/* HEADER */}
       <header style={{
         background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
         borderBottom: "1px solid #1e293b",
-        padding: "24px 0",
+        padding: "16px 0",
         position: "relative",
         overflow: "hidden"
       }}>
@@ -700,28 +763,40 @@ export default function LessonPage({ lessonId, onBack }) {
           maxWidth: 1200,
           margin: "0 auto",
           padding: "0 24px",
-          position: "relative",
-          zIndex: 1
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12
         }}>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 8,
-            flexWrap: "wrap"
-          }}>
-            <div style={{
-              fontSize: 13,
+          <button 
+            onClick={onBack}
+            style={{
+              background: "transparent",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+              padding: "6px 14px",
               color: "#94a3b8",
-              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              fontFamily: "inherit"
+            }}
+          >
+            ← Geri
+          </button>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ 
+              fontSize: 12, 
+              color: "#64748b",
               background: "#0f0f1a",
-              padding: "4px 12px",
+              padding: "4px 10px",
               borderRadius: 6,
               border: "1px solid #1e293b"
             }}>
               Ders #{lesson.lesson_number}
-            </div>
-            <div style={{
+            </span>
+            <span style={{
               fontSize: 11,
               fontWeight: 700,
               padding: "4px 12px",
@@ -731,48 +806,15 @@ export default function LessonPage({ lessonId, onBack }) {
               backgroundColor: getLevelColor(lesson.level)
             }}>
               {lesson.level}
-            </div>
-            {totalSections > 0 && (
-              <div style={{
-                fontSize: 12,
-                color: "#64748b",
-                background: "#0f0f1a",
-                padding: "4px 12px",
-                borderRadius: 6,
-                border: "1px solid #1e293b"
-              }}>
-                {currentSectionIndex + 1} / {totalSections} Bölüm
-              </div>
-            )}
+            </span>
           </div>
-          <h1 style={{
-            fontSize: 28,
-            fontWeight: 800,
-            margin: "0 0 4px 0",
-            lineHeight: 1.2,
-            background: "linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text"
-          }}>
-            {lesson.title}
-          </h1>
-          {currentSection && (
-            <div style={{
-              fontSize: 14,
-              color: "#6366f1",
-              fontWeight: 600
-            }}>
-              {currentSection.title || `Bölüm ${currentSectionIndex + 1}`}
-            </div>
-          )}
         </div>
       </header>
 
       {/* PROGRESS BAR */}
-      {totalSections > 0 && (
-        <div style={{
-          height: 4,
+      {totalSteps > 0 && (
+        <div style={{ 
+          height: 4, 
           background: "#1e293b",
           position: "sticky",
           top: 0,
@@ -782,249 +824,71 @@ export default function LessonPage({ lessonId, onBack }) {
             height: "100%",
             width: `${progress}%`,
             background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
-            transition: "width 0.4s ease"
+            transition: "width 0.5s ease"
           }} />
         </div>
       )}
 
-      {/* SECTION NAVIGATION - Mini */}
-      {totalSections > 1 && (
-        <div style={{
-          background: "#1a1a2e",
-          borderBottom: "1px solid #1e293b",
-          padding: "8px 0",
-          overflowX: "auto",
-          position: "sticky",
-          top: 4,
-          zIndex: 15,
-          backdropFilter: "blur(10px)",
-          background: "rgba(26, 26, 46, 0.95)"
-        }}>
-          <div style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: "0 24px",
-            display: "flex",
-            gap: 6,
-            flexWrap: "nowrap",
-            justifyContent: "center"
-          }}>
-            {sections.map((section, index) => (
-              <button
-                key={index}
-                onClick={() => goToSection(index)}
-                style={{
-                  padding: "4px 12px",
-                  background: currentSectionIndex === index ? "#6366f1" : "transparent",
-                  border: currentSectionIndex === index ? "1px solid #6366f1" : "1px solid #1e293b",
-                  borderRadius: 6,
-                  color: currentSectionIndex === index ? "#fff" : "#64748b",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  whiteSpace: "nowrap",
-                  fontFamily: "inherit"
-                }}
-              >
-                {index + 1}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* CONTENT */}
+      {/* MAIN CONTENT */}
       <main style={{
-        maxWidth: 1200,
+        maxWidth: 900,
         margin: "0 auto",
-        padding: "24px 24px 16px"
+        padding: "24px"
       }}>
-        {totalSections > 0 && currentSection ? (
-          <div style={{
-            animation: "fadeIn 0.3s ease-in"
-          }}>
-            {renderSection(currentSection)}
-          </div>
+        {totalSteps > 0 && currentStep ? (
+          renderStep(currentStep)
         ) : (
           <div style={{
             textAlign: "center",
             padding: "60px 20px",
             color: "#64748b"
           }}>
-            <p style={{ fontSize: 16 }}>Bu ders için içerik bulunamadı.</p>
-            <button 
-              onClick={() => {
-                console.log("Ders içeriği:", lesson?.content_json);
-                alert("Konsola bakın (F12)");
-              }}
-              style={{
-                marginTop: 16,
-                background: "#1e293b",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 16px",
-                color: "#94a3b8",
-                cursor: "pointer",
-                fontFamily: "inherit"
-              }}
-            >
-              📋 İçeriği Kontrol Et
-            </button>
+            <p>Bu ders için içerik bulunamadı.</p>
           </div>
         )}
       </main>
 
-      {/* NAVIGATION BUTTONS - Previous / Next Section */}
-      {totalSections > 0 && (
-        <div style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "0 24px 24px"
-        }}>
-          <div style={{
-            display: "flex",
-            gap: 12,
-            justifyContent: "center",
-            alignItems: "center",
-            flexWrap: "wrap"
-          }}>
-            <button
-              onClick={goToPreviousSection}
-              disabled={currentSectionIndex === 0}
-              style={{
-                padding: "12px 24px",
-                background: currentSectionIndex === 0 ? "#1a1a2e" : "#6366f1",
-                border: currentSectionIndex === 0 ? "1px solid #1e293b" : "none",
-                borderRadius: 10,
-                color: currentSectionIndex === 0 ? "#475569" : "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: currentSectionIndex === 0 ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                minWidth: 120,
-                justifyContent: "center"
-              }}
-            >
-              ← Önceki Bölüm
-            </button>
-
-            <div style={{
-              display: "flex",
-              gap: 6,
-              alignItems: "center"
-            }}>
-              {sections.map((_, index) => (
-                <div
-                  key={index}
-                  onClick={() => goToSection(index)}
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: currentSectionIndex === index ? "#6366f1" : "#1e293b",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    border: currentSectionIndex === index ? "2px solid #6366f1" : "none"
-                  }}
-                />
-              ))}
-            </div>
-
-            <button
-              onClick={goToNextSection}
-              disabled={currentSectionIndex === totalSections - 1}
-              style={{
-                padding: "12px 24px",
-                background: currentSectionIndex === totalSections - 1 ? "#1a1a2e" : "#6366f1",
-                border: currentSectionIndex === totalSections - 1 ? "1px solid #1e293b" : "none",
-                borderRadius: 10,
-                color: currentSectionIndex === totalSections - 1 ? "#475569" : "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: currentSectionIndex === totalSections - 1 ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                minWidth: 120,
-                justifyContent: "center"
-              }}
-            >
-              Sonraki Bölüm →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* FOOTER - Previous / Next Lesson */}
+      {/* FOOTER - Önceki/Sonraki Ders */}
       <footer style={{
         background: "#1a1a2e",
         borderTop: "1px solid #1e293b",
-        padding: "16px 0"
+        padding: "12px 0"
       }}>
         <div style={{
           maxWidth: 1200,
           margin: "0 auto",
           padding: "0 24px",
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap"
+          justifyContent: "center",
+          gap: 16
         }}>
           <button 
             onClick={handlePrevLesson}
             disabled={!lesson || lesson.lesson_number <= 1}
             style={{
-              padding: "10px 20px",
+              padding: "8px 16px",
               background: "#0f0f1a",
               border: "1px solid #1e293b",
-              borderRadius: 8,
+              borderRadius: 6,
               color: "#94a3b8",
-              fontWeight: 600,
               fontSize: 13,
               cursor: lesson && lesson.lesson_number > 1 ? "pointer" : "not-allowed",
-              transition: "all 0.2s",
-              fontFamily: "inherit",
-              opacity: lesson && lesson.lesson_number > 1 ? 1 : 0.3
+              opacity: lesson && lesson.lesson_number > 1 ? 1 : 0.3,
+              fontFamily: "inherit"
             }}
           >
             ← Önceki Ders
           </button>
-          
-          <button onClick={onBack} style={{
-            padding: "10px 24px",
-            background: "#6366f1",
-            border: "none",
-            borderRadius: 8,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 13,
-            cursor: "pointer",
-            transition: "all 0.2s",
-            fontFamily: "inherit"
-          }}>
-            🏠 Ana Sayfa
-          </button>
-          
           <button 
             onClick={handleNextLesson}
             style={{
-              padding: "10px 20px",
+              padding: "8px 16px",
               background: "#0f0f1a",
               border: "1px solid #1e293b",
-              borderRadius: 8,
+              borderRadius: 6,
               color: "#94a3b8",
-              fontWeight: 600,
               fontSize: 13,
               cursor: "pointer",
-              transition: "all 0.2s",
               fontFamily: "inherit"
             }}
           >
@@ -1033,224 +897,401 @@ export default function LessonPage({ lessonId, onBack }) {
         </div>
       </footer>
 
-      {/* CSS Animations */}
+      {/* CSS */}
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .section {
+        /* Step Container */
+        .step-container {
           background: #1a1a2e;
           border-radius: 16px;
-          padding: 32px;
           border: 1px solid #1e293b;
-          margin-bottom: 24px;
+          overflow: hidden;
+          animation: fadeIn 0.3s ease-in;
         }
 
-        .section:last-child {
-          margin-bottom: 0;
+        .step-header {
+          padding: 24px 28px;
+          border-bottom: 1px solid #1e293b;
+          background: #0f0f1a;
         }
 
-        .section-title {
-          font-size: 20px;
+        .step-number {
+          font-size: 12px;
+          color: #6366f1;
           font-weight: 700;
-          margin: 0 0 20px 0;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .step-title {
+          font-size: 24px;
+          font-weight: 700;
+          margin: 4px 0 0 0;
           color: #f1f5f9;
-          border-bottom: 2px solid #1e293b;
-          padding-bottom: 12px;
         }
 
-        .theory-content {
-          font-size: 15px;
-          line-height: 1.8;
+        .step-content {
+          padding: 28px;
+        }
+
+        .explanation-text {
+          font-size: 16px;
+          line-height: 1.7;
           color: #cbd5e1;
+          margin-bottom: 20px;
         }
 
-        .theory-heading {
+        /* Items Grid */
+        .items-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 10px;
+          margin: 16px 0;
+        }
+
+        .item-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 16px;
+          background: #0f0f1a;
+          border-radius: 8px;
+          border: 1px solid #1e293b;
+        }
+
+        .item-pronoun {
           font-weight: 700;
           color: #f1f5f9;
           font-size: 16px;
-          margin: 16px 0 8px 0;
         }
 
-        .theory-text {
-          margin: 8px 0;
+        .item-arrow {
+          color: #6366f1;
         }
 
-        .rule-box {
-          background: #0f0f1a;
-          border-left: 4px solid #6366f1;
-          padding: 12px 16px;
-          margin: 12px 0;
-          border-radius: 0 8px 8px 0;
-          font-weight: 600;
-          color: #e2e8f0;
+        .item-meaning {
+          color: #94a3b8;
         }
 
-        .warning-box {
-          background: #1a0e0e;
-          border-left: 4px solid #ef4444;
-          padding: 12px 16px;
-          margin: 12px 0;
-          border-radius: 0 8px 8px 0;
-          color: #fca5a5;
+        /* Table */
+        .table-container {
+          margin: 16px 0;
+          overflow-x: auto;
         }
 
-        .example-box {
-          background: #0e1a1a;
-          border-left: 4px solid #10b981;
-          padding: 12px 16px;
-          margin: 12px 0;
-          border-radius: 0 8px 8px 0;
-          color: #6ee7b7;
-          font-style: italic;
-        }
-
-        .key-rules, .common-mistakes {
-          margin-top: 20px;
-          padding: 16px;
+        .info-table {
+          width: 100%;
+          border-collapse: collapse;
           background: #0f0f1a;
           border-radius: 8px;
+          overflow: hidden;
         }
 
-        .key-rules h4 {
-          color: #6366f1;
-          margin: 0 0 8px 0;
-          font-size: 14px;
-        }
-
-        .common-mistakes h4 {
-          color: #ef4444;
-          margin: 0 0 8px 0;
-          font-size: 14px;
-        }
-
-        .key-rules ul, .common-mistakes ul {
-          margin: 0;
-          padding-left: 20px;
+        .info-table th {
+          background: #1e293b;
           color: #94a3b8;
-          font-size: 14px;
-        }
-
-        .key-rules li, .common-mistakes li {
-          margin: 4px 0;
-        }
-
-        .vocabulary-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 16px;
-        }
-
-        .vocabulary-card {
-          background: #0f0f1a;
-          border-radius: 12px;
-          padding: 16px;
-          border: 1px solid #1e293b;
-          transition: all 0.2s;
-        }
-
-        .vocabulary-card:hover {
-          border-color: #334155;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        }
-
-        .vocabulary-word {
-          font-size: 18px;
-          font-weight: 700;
-          color: #f1f5f9;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .article-badge {
-          font-size: 11px;
           font-weight: 600;
-          color: #6366f1;
-          background: #6366f122;
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-
-        .pos-badge {
-          font-size: 10px;
-          color: #64748b;
-          background: #1e293b;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-weight: 500;
-          text-transform: lowercase;
-        }
-
-        .vocabulary-meaning {
-          color: #94a3b8;
-          font-size: 14px;
-          margin: 6px 0;
-        }
-
-        .vocabulary-example {
+          padding: 10px 16px;
+          text-align: left;
           font-size: 13px;
-          color: #64748b;
-          margin: 8px 0;
-          padding: 8px;
-          background: #0a0a14;
-          border-radius: 6px;
-        }
-
-        .example-en {
-          color: #e2e8f0;
-        }
-
-        .example-tr {
-          color: #64748b;
-          margin-left: 8px;
-        }
-
-        .vocabulary-category {
-          margin-top: 8px;
-        }
-
-        .category-tag {
-          font-size: 10px;
-          color: #64748b;
-          background: #1e293b;
-          padding: 2px 10px;
-          border-radius: 4px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
 
-        .examples-grid {
-          display: grid;
-          gap: 12px;
+        .info-table td {
+          padding: 10px 16px;
+          border-bottom: 1px solid #1e293b;
+          color: #e2e8f0;
         }
 
-        .example-card {
+        .info-table .verb-cell {
+          color: #6366f1;
+          font-weight: 600;
+        }
+
+        /* Rule Box */
+        .rule-box {
           background: #0f0f1a;
-          border-radius: 10px;
+          border-left: 4px solid #6366f1;
+          padding: 14px 18px;
+          margin: 16px 0;
+          border-radius: 0 8px 8px 0;
+          color: #e2e8f0;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .rule-icon {
+          font-size: 18px;
+        }
+
+        .short-forms-box {
+          background: #0f1a1a;
+          border-left: 4px solid #10b981;
+          padding: 14px 18px;
+          margin: 12px 0;
+          border-radius: 0 8px 8px 0;
+          color: #6ee7b7;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .short-icon {
+          font-size: 18px;
+        }
+
+        .tip-box {
+          background: #1a1a0f;
+          border-left: 4px solid #f59e0b;
+          padding: 14px 18px;
+          margin: 16px 0;
+          border-radius: 0 8px 8px 0;
+          color: #fcd34d;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .tip-icon {
+          font-size: 18px;
+        }
+
+        .examples-box {
+          background: #0f0f1a;
           padding: 16px;
+          border-radius: 8px;
+          margin: 16px 0;
+        }
+
+        .examples-box h4 {
+          color: #94a3b8;
+          margin: 0 0 10px 0;
+          font-size: 14px;
+        }
+
+        .example-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 6px 0;
+          font-size: 14px;
+          flex-wrap: wrap;
+        }
+
+        .example-correct {
+          color: #10b981;
+        }
+
+        .example-wrong {
+          color: #ef4444;
+        }
+
+        .example-note {
+          color: #64748b;
+          font-size: 12px;
+        }
+
+        /* Practice */
+        .instructions-text {
+          font-size: 15px;
+          color: #94a3b8;
+          margin-bottom: 20px;
+        }
+
+        .practice-question {
+          background: #0f0f1a;
+          padding: 16px;
+          border-radius: 10px;
+          margin-bottom: 16px;
           border: 1px solid #1e293b;
+        }
+
+        .question-text {
+          font-weight: 500;
+          color: #f1f5f9;
+          margin: 0 0 12px 0;
+        }
+
+        .q-number {
+          color: #6366f1;
+          margin-right: 6px;
+        }
+
+        .options-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .option-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 12px;
+          background: #0a0a14;
+          border-radius: 6px;
+          cursor: pointer;
           transition: all 0.2s;
         }
 
-        .example-card:hover {
+        .option-label:hover {
+          background: #141425;
+        }
+
+        .option-label input[type="radio"] {
+          accent-color: #6366f1;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+
+        .fill-blank-group {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .fill-blank-input {
+          flex: 1;
+          min-width: 200px;
+          padding: 10px 14px;
+          background: #0a0a14;
+          border: 1px solid #1e293b;
+          border-radius: 8px;
+          color: #e2e8f0;
+          font-size: 14px;
+          font-family: inherit;
+          transition: border-color 0.2s;
+        }
+
+        .fill-blank-input:focus {
+          outline: none;
+          border-color: #6366f1;
+        }
+
+        .check-btn {
+          padding: 10px 20px;
+          background: #6366f1;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .check-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .feedback {
+          margin-top: 10px;
+          padding: 10px 14px;
+          border-radius: 6px;
+          font-size: 14px;
+        }
+
+        .feedback.correct {
+          background: #0e2d1f;
+          color: #10b981;
+          border: 1px solid #10b98133;
+        }
+
+        .feedback.incorrect {
+          background: #2d1a0e;
+          color: #ef4444;
+          border: 1px solid #ef444433;
+        }
+
+        /* Navigation */
+        .step-navigation {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid #1e293b;
+        }
+
+        .nav-btn {
+          padding: 12px 24px;
+          border: none;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: inherit;
+        }
+
+        .prev-btn {
+          background: #0f0f1a;
+          color: #94a3b8;
+          border: 1px solid #1e293b;
+        }
+
+        .prev-btn:hover:not(:disabled) {
+          background: #1a1a2e;
           border-color: #334155;
+        }
+
+        .prev-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        .next-btn {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          color: #fff;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .next-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .next-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .progress-warning {
+          margin-top: 12px;
+          padding: 12px;
+          background: #2d1a0e;
+          border-radius: 8px;
+          color: #f59e0b;
+          text-align: center;
+          font-size: 14px;
+          border: 1px solid #f59e0b33;
+        }
+
+        /* Dialogue */
+        .dialogue-context {
+          background: #0f0f1a;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          color: #94a3b8;
+          font-size: 14px;
         }
 
         .dialogue-container {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
+          margin-bottom: 20px;
         }
 
         .dialogue-line {
           padding: 12px 16px;
           border-radius: 10px;
-          transition: all 0.2s;
         }
 
         .speaker-a {
@@ -1277,252 +1318,57 @@ export default function LessonPage({ lessonId, onBack }) {
           font-size: 13px;
           color: #94a3b8;
           margin-top: 4px;
-          display: block;
         }
 
-        .dialogue-grammar {
-          font-size: 12px;
-          color: #6366f1;
-          background: #6366f122;
-          padding: 2px 10px;
-          border-radius: 4px;
-          display: inline-block;
-          margin-top: 4px;
-        }
-
-        .roleplay-section {
-          margin-top: 20px;
-          padding: 16px;
+        .dialogue-practice {
           background: #0f0f1a;
-          border-radius: 8px;
-        }
-
-        .roleplay-section h4 {
-          color: #10b981;
-          margin: 0 0 8px 0;
-          font-size: 14px;
-        }
-
-        .roleplay-section ul {
-          margin: 0;
-          padding-left: 20px;
-          color: #94a3b8;
-          font-size: 14px;
-        }
-
-        .roleplay-section li {
-          margin: 4px 0;
-        }
-
-        .quiz-question {
-          margin-bottom: 24px;
           padding: 16px;
-          background: #0f0f1a;
           border-radius: 10px;
           border: 1px solid #1e293b;
-        }
-
-        .question-text {
-          font-size: 15px;
-          font-weight: 500;
-          color: #f1f5f9;
-          margin: 0 0 12px 0;
-        }
-
-        .question-number {
-          color: #6366f1;
-          margin-right: 8px;
-        }
-
-        .options-group {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .option-label {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 8px 12px;
-          background: #0a0a14;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .option-label:hover {
-          background: #141425;
-        }
-
-        .option-label input[type="radio"] {
-          accent-color: #6366f1;
-          width: 18px;
-          height: 18px;
-          cursor: pointer;
-        }
-
-        .option-label span {
-          color: #cbd5e1;
-        }
-
-        .fill-blank-input {
-          width: 100%;
-          max-width: 400px;
-          padding: 10px 14px;
-          background: #0a0a14;
-          border: 1px solid #1e293b;
-          border-radius: 8px;
-          color: #e2e8f0;
-          font-size: 14px;
-          font-family: inherit;
-          transition: border-color 0.2s;
-        }
-
-        .fill-blank-input:focus {
-          outline: none;
-          border-color: #6366f1;
-        }
-
-        .feedback {
-          margin-top: 10px;
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 14px;
-        }
-
-        .feedback.correct {
-          background: #0e2d1f;
-          color: #10b981;
-          border: 1px solid #10b98133;
-        }
-
-        .feedback.incorrect {
-          background: #2d1a0e;
-          color: #ef4444;
-          border: 1px solid #ef444433;
-        }
-
-        .explanation {
-          color: #94a3b8;
-          font-weight: 400;
-        }
-
-        .check-answers-btn, .reset-quiz-btn {
-          padding: 12px 24px;
-          border: none;
-          border-radius: 10px;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-family: inherit;
           margin-top: 16px;
         }
 
-        .check-answers-btn {
-          background: #6366f1;
-          color: #fff;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        .check-answers-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-        }
-
-        .reset-quiz-btn {
-          background: #1e293b;
+        .dialogue-practice h4 {
           color: #94a3b8;
-        }
-
-        .reset-quiz-btn:hover {
-          background: #334155;
-          color: #e2e8f0;
-        }
-
-        .quiz-results {
-          margin-top: 20px;
-          padding: 20px;
-          background: #0f0f1a;
-          border-radius: 10px;
-          border: 1px solid #1e293b;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-
-        .score-box {
-          display: flex;
-          align-items: baseline;
-          gap: 4px;
-        }
-
-        .score-number {
-          font-size: 36px;
-          font-weight: 800;
-          color: #10b981;
-        }
-
-        .score-total {
-          font-size: 20px;
-          color: #64748b;
-        }
-
-        .score-label {
+          margin: 0 0 12px 0;
           font-size: 14px;
-          color: #94a3b8;
-          margin-left: 8px;
         }
 
-        .summary-content {
-          display: grid;
-          gap: 20px;
-        }
-
-        .summary-points, .practice-tasks, .next-lesson-preview {
-          padding: 16px;
+        /* Summary */
+        .summary-box {
           background: #0f0f1a;
-          border-radius: 8px;
+          padding: 20px;
+          border-radius: 10px;
         }
 
-        .summary-points h4 {
+        .summary-box h4 {
           color: #6366f1;
           margin: 0 0 8px 0;
-          font-size: 14px;
+          font-size: 15px;
         }
 
-        .practice-tasks h4 {
-          color: #10b981;
-          margin: 0 0 8px 0;
-          font-size: 14px;
+        .summary-box h4:not(:first-child) {
+          margin-top: 16px;
         }
 
-        .next-lesson-preview h4 {
-          color: #f59e0b;
-          margin: 0 0 8px 0;
-          font-size: 14px;
-        }
-
-        .summary-points ul, .practice-tasks ul {
-          margin: 0;
+        .summary-box ul {
+          margin: 4px 0 0 0;
           padding-left: 20px;
           color: #94a3b8;
           font-size: 14px;
         }
 
-        .summary-points li, .practice-tasks li {
+        .summary-box li {
           margin: 4px 0;
         }
 
-        .next-lesson-preview p {
-          margin: 0;
-          color: #94a3b8;
-          font-size: 14px;
+        /* Animations */
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Loading & Error */
         .loading, .error {
           display: flex;
           flex-direction: column;
@@ -1561,12 +1407,10 @@ export default function LessonPage({ lessonId, onBack }) {
           padding: 12px 24px;
           background: #6366f1;
           color: #fff;
-          text-decoration: none;
+          border: none;
           border-radius: 10px;
           font-weight: 600;
-          border: none;
           cursor: pointer;
-          transition: all 0.2s;
           font-family: inherit;
           font-size: 14px;
         }
@@ -1576,32 +1420,37 @@ export default function LessonPage({ lessonId, onBack }) {
           box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
 
-        .unknown-section pre {
-          background: #0f0f1a;
-          padding: 16px;
-          border-radius: 8px;
-          overflow: auto;
-          max-height: 400px;
-          font-size: 12px;
-        }
-
+        /* Responsive */
         @media (max-width: 768px) {
-          .section {
-            padding: 20px;
+          .step-header {
+            padding: 16px 20px;
           }
-          .vocabulary-grid {
+          .step-title {
+            font-size: 20px;
+          }
+          .step-content {
+            padding: 16px 20px;
+          }
+          .items-grid {
             grid-template-columns: 1fr;
           }
-          .lesson-title {
-            font-size: 22px;
-          }
-          .quiz-results {
+          .step-navigation {
             flex-direction: column;
-            align-items: center;
-            text-align: center;
           }
-          .lesson-header-content h1 {
-            font-size: 22px;
+          .nav-btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .example-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+          .fill-blank-group {
+            flex-direction: column;
+          }
+          .check-btn {
+            width: 100%;
           }
         }
       `}</style>
