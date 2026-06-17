@@ -119,12 +119,17 @@ function AdminPanel({ onLogout }) {
     
     for (const item of parsed) {
       try {
-        // 1. Önce kelime var mı kontrol et
+        // 1. Kelime var mı kontrol et - maybeSingle kullan
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
           .select("id, word, meaning, level")
           .eq("word", item.word)
-          .single();
+          .maybeSingle();
+
+        // Eğer checkError varsa ve "not found" değilse hata fırlat
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
 
         let wordData;
         let isUpdate = false;
@@ -174,15 +179,20 @@ function AdminPanel({ onLogout }) {
           isUpdate = false;
         }
 
-        // 2. Örnek cümle kontrol et (SADECE yoksa ekle)
+        // 2. Örnek cümle kontrol et - maybeSingle kullan
         if (item.example && wordData) {
           // Aynı cümle var mı kontrol et
-          const { data: existingExample } = await supabase
+          const { data: existingExample, error: exampleCheckError } = await supabase
             .from("en_example_sentences")
             .select("id")
             .eq("word_id", wordData.id)
             .eq("sentence_en", item.example)
-            .single();
+            .maybeSingle();
+
+          // Eğer hata varsa ve "not found" değilse logla
+          if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
+            console.error("Cümle kontrol hatası:", exampleCheckError);
+          }
 
           if (!existingExample) {
             // Aynı cümle YOKSA ekle
