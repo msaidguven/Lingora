@@ -1,3 +1,4 @@
+// App.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 import Header from "./Header.jsx";
@@ -7,7 +8,7 @@ import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen.jsx";
 import DashboardScreen from "./components/Dashboard/DashboardScreen.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
-
+import LessonPage from "./components/Lesson/LessonPage.jsx"; // ✅ Import eklendi
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
@@ -15,6 +16,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
   const [quizType, setQuizType] = useState(null);
+  const [selectedLessonId, setSelectedLessonId] = useState(null); // ✅ Ders ID'si için state
 
   useEffect(() => {
     const fetchUserLevel = async () => {
@@ -31,7 +33,6 @@ export default function App() {
   const handleNavigate = (screen, type = null) => {
     console.log("🔄 Navigasyon:", screen, type);
     
-    // 🔥 EĞER QUIZ SAYFASINA GİDİYORSA VE TYPE GELMEMİŞSE QUIZTYPE'I SIFIRLA
     if (screen === "quiz" && !type) {
       setQuizType(null);
     }
@@ -42,16 +43,23 @@ export default function App() {
     setCurrentScreen(screen);
   };
 
+  // ✅ Ders sayfasına gitme fonksiyonu
+  const handleGoToLesson = (lessonId) => {
+    setSelectedLessonId(lessonId);
+    setCurrentScreen("lesson");
+    setQuizType(null);
+  };
+
   const handleBackToHome = () => {
     console.log("🏠 Ana sayfaya dönülüyor");
     setCurrentScreen("home");
-    setQuizType(null); // 🔥 QUIZTYPE'I SIFIRLA
+    setQuizType(null);
+    setSelectedLessonId(null); // ✅ Ders ID'sini sıfırla
   };
 
   const renderQuizScreen = () => {
     console.log("📝 Quiz render:", quizType);
     
-    // 🔥 EĞER QUIZTYPE NULL İSE QUIZSCREEN GÖSTER
     if (!quizType) {
       return (
         <QuizScreen 
@@ -87,7 +95,9 @@ export default function App() {
           onStartQuiz={(type) => {
             console.log("🏠 Home'dan quiz başlatılıyor:", type);
             handleNavigate("quiz", type);
-          }} 
+          }}
+          onNavigate={handleNavigate}
+          onGoToLesson={handleGoToLesson} // ✅ HomeScreen'e prop olarak gönder
         />
       )}
       
@@ -96,6 +106,14 @@ export default function App() {
       {currentScreen === "quiz" && renderQuizScreen()}
       
       {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
+      
+      {/* ✅ Ders sayfası */}
+      {currentScreen === "lesson" && (
+        <LessonPage 
+          lessonId={selectedLessonId} 
+          onBack={handleBackToHome}
+        />
+      )}
     </div>
   );
 }

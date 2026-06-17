@@ -1,9 +1,10 @@
+// HomeScreen.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
-export default function HomeScreen({ onStartQuiz }) {
+export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoToLesson prop'u eklendi
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
@@ -13,9 +14,12 @@ export default function HomeScreen({ onStartQuiz }) {
   const [userLevel, setUserLevel] = useState("A1");
   const [opening, setOpening] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [recentLessons, setRecentLessons] = useState([]); // ✅ Dersler için state
+  const [lessonsLoading, setLessonsLoading] = useState(true); // ✅ Ders yükleniyor state'i
 
   useEffect(() => {
     fetchData();
+    fetchRecentLessons(); // ✅ Dersleri de çek
     const t = setTimeout(() => setMounted(true), 50);
     return () => clearTimeout(t);
   }, []);
@@ -69,6 +73,26 @@ export default function HomeScreen({ onStartQuiz }) {
     setLoading(false);
   };
 
+  // ✅ Dersleri çeken fonksiyon
+  const fetchRecentLessons = async () => {
+    setLessonsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("en_lessons")
+        .select("id, lesson_number, title, level")
+        .order("level")
+        .order("lesson_number")
+        .limit(3);
+
+      if (error) throw error;
+      setRecentLessons(data || []);
+    } catch (error) {
+      console.error("Dersler çekilirken hata:", error);
+    } finally {
+      setLessonsLoading(false);
+    }
+  };
+
   const handleOpenNewWords = async () => {
     if (dailyRemaining === 0) {
       alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
@@ -78,7 +102,6 @@ export default function HomeScreen({ onStartQuiz }) {
     setOpening(true);
 
     try {
-      // 1. Mevcut kelimeleri al
       const { data: userWords } = await supabase
         .from("en_user_words")
         .select("word_id")
@@ -86,7 +109,6 @@ export default function HomeScreen({ onStartQuiz }) {
 
       const learnedIds = userWords?.map((w) => w.word_id) || [];
 
-      // 2. Yeni kelimeleri bul
       let query = supabase
         .from("en_words")
         .select("*")
@@ -109,7 +131,6 @@ export default function HomeScreen({ onStartQuiz }) {
       const today = new Date();
       const newWordIds = newWords.map((w) => w.id);
 
-      // 3. Kelimeleri ekle
       const wordInserts = newWords.map((word) => ({
         user_id: FIXED_USER_ID,
         word_id: word.id,
@@ -129,14 +150,12 @@ export default function HomeScreen({ onStartQuiz }) {
 
       if (wordError) throw wordError;
 
-      // 4. Yeni kelimelerin cümlelerini bul
       const { data: sentences } = await supabase
         .from("en_example_sentences")
         .select("*")
         .in("word_id", newWordIds)
         .eq("is_approved", true);
 
-      // 5. Cümleleri user_sentences'e ekle (VARSa)
       if (sentences && sentences.length > 0) {
         const sentenceInserts = sentences.map((sentence) => ({
           user_id: FIXED_USER_ID,
@@ -158,7 +177,6 @@ export default function HomeScreen({ onStartQuiz }) {
         }
       }
 
-      // 6. Günlük limiti güncelle
       await supabase
         .from("en_user_daily_limit")
         .update({ remaining_today: 0 })
@@ -191,7 +209,6 @@ export default function HomeScreen({ onStartQuiz }) {
     <div style={styles.page}>
       <style>{globalCss}</style>
 
-      {/* Ambient background glow */}
       <div style={styles.glowTop} />
       <div style={styles.glowBottom} />
 
@@ -206,6 +223,50 @@ export default function HomeScreen({ onStartQuiz }) {
             <span style={styles.levelBadge}>{userLevel}</span>
             <span style={styles.levelLabel}>Seviyesi</span>
           </div>
+        </div>
+
+        {/* ============ 📚 DERSLER BÖLÜMÜ ============ */}
+        <div style={styles.lessonsSection} className="reveal" data-delay="0.5">
+          <div style={styles.lessonsHeader}>
+            <span style={styles.lessonsTitle}>📚 Dersler</span>
+            {recentLessons.length > 0 && (
+              <span style={styles.lessonsCount}>{recentLessons.length} ders</span>
+            )}
+          </div>
+          
+          {lessonsLoading ? (
+            <div style={styles.lessonsLoading}>
+              <span style={styles.miniSpinner} />
+              Dersler yükleniyor...
+            </div>
+          ) : recentLessons.length > 0 ? (
+            <div style={styles.lessonsList}>
+              {recentLessons.map((lesson) => (
+                <div
+                  key={lesson.id}
+                  onClick={() => onGoToLesson?.(lesson.id)}
+                  style={styles.lessonCard}
+                  className="lesson-card"
+                >
+                  <div style={styles.lessonCardLeft}>
+                    <div style={styles.lessonNumber}>
+                      #{lesson.lesson_number}
+                    </div>
+                    <div>
+                      <div style={styles.lessonTitle}>{lesson.title}</div>
+                      <div style={styles.lessonLevel}>{lesson.level}</div>
+                    </div>
+                  </div>
+                  <div style={styles.lessonArrow}>→</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={styles.noLessons}>
+              <span style={styles.noLessonsIcon}>📖</span>
+              <span>Henüz ders eklenmemiş</span>
+            </div>
+          )}
         </div>
 
         {/* Progress card */}
@@ -385,6 +446,7 @@ const globalCss = `
 
   .reveal { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
   .reveal[data-delay="0"] { animation-delay: 0.02s; }
+  .reveal[data-delay="0.5"] { animation-delay: 0.05s; }
   .reveal[data-delay="1"] { animation-delay: 0.08s; }
   .reveal[data-delay="2"] { animation-delay: 0.14s; }
   .reveal[data-delay="3"] { animation-delay: 0.20s; }
@@ -402,8 +464,24 @@ const globalCss = `
   .stat-tile { transition: transform 0.2s ease, border-color 0.2s ease; }
   .stat-tile:hover { transform: translateY(-3px); border-color: #383260; }
 
+  .lesson-card {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .lesson-card:hover {
+    border-color: #6366f1 !important;
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
+  }
+  .lesson-card:active {
+    transform: scale(0.98);
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .reveal, .cta-btn, .quiz-btn, .stat-tile { animation: none !important; transition: none !important; }
+    .reveal, .cta-btn, .quiz-btn, .stat-tile, .lesson-card { 
+      animation: none !important; 
+      transition: none !important; 
+    }
   }
 `;
 
@@ -512,6 +590,112 @@ const styles = {
     color: "#6b6690",
     fontWeight: 500,
   },
+  // ============ DERSLER BÖLÜMÜ STILLERİ ============
+  lessonsSection: {
+    marginBottom: 20,
+  },
+  lessonsHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  lessonsTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#e9e6f7",
+    fontFamily: "'Manrope', sans-serif",
+  },
+  lessonsCount: {
+    fontSize: 11,
+    color: "#6b6690",
+    background: "#161427",
+    padding: "2px 10px",
+    borderRadius: 12,
+  },
+  lessonsLoading: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "16px",
+    background: "#130f24",
+    borderRadius: 14,
+    border: "1px solid #201c3a",
+    color: "#6b6690",
+    fontSize: 13,
+  },
+  lessonsList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  lessonCard: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "12px 16px",
+    background: "#130f24",
+    borderRadius: 14,
+    border: "1px solid #201c3a",
+  },
+  lessonCardLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  lessonNumber: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#8b7cff",
+    background: "rgba(139, 124, 255, 0.12)",
+    padding: "2px 10px",
+    borderRadius: 6,
+    fontFamily: "'Manrope', sans-serif",
+  },
+  lessonTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#e9e6f7",
+  },
+  lessonLevel: {
+    fontSize: 10,
+    color: "#6b6690",
+    marginTop: 2,
+    background: "#0a0915",
+    padding: "1px 8px",
+    borderRadius: 4,
+    display: "inline-block",
+  },
+  lessonArrow: {
+    color: "#4b4768",
+    fontSize: 16,
+    transition: "all 0.2s ease",
+  },
+  noLessons: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "20px",
+    background: "#130f24",
+    borderRadius: 14,
+    border: "1px solid #201c3a",
+    color: "#6b6690",
+    fontSize: 13,
+  },
+  noLessonsIcon: {
+    fontSize: 18,
+  },
+  miniSpinner: {
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    border: "2px solid #1e1b3a",
+    borderTopColor: "#8b7cff",
+    animation: "spin 0.7s linear infinite",
+    display: "inline-block",
+  },
+  // ============ DEVAM EDEN STILLER ============
   progressCard: {
     background: "linear-gradient(155deg, #15122a, #100e22)",
     border: "1px solid #211d3f",
@@ -608,14 +792,6 @@ const styles = {
   },
   ctaIcon: {
     fontSize: 14,
-  },
-  miniSpinner: {
-    width: 14,
-    height: 14,
-    borderRadius: "50%",
-    border: "2px solid rgba(255,255,255,0.35)",
-    borderTopColor: "#fff",
-    animation: "spin 0.7s linear infinite",
   },
   quizStack: {
     display: "flex",
