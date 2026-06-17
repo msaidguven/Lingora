@@ -1,6 +1,6 @@
 // HomeScreen.jsx
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
+import { supabase } from "../../config.js";
 
 export default function HomeScreen({ onStartQuiz, onNavigate, onGoToLesson }) {
   const [recentLessons, setRecentLessons] = useState([]);
