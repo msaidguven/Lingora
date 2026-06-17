@@ -114,6 +114,7 @@ function LoginScreen({ onLogin }) {
 // KELİME EKLEME BİLEŞENİ
 // ============================
 // Admin.jsx - WordAdder Bileşeni
+// Admin.jsx - WordAdder Bileşeni (Tam ve Düzeltilmiş)
 function WordAdder({ onBack }) {
   const [jsonInput, setJsonInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,6 +125,8 @@ function WordAdder({ onBack }) {
   const [results, setResults] = useState([]);
   const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [recentWords, setRecentWords] = useState([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
 
   // ============================
   // PROMPT VE ÖRNEK JSON
@@ -214,6 +217,41 @@ Kelimeler: `;
   }
 ]`;
 
+  // ============================
+  // SON EKLENEN KELİMELERİ ÇEK
+  // ============================
+  const fetchRecentWords = async () => {
+    setLoadingRecent(true);
+    try {
+      const { data, error } = await supabase
+        .from("en_words")
+        .select("word, meaning, level, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentWords(data || []);
+    } catch (error) {
+      console.error("Son kelimeler çekilirken hata:", error);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentWords();
+  }, []);
+
+  // Yeni kelime eklendiğinde listeyi güncelle
+  useEffect(() => {
+    if (results.length > 0 && results.some(r => r.ok && r.status === "eklendi")) {
+      fetchRecentWords();
+    }
+  }, [results]);
+
+  // ============================
+  // FONKSİYONLAR
+  // ============================
   const handleParse = () => {
     setMessage(null);
     setParsedData(null);
@@ -232,7 +270,6 @@ Kelimeler: `;
         if (!item.word || !item.meaning) {
           throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
         }
-        // examples kontrolü - opsiyonel
         if (item.examples && !Array.isArray(item.examples)) {
           throw new Error(`"${item.word}" için examples bir array olmalı`);
         }
@@ -401,6 +438,63 @@ Kelimeler: `;
       )}
 
       {/* ============================
+          SON EKLENEN KELİMELER
+          ============================ */}
+      <div style={{ 
+        background: "#1a1a2e", 
+        border: "1px solid #1e293b", 
+        borderRadius: 10, 
+        padding: "14px",
+        marginBottom: 20
+      }}>
+        <div style={{ 
+          fontSize: 10, 
+          letterSpacing: 2, 
+          color: "#6366f1", 
+          fontWeight: 600, 
+          textTransform: "uppercase",
+          marginBottom: 8
+        }}>
+          📝 Son Eklenen Kelimeler
+        </div>
+        {loadingRecent ? (
+          <div style={{ fontSize: 12, color: "#64748b" }}>Yükleniyor...</div>
+        ) : recentWords.length > 0 ? (
+          <div>
+            {recentWords.map((word, index) => (
+              <div 
+                key={index} 
+                style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  padding: "6px 0",
+                  borderBottom: index < recentWords.length - 1 ? "1px solid #0f0f1a" : "none",
+                  fontSize: 13
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{word.word}</span>
+                  <span style={{ color: "#64748b", marginLeft: 8 }}>{word.meaning}</span>
+                </div>
+                <span style={{ 
+                  fontSize: 10, 
+                  color: "#64748b", 
+                  background: "#0f0f1a", 
+                  padding: "1px 8px", 
+                  borderRadius: 4 
+                }}>
+                  {word.level || "A1"}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: "#64748b" }}>Henüz kelime eklenmemiş</div>
+        )}
+      </div>
+
+      {/* ============================
           PROMPT BÖLÜMÜ
           ============================ */}
       <div style={{ 
@@ -452,7 +546,7 @@ Kelimeler: `;
           </div>
         </div>
         
-        {showPrompt && (
+        {showPrompt ? (
           <div style={{ 
             background: "#0f0f1a", 
             borderRadius: 10, 
@@ -469,9 +563,7 @@ Kelimeler: `;
           }}>
             {PROMPT_TEXT}
           </div>
-        )}
-        
-        {!showPrompt && (
+        ) : (
           <div style={{ 
             fontSize: 12, 
             color: "#64748b",
