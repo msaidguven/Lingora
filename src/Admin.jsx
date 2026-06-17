@@ -113,13 +113,106 @@ function LoginScreen({ onLogin }) {
 // ============================
 // KELİME EKLEME BİLEŞENİ
 // ============================
+// Admin.jsx - WordAdder Bileşeni
 function WordAdder({ onBack }) {
   const [jsonInput, setJsonInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [showExample, setShowExample] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [results, setResults] = useState([]);
+  const [copied, setCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  // ============================
+  // PROMPT VE ÖRNEK JSON
+  // ============================
+  const PROMPT_TEXT = `Aşağıdaki kelimeleri analiz et. SADECE JSON array döndür, başka hiçbir şey yazma.
+
+Her kelime için:
+- 5 adet örnek cümle üret (examples array'i içinde)
+- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2) uygun olsun
+- A1 ise tamamen A1 seviyesinde 5 cümle
+- A2 ise A2 seviyesinde 5 cümle vb.
+- Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
+
+kelimenin diğer anlamlarını virgül ile ayır.
+örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
+
+[
+  {
+    "word": "kelime",
+    "meaning": "türkçe anlam (birden fazla ise virgülle ayır)",
+    "level": "A1",
+    "type": "word",
+    "part_of_speech": ["noun", "verb", "adjective", "adverb"],
+    "category": ["daily", "business", "travel", "food", "emotion", "health", "technology", "education", "social"],
+    "difficulty": 1,
+    "synonyms": ["eş1", "eş2"],
+    "antonyms": ["zıt1", "zıt2"],
+    "examples": [
+      {
+        "en": "English sentence 1",
+        "tr": "Türkçe çeviri 1"
+      },
+      {
+        "en": "English sentence 2",
+        "tr": "Türkçe çeviri 2"
+      },
+      {
+        "en": "English sentence 3",
+        "tr": "Türkçe çeviri 3"
+      },
+      {
+        "en": "English sentence 4",
+        "tr": "Türkçe çeviri 4"
+      },
+      {
+        "en": "English sentence 5",
+        "tr": "Türkçe çeviri 5"
+      }
+    ]
+  }
+]
+
+Kelimeler: `;
+
+  const EXAMPLE_JSON = `[
+  {
+    "word": "happy",
+    "meaning": "mutlu",
+    "level": "A1",
+    "type": "word",
+    "part_of_speech": ["adjective"],
+    "category": ["daily", "emotion"],
+    "difficulty": 1,
+    "synonyms": ["joyful", "cheerful"],
+    "antonyms": ["sad", "unhappy"],
+    "examples": [
+      {
+        "en": "She felt very happy today.",
+        "tr": "Bugün çok mutlu hissetti."
+      },
+      {
+        "en": "I am happy to see you.",
+        "tr": "Seni gördüğüme mutluyum."
+      },
+      {
+        "en": "They live a happy life.",
+        "tr": "Mutlu bir hayat yaşıyorlar."
+      },
+      {
+        "en": "He has a happy smile.",
+        "tr": "Mutlu bir gülümsemesi var."
+      },
+      {
+        "en": "We are happy together.",
+        "tr": "Birlikte mutluyuz."
+      }
+    ]
+  }
+]`;
 
   const handleParse = () => {
     setMessage(null);
@@ -138,6 +231,10 @@ function WordAdder({ onBack }) {
       data.forEach((item, index) => {
         if (!item.word || !item.meaning) {
           throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
+        }
+        // examples kontrolü - opsiyonel
+        if (item.examples && !Array.isArray(item.examples)) {
+          throw new Error(`"${item.word}" için examples bir array olmalı`);
         }
       });
       
@@ -247,8 +344,26 @@ function WordAdder({ onBack }) {
     }
   };
 
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(PROMPT_TEXT);
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2000);
+  };
+
+  const handleCopyExample = () => {
+    navigator.clipboard.writeText(EXAMPLE_JSON);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleUseExample = () => {
+    setJsonInput(EXAMPLE_JSON);
+    setMessage({ type: "success", text: "✅ Örnek JSON yüklendi! 'JSON Kontrol Et' butonuna tıklayın." });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
@@ -285,6 +400,92 @@ function WordAdder({ onBack }) {
         </div>
       )}
 
+      {/* ============================
+          PROMPT BÖLÜMÜ
+          ============================ */}
+      <div style={{ 
+        background: "#1a1a2e", 
+        borderRadius: 14, 
+        padding: 16, 
+        border: "1px solid #1e293b",
+        marginBottom: 20
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center",
+          marginBottom: 10
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>
+            🤖 Yapay Zeka Promptu
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setShowPrompt(!showPrompt)}
+              style={{
+                background: "none",
+                border: "1px solid #1e293b",
+                borderRadius: 6,
+                color: "#64748b",
+                fontSize: 11,
+                padding: "4px 10px",
+                cursor: "pointer"
+              }}
+            >
+              {showPrompt ? "Gizle" : "Göster"}
+            </button>
+            <button
+              onClick={handleCopyPrompt}
+              style={{
+                background: promptCopied ? "#0e2d1f" : "#1e293b",
+                border: "none",
+                borderRadius: 6,
+                color: promptCopied ? "#10b981" : "#94a3b8",
+                fontSize: 11,
+                padding: "4px 12px",
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+            >
+              {promptCopied ? "✓ Kopyalandı!" : "📋 Kopyala"}
+            </button>
+          </div>
+        </div>
+        
+        {showPrompt && (
+          <div style={{ 
+            background: "#0f0f1a", 
+            borderRadius: 10, 
+            padding: 14, 
+            fontSize: 12, 
+            color: "#94a3b8", 
+            lineHeight: 1.7, 
+            fontFamily: "monospace", 
+            whiteSpace: "pre-wrap", 
+            wordBreak: "break-word",
+            maxHeight: 400,
+            overflowY: "auto",
+            border: "1px solid #1e293b"
+          }}>
+            {PROMPT_TEXT}
+          </div>
+        )}
+        
+        {!showPrompt && (
+          <div style={{ 
+            fontSize: 12, 
+            color: "#64748b",
+            padding: "8px 0"
+          }}>
+            💡 Prompt'u görmek için "Göster" butonuna tıklayın. 
+            AI'ya kelimeleri analiz ettirmek için kullanabilirsiniz.
+          </div>
+        )}
+      </div>
+
+      {/* ============================
+          JSON GİRİŞ ALANI
+          ============================ */}
       <div style={{ 
         background: "#1a1a2e", 
         borderRadius: 14, 
@@ -294,21 +495,38 @@ function WordAdder({ onBack }) {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <label style={{ fontSize: 11, color: "#64748b", display: "block" }}>JSON Verisi</label>
-          <button
-            onClick={() => setShowExample(!showExample)}
-            style={{
-              background: "none",
-              border: "1px solid #1e293b",
-              borderRadius: 6,
-              color: "#64748b",
-              fontSize: 11,
-              padding: "4px 10px",
-              cursor: "pointer"
-            }}
-          >
-            {showExample ? "Gizle" : "Örnek JSON"}
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={handleUseExample}
+              style={{
+                background: "none",
+                border: "1px solid #6366f1",
+                borderRadius: 6,
+                color: "#6366f1",
+                fontSize: 10,
+                padding: "4px 10px",
+                cursor: "pointer"
+              }}
+            >
+              📄 Örnek Yükle
+            </button>
+            <button
+              onClick={() => setShowExample(!showExample)}
+              style={{
+                background: "none",
+                border: "1px solid #1e293b",
+                borderRadius: 6,
+                color: "#64748b",
+                fontSize: 10,
+                padding: "4px 10px",
+                cursor: "pointer"
+              }}
+            >
+              {showExample ? "Gizle" : "Örnek JSON"}
+            </button>
+          </div>
         </div>
+        
         <textarea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
@@ -330,14 +548,31 @@ function WordAdder({ onBack }) {
           }}
         />
         
+        {/* Örnek JSON Gösterimi */}
         {showExample && (
           <div style={{ marginTop: 10 }}>
             <div style={{ 
-              fontSize: 11, 
-              color: "#64748b", 
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 6
             }}>
-              📄 Örnek JSON Formatı
+              <span style={{ fontSize: 11, color: "#64748b" }}>📄 Örnek JSON Formatı</span>
+              <button
+                onClick={handleCopyExample}
+                style={{
+                  background: copied ? "#0e2d1f" : "#1e293b",
+                  border: "none",
+                  borderRadius: 4,
+                  color: copied ? "#10b981" : "#94a3b8",
+                  fontSize: 10,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                {copied ? "✓ Kopyalandı!" : "📋 Kopyala"}
+              </button>
             </div>
             <pre style={{
               background: "#0f0f1a",
@@ -348,13 +583,16 @@ function WordAdder({ onBack }) {
               margin: 0,
               overflowX: "auto",
               lineHeight: 1.5,
-              border: "1px solid #1e293b"
+              border: "1px solid #1e293b",
+              maxHeight: 300,
+              overflowY: "auto"
             }}>
-              {WORD_EXAMPLE_JSON}
+              {EXAMPLE_JSON}
             </pre>
           </div>
         )}
 
+        {/* Sonuçlar */}
         {results.length > 0 && (
           <div style={{ marginTop: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#f1f5f9" }}>Sonuçlar:</div>
@@ -379,6 +617,7 @@ function WordAdder({ onBack }) {
         )}
       </div>
 
+      {/* Butonlar */}
       <div style={{ display: "flex", gap: 10 }}>
         <button
           onClick={handleParse}
@@ -419,6 +658,25 @@ function WordAdder({ onBack }) {
             {loading ? "⏳ Ekleniyor..." : `📥 ${parsedData.length} Kelime Ekle`}
           </button>
         )}
+      </div>
+
+      {/* Kullanım İpuçları */}
+      <div style={{ 
+        marginTop: 16,
+        padding: 12,
+        background: "#0f0f1a",
+        borderRadius: 8,
+        border: "1px solid #1e293b",
+        fontSize: 12,
+        color: "#64748b"
+      }}>
+        <div style={{ fontWeight: 600, color: "#94a3b8", marginBottom: 4 }}>💡 Kullanım İpuçları:</div>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <li>Yukarıdaki AI prompt'unu kopyalayıp ChatGPT/Claude gibi bir AI'ya yapıştırın</li>
+          <li>AI'dan gelen JSON çıktısını buraya yapıştırın</li>
+          <li>"JSON Kontrol Et" ile doğrulayın</li>
+          <li>Başarılı ise "Kelime Ekle" butonuna tıklayın</li>
+        </ul>
       </div>
     </div>
   );
