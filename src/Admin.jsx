@@ -132,30 +132,15 @@ function AdminPanel({ onLogout }) {
         }
 
         let wordData;
-        let isUpdate = false;
+        let wordStatus = "hata";
         let exampleStatus = "yok";
 
         if (existing) {
-          // Kelime varsa güncelle
-          const { data: updated, error: updateError } = await supabase
-            .from("en_words")
-            .update({
-              meaning: item.meaning,
-              level: item.level || null,
-              type: item.type || "word",
-              part_of_speech: item.part_of_speech || [],
-              category: item.category || [],
-              difficulty: item.difficulty || null,
-              synonyms: item.synonyms || [],
-              antonyms: item.antonyms || [],
-            })
-            .eq("id", existing.id)
-            .select()
-            .single();
-
-          if (updateError) throw updateError;
-          wordData = updated;
-          isUpdate = true;
+          // Kelime zaten var - hiçbir şey yapma
+          wordStatus = "zaten var";
+          wordData = existing;
+          // Cümle kontrolü yapma, çünkü kelime zaten var
+          exampleStatus = "yok";
         } else {
           // Yeni kelime ekle
           const { data: inserted, error: insertError } = await supabase
@@ -176,26 +161,10 @@ function AdminPanel({ onLogout }) {
 
           if (insertError) throw insertError;
           wordData = inserted;
-          isUpdate = false;
-        }
+          wordStatus = "eklendi";
 
-        // 2. Örnek cümle kontrol et - maybeSingle kullan
-        if (item.example && wordData) {
-          // Aynı cümle var mı kontrol et
-          const { data: existingExample, error: exampleCheckError } = await supabase
-            .from("en_example_sentences")
-            .select("id")
-            .eq("word_id", wordData.id)
-            .eq("sentence_en", item.example)
-            .maybeSingle();
-
-          // Eğer hata varsa ve "not found" değilse logla
-          if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
-            console.error("Cümle kontrol hatası:", exampleCheckError);
-          }
-
-          if (!existingExample) {
-            // Aynı cümle YOKSA ekle
+          // 2. Sadece yeni kelime eklendiyse cümle ekle
+          if (item.example && wordData) {
             const { error: insertExampleError } = await supabase
               .from("en_example_sentences")
               .insert({
@@ -214,18 +183,15 @@ function AdminPanel({ onLogout }) {
             } else {
               exampleStatus = "eklendi";
             }
-          } else {
-            // Aynı cümle VARSA hiçbir şey yapma
-            exampleStatus = "zaten var";
+          } else if (!item.example) {
+            exampleStatus = "yok";
           }
-        } else if (!item.example) {
-          exampleStatus = "yok";
         }
 
         resultList.push({ 
           word: item.word, 
           ok: true, 
-          status: isUpdate ? "güncellendi" : "eklendi",
+          status: wordStatus,
           exampleStatus: exampleStatus
         });
         
@@ -260,9 +226,8 @@ function AdminPanel({ onLogout }) {
   const successCount = results.filter(r => r.ok).length;
   const failCount = results.filter(r => !r.ok).length;
   const addedCount = results.filter(r => r.status === "eklendi").length;
-  const updatedCount = results.filter(r => r.status === "güncellendi").length;
+  const existsCount = results.filter(r => r.status === "zaten var").length;
   const exampleAddedCount = results.filter(r => r.exampleStatus === "eklendi").length;
-  const exampleExistsCount = results.filter(r => r.exampleStatus === "zaten var").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
@@ -368,14 +333,12 @@ function AdminPanel({ onLogout }) {
               {failCount === 0 ? (
                 <>
                   {addedCount > 0 && `✅ ${addedCount} kelime eklendi`}
-                  {addedCount > 0 && updatedCount > 0 && ", "}
-                  {updatedCount > 0 && `🔄 ${updatedCount} kelime güncellendi`}
-                  {addedCount === 0 && updatedCount === 0 && "ℹ️ Hiçbir değişiklik yapılmadı"}
-                  {(exampleAddedCount > 0 || exampleExistsCount > 0) && (
+                  {addedCount > 0 && existsCount > 0 && ", "}
+                  {existsCount > 0 && `⏭️ ${existsCount} kelime zaten mevcut`}
+                  {addedCount === 0 && existsCount > 0 && `ℹ️ ${existsCount} kelime zaten mevcut, hiçbir şey eklenmedi`}
+                  {exampleAddedCount > 0 && (
                     <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4, color: "#94a3b8" }}>
-                      {exampleAddedCount > 0 && `📝 ${exampleAddedCount} yeni cümle eklendi`}
-                      {exampleAddedCount > 0 && exampleExistsCount > 0 && ", "}
-                      {exampleExistsCount > 0 && `⏭️ ${exampleExistsCount} cümle zaten mevcut`}
+                      📝 {exampleAddedCount} yeni cümle eklendi
                     </div>
                   )}
                 </>
@@ -390,14 +353,13 @@ function AdminPanel({ onLogout }) {
                   {r.exampleStatus && r.exampleStatus !== "yok" && (
                     <span style={{ 
                       fontSize: 10, 
-                      color: r.exampleStatus === "eklendi" ? "#10b981" : r.exampleStatus === "zaten var" ? "#64748b" : "#ef4444",
+                      color: r.exampleStatus === "eklendi" ? "#10b981" : "#ef4444",
                       marginLeft: 8,
-                      background: r.exampleStatus === "eklendi" ? "#10b98122" : r.exampleStatus === "zaten var" ? "#1e293b" : "#ef444422",
+                      background: r.exampleStatus === "eklendi" ? "#10b98122" : "#ef444422",
                       padding: "2px 6px",
                       borderRadius: 4
                     }}>
                       {r.exampleStatus === "eklendi" && "📝 +cümle"}
-                      {r.exampleStatus === "zaten var" && "⏭️ cümle var"}
                       {r.exampleStatus === "hata" && "❌ cümle hatası"}
                     </span>
                   )}
@@ -408,10 +370,10 @@ function AdminPanel({ onLogout }) {
                   )}
                 </div>
                 <span style={{ 
-                  color: r.ok ? (r.status === "eklendi" ? "#10b981" : "#f59e0b") : "#ef4444",
+                  color: r.ok ? (r.status === "eklendi" ? "#10b981" : "#64748b") : "#ef4444",
                   fontSize: 12
                 }}>
-                  {r.ok ? (r.status === "eklendi" ? "✅ Yeni" : "🔄 Güncellendi") : "❌ Hata"}
+                  {r.ok ? (r.status === "eklendi" ? "✅ Yeni" : "⏭️ Mevcut") : "❌ Hata"}
                 </span>
               </div>
             ))}
