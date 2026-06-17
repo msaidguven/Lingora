@@ -487,7 +487,7 @@ export default function StatsScreen({ userLevel }) {
             marginBottom: 8,
             opacity: 0.7
           }}>
-            WordFlow
+            Lingora
           </div>
           <h1 style={{ 
             fontSize: 26, 

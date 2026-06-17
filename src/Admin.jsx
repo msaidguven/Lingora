@@ -1,5 +1,5 @@
 // Admin.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./config.js";
 
 const ADMIN_PASSWORD = "123456";
@@ -117,7 +117,7 @@ function LoginScreen({ onLogin }) {
       <div style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🔒</div>
-          <div style={{ fontSize: 11, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Lingora</div>
+          <div style={{ fontSize: 11, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>Admin Girişi</div>
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -146,7 +146,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // ============================
-// KELİME DÜZENLEME BİLEŞENİ (CÜMLE KONTROLLÜ)
+// KELİME DÜZENLEME BİLEŞENİ (LIVE SEARCH)
 // ============================
 function WordEditor({ onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -156,6 +156,7 @@ function WordEditor({ onBack }) {
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState(null);
   const [newExample, setNewExample] = useState({ en: "", tr: "" });
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
   const [formData, setFormData] = useState({
     word: "",
@@ -170,9 +171,10 @@ function WordEditor({ onBack }) {
     examples: [],
   });
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      setMessage({ type: "error", text: "Lütfen bir kelime girin" });
+  // 🔥 LİVE SEARCH - Her harf değişiminde sorgu yapar
+  const performSearch = useCallback(async (term) => {
+    if (!term.trim()) {
+      setSearchResults([]);
       return;
     }
 
@@ -194,7 +196,7 @@ function WordEditor({ onBack }) {
             is_approved
           )
         `)
-        .or(`word.ilike.%${searchTerm}%, meaning.ilike.%${searchTerm}%`)
+        .or(`word.ilike.%${term}%, meaning.ilike.%${term}%`)
         .order("word")
         .limit(20);
 
@@ -202,20 +204,41 @@ function WordEditor({ onBack }) {
 
       setSearchResults(data || []);
       if (data.length === 0) {
-        setMessage({ type: "info", text: "Kelime bulunamadı" });
+        setMessage({ type: "info", text: `"${term}" için kelime bulunamadı` });
       }
     } catch (error) {
       setMessage({ type: "error", text: "Arama hatası: " + error.message });
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // 🔥 Her harf değişiminde debounce ile arama yap
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+
+    // Önceki timeout'u temizle
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Yeni timeout ayarla (300ms bekle)
+    const timeout = setTimeout(() => {
+      performSearch(value);
+    }, 300);
+
+    setSearchTimeout(timeout);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
+  // Component unmount olurken timeout'u temizle
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   const selectWord = (word) => {
     setSelectedWord(word);
@@ -295,7 +318,7 @@ function WordEditor({ onBack }) {
 
     setLoading(true);
     try {
-      // 🔍 ÖNCE KONTROL ET: Aynı cümle zaten var mı?
+      // Önce kontrol et: Aynı cümle zaten var mı?
       const { data: existing, error: checkError } = await supabase
         .from("en_example_sentences")
         .select("id")
@@ -313,7 +336,7 @@ function WordEditor({ onBack }) {
         return;
       }
 
-      // ✅ Cümle yoksa ekle
+      // Cümle yoksa ekle
       const { data, error } = await supabase
         .from("en_example_sentences")
         .insert({
@@ -369,8 +392,9 @@ function WordEditor({ onBack }) {
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>Lingora</div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
           <div style={{ fontSize: 22, fontWeight: 800 }}>✏️ Kelime Düzenle</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Arama yapmak için yazmaya başlayın</div>
         </div>
         <button 
           onClick={onBack} 
@@ -388,6 +412,7 @@ function WordEditor({ onBack }) {
         </button>
       </div>
 
+      {/* 🔥 ARAMA KUTUSU - Anında arama */}
       <div style={{ 
         background: "#1a1a2e", 
         borderRadius: 14, 
@@ -395,42 +420,77 @@ function WordEditor({ onBack }) {
         border: "1px solid #1e293b",
         marginBottom: 24
       }}>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ position: "relative" }}>
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Kelime veya anlam ara..."
+            onChange={handleSearchChange}
+            placeholder="Kelime veya anlam ara (örn: ca, car, happy)..."
+            autoFocus
             style={{
-              flex: 1,
+              width: "100%",
+              boxSizing: "border-box",
               background: "#0f0f1a",
               border: "1px solid #1e293b",
               borderRadius: 10,
-              padding: "10px 14px",
+              padding: "12px 16px",
+              paddingLeft: 42,
               color: "#e2e8f0",
-              fontSize: 14,
+              fontSize: 15,
               outline: "none",
               fontFamily: "inherit"
             }}
           />
-          <button 
-            onClick={handleSearch} 
-            disabled={loading}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 10,
-              border: "none",
-              background: "#6366f1",
-              color: "#fff",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? "🔍" : "Ara"}
-          </button>
+          <span style={{
+            position: "absolute",
+            left: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#64748b",
+            fontSize: 18
+          }}>
+            {loading ? "⏳" : "🔍"}
+          </span>
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSearchResults([]);
+                setMessage(null);
+              }}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                color: "#64748b",
+                cursor: "pointer",
+                fontSize: 16
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
+
+        {/* Arama istatistikleri */}
+        {searchResults.length > 0 && !selectedWord && (
+          <div style={{ 
+            marginTop: 10, 
+            fontSize: 12, 
+            color: "#64748b",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+            <span>{searchResults.length} kelime bulundu</span>
+            <span style={{ fontSize: 10, color: "#475569" }}>
+              {searchTerm.length > 0 ? `"${searchTerm}" için` : "Tüm kelimeler"}
+            </span>
+          </div>
+        )}
 
         {message && (
           <div style={{ 
@@ -447,18 +507,18 @@ function WordEditor({ onBack }) {
         )}
       </div>
 
+      {/* 🔥 ARAMA SONUÇLARI - Anında listelenir */}
       {searchResults.length > 0 && !selectedWord && (
         <div style={{ 
           background: "#1a1a2e", 
           borderRadius: 14, 
-          padding: 16, 
+          padding: 8, 
           border: "1px solid #1e293b",
-          marginBottom: 24
+          marginBottom: 24,
+          maxHeight: 400,
+          overflowY: "auto"
         }}>
-          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-            {searchResults.length} kelime bulundu
-          </div>
-          {searchResults.map((word) => (
+          {searchResults.map((word, index) => (
             <div 
               key={word.id}
               onClick={() => selectWord(word)}
@@ -466,25 +526,51 @@ function WordEditor({ onBack }) {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "10px 14px",
-                borderBottom: "1px solid #0f0f1a",
+                padding: "12px 16px",
+                borderBottom: index < searchResults.length - 1 ? "1px solid #0f0f1a" : "none",
                 cursor: "pointer",
-                transition: "all 0.2s",
+                transition: "all 0.15s",
                 borderRadius: 6,
+                margin: "2px 0"
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = "#0f0f1a"}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
               <div>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{word.word}</span>
-                <span style={{ color: "#64748b", marginLeft: 10, fontSize: 13 }}>{word.meaning}</span>
+                <span style={{ fontWeight: 700, fontSize: 16 }}>{word.word}</span>
+                <span style={{ color: "#64748b", marginLeft: 12, fontSize: 14 }}>{word.meaning}</span>
+                {word.en_example_sentences && (
+                  <span style={{ 
+                    fontSize: 10, 
+                    color: "#475569", 
+                    marginLeft: 8,
+                    background: "#0f0f1a",
+                    padding: "2px 8px",
+                    borderRadius: 4
+                  }}>
+                    📝 {word.en_example_sentences.length} cümle
+                  </span>
+                )}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <span style={{ fontSize: 10, background: "#6366f122", color: "#6366f1", padding: "2px 8px", borderRadius: 4 }}>
-                  {word.level}
+                <span style={{ 
+                  fontSize: 10, 
+                  background: "#6366f122", 
+                  color: "#6366f1", 
+                  padding: "2px 10px", 
+                  borderRadius: 4,
+                  fontWeight: 600
+                }}>
+                  {word.level || "A1"}
                 </span>
-                <span style={{ fontSize: 10, background: "#1e293b", color: "#64748b", padding: "2px 8px", borderRadius: 4 }}>
-                  ⭐ {word.difficulty}
+                <span style={{ 
+                  fontSize: 10, 
+                  background: "#1e293b", 
+                  color: "#64748b", 
+                  padding: "2px 10px", 
+                  borderRadius: 4
+                }}>
+                  ⭐ {word.difficulty || 1}
                 </span>
               </div>
             </div>
@@ -492,6 +578,7 @@ function WordEditor({ onBack }) {
         </div>
       )}
 
+      {/* Kelime Düzenleme Formu */}
       {selectedWord && (
         <div style={{ 
           background: "#1a1a2e", 
@@ -505,6 +592,26 @@ function WordEditor({ onBack }) {
               <span style={{ fontSize: 14, color: "#64748b", marginLeft: 12 }}>#{selectedWord.id.slice(0, 8)}</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => {
+                  setSelectedWord(null);
+                  setSearchResults(prev => prev.map(w => 
+                    w.id === selectedWord.id ? { ...w, ...formData } : w
+                  ));
+                }}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #64748b",
+                  background: "transparent",
+                  color: "#64748b",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                ← Listeye Dön
+              </button>
               <button 
                 onClick={() => setEditing(!editing)}
                 style={{
@@ -863,8 +970,7 @@ function AdminPanel({ onLogout }) {
   const fetchRecentWords = async () => {
     setLoadingRecent(true);
     try {
-      const { data, error } = await supabase
-        .from("en_words")
+      const { data, error } = await supabase        .from("en_words")
         .select("word, meaning, level, created_at")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -1097,7 +1203,7 @@ function AdminPanel({ onLogout }) {
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Lingora</div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
           <div style={{ fontSize: 22, fontWeight: 800 }}>Admin — Kelime Ekle</div>
           <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>JSON formatında toplu kelime ekle</div>
         </div>
