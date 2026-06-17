@@ -10,10 +10,10 @@ const LEVEL_COLOR = {
 };
 
 const NAV_ITEMS = [
-  { key: "home",      icon: "ti-home",             label: "ANA"   },
+  { key: "home",      icon: "ti-home",             label: "ANASAYFA"   },
   { key: "dashboard", icon: "ti-layout-dashboard",  label: "PANEL" },
   { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
-  { key: "stats",     icon: "ti-chart-line",        label: "İSTAT" },
+  { key: "stats",     icon: "ti-chart-line",        label: "İSTATİSTİK" },
 ];
 
 export default function Header({ currentScreen, onNavigate, userLevel, quizType = null }) {
