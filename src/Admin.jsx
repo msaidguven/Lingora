@@ -4,97 +4,43 @@ import { supabase } from "./config.js";
 
 const ADMIN_PASSWORD = "123456";
 
-const EXAMPLE_JSON = `[
-  {
-    "word": "happy",
-    "meaning": "mutlu",
-    "level": "A1",
-    "type": "word",
-    "part_of_speech": ["adjective"],
-    "category": ["daily", "emotion"],
-    "difficulty": 1,
-    "synonyms": ["joyful", "cheerful"],
-    "antonyms": ["sad", "unhappy"],
-    "examples": [
-      {
-        "en": "She felt very happy today.",
-        "tr": "Bugün çok mutlu hissetti."
-      },
-      {
-        "en": "I am happy to see you.",
-        "tr": "Seni gördüğüme mutluyum."
-      },
-      {
-        "en": "They live a happy life.",
-        "tr": "Mutlu bir hayat yaşıyorlar."
-      },
-      {
-        "en": "He has a happy smile.",
-        "tr": "Mutlu bir gülümsemesi var."
-      },
-      {
-        "en": "We are happy together.",
-        "tr": "Birlikte mutluyuz."
-      }
-    ]
-  }
-]`;
-
-const PROMPT_TEXT = `
-
-Aşağıdaki kelimeleri analiz et. SADECE JSON array döndür, başka hiçbir şey yazma.
-
-Her kelime için:
-- 5 adet örnek cümle üret
-- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2) uygun olsun
-- A1 ise tamamen A1 seviyesinde 5 cümle
-- A2 ise A2 seviyesinde 5 cümle vb.
-- Her cümle için Türkçe çeviri de ekle
-
-
-Kelimeler: [Aşağıda verildi]
-
-kelimenin diğer anlamlarını virgül ile ayır. 
-örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
-Tüm kelimeler A1 seviyesindedir, bunu dikkate al.
-
-[
-  {
-    "word": "kelime",
-    "meaning": "türkçe anlam",
-    "level": "A1",
-    "type": "word|phrase",
-    "part_of_speech": ["noun", "verb", "adjective", "adverb"],
-    "category": ["daily", "business", "travel", "food", "emotion", "health", "technology", "education", "social"],
-    "difficulty": 1,
-    "synonyms": ["eş1", "eş2"],
-    "antonyms": ["zıt1", "zıt2"],
-    "examples": [
-      {
-        "en": "English sentence 1",
-        "tr": "Türkçe çeviri 1"
-      },
-      {
-        "en": "English sentence 2",
-        "tr": "Türkçe çeviri 2"
-      },
-      {
-        "en": "English sentence 3",
-        "tr": "Türkçe çeviri 3"
-      },
-      {
-        "en": "English sentence 4",
-        "tr": "Türkçe çeviri 4"
-      },
-      {
-        "en": "English sentence 5",
-        "tr": "Türkçe çeviri 5"
-      }
-    ]
-  }
-]
-
-`;
+// ============================
+// DERS İÇİN ÖRNEK JSON
+// ============================
+const LESSON_EXAMPLE_JSON = `{
+  "sections": [
+    {
+      "type": "vocabulary",
+      "title": "Yeni Kelimeler",
+      "items": [
+        {
+          "word": "example",
+          "meaning": "örnek",
+          "part_of_speech": "noun",
+          "example_sentence": "This is an example sentence.",
+          "example_translation": "Bu bir örnek cümledir."
+        }
+      ]
+    },
+    {
+      "type": "grammar",
+      "title": "Dil Bilgisi",
+      "content": "Present Simple Tense kullanımı..."
+    },
+    {
+      "type": "reading",
+      "title": "Okuma Parçası",
+      "content": "Reading text content here...",
+      "questions": [
+        {
+          "question": "What is the main topic?",
+          "options": ["A", "B", "C", "D"],
+          "correct_answer": 0
+        }
+      ]
+    }
+  ]
+}`;
 
 // ============================
 // GİRİŞ EKRANI
@@ -146,29 +92,22 @@ function LoginScreen({ onLogin }) {
 }
 
 // ============================
-// KELİME DÜZENLEME BİLEŞENİ (LIVE SEARCH)
+// DERS DÜZENLEME BİLEŞENİ
 // ============================
-function WordEditor({ onBack }) {
+function LessonEditor({ onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedWord, setSelectedWord] = useState(null);
+  const [selectedLesson, setSelectedLesson] = useState(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState(null);
-  const [newExample, setNewExample] = useState({ en: "", tr: "" });
   const [searchTimeout, setSearchTimeout] = useState(null);
 
   const [formData, setFormData] = useState({
-    word: "",
-    meaning: "",
+    lesson_number: "",
+    title: "",
     level: "A1",
-    type: "word",
-    part_of_speech: [],
-    category: [],
-    difficulty: 1,
-    synonyms: [],
-    antonyms: [],
-    examples: [],
+    content_json: {}
   });
 
   // 🔥 LİVE SEARCH - Her harf değişiminde sorgu yapar
@@ -180,31 +119,22 @@ function WordEditor({ onBack }) {
 
     setLoading(true);
     setMessage(null);
-    setSelectedWord(null);
+    setSelectedLesson(null);
 
     try {
       const { data, error } = await supabase
-        .from("en_words")
-        .select(`
-          *,
-          en_example_sentences (
-            id,
-            sentence_en,
-            sentence_tr,
-            difficulty,
-            order_index,
-            is_approved
-          )
-        `)
-        .or(`word.ilike.%${term}%, meaning.ilike.%${term}%`)
-        .order("word")
+        .from("en_lessons")
+        .select("*")
+        .or(`title.ilike.%${term}%, lesson_number::text.ilike.%${term}%`)
+        .order("level")
+        .order("lesson_number")
         .limit(20);
 
       if (error) throw error;
 
       setSearchResults(data || []);
       if (data.length === 0) {
-        setMessage({ type: "info", text: `"${term}" için kelime bulunamadı` });
+        setMessage({ type: "info", text: `"${term}" için ders bulunamadı` });
       }
     } catch (error) {
       setMessage({ type: "error", text: "Arama hatası: " + error.message });
@@ -218,12 +148,10 @@ function WordEditor({ onBack }) {
     const value = e.target.value;
     setSearchTerm(value);
 
-    // Önceki timeout'u temizle
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
 
-    // Yeni timeout ayarla (300ms bekle)
     const timeout = setTimeout(() => {
       performSearch(value);
     }, 300);
@@ -240,19 +168,13 @@ function WordEditor({ onBack }) {
     };
   }, [searchTimeout]);
 
-  const selectWord = (word) => {
-    setSelectedWord(word);
+  const selectLesson = (lesson) => {
+    setSelectedLesson(lesson);
     setFormData({
-      word: word.word,
-      meaning: word.meaning || "",
-      level: word.level || "A1",
-      type: word.type || "word",
-      part_of_speech: word.part_of_speech || [],
-      category: word.category || [],
-      difficulty: word.difficulty || 1,
-      synonyms: word.synonyms || [],
-      antonyms: word.antonyms || [],
-      examples: word.en_example_sentences || [],
+      lesson_number: lesson.lesson_number,
+      title: lesson.title,
+      level: lesson.level || "A1",
+      content_json: lesson.content_json || {}
     });
     setEditing(false);
     setMessage(null);
@@ -262,43 +184,61 @@ function WordEditor({ onBack }) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleArrayChange = (field, value) => {
-    const arr = value.split(",").map(s => s.trim()).filter(s => s);
-    setFormData(prev => ({ ...prev, [field]: arr }));
+  const handleJsonChange = (value) => {
+    try {
+      // JSON'u parse et ve formatla
+      const parsed = JSON.parse(value);
+      setFormData(prev => ({ ...prev, content_json: parsed }));
+      setMessage(null);
+    } catch (e) {
+      // Geçersiz JSON, ama yine de değeri sakla (kullanıcı düzenlerken)
+      setFormData(prev => ({ ...prev, content_json: value }));
+      setMessage({ type: "error", text: "⚠️ Geçersiz JSON formatı" });
+    }
   };
 
   const handleSave = async () => {
-    if (!selectedWord) return;
+    if (!selectedLesson) return;
+
+    // content_json'u kontrol et
+    let contentToSave = formData.content_json;
+    if (typeof contentToSave === 'string') {
+      try {
+        contentToSave = JSON.parse(contentToSave);
+      } catch (e) {
+        setMessage({ type: "error", text: "⚠️ Lütfen geçerli bir JSON girin" });
+        return;
+      }
+    }
 
     setLoading(true);
     setMessage(null);
 
     try {
-      const { error: wordError } = await supabase
-        .from("en_words")
+      const { error } = await supabase
+        .from("en_lessons")
         .update({
-          word: formData.word,
-          meaning: formData.meaning,
+          lesson_number: parseInt(formData.lesson_number),
+          title: formData.title,
           level: formData.level,
-          type: formData.type,
-          part_of_speech: formData.part_of_speech,
-          category: formData.category,
-          difficulty: formData.difficulty,
-          synonyms: formData.synonyms,
-          antonyms: formData.antonyms,
+          content_json: contentToSave,
         })
-        .eq("id", selectedWord.id);
+        .eq("id", selectedLesson.id);
 
-      if (wordError) throw wordError;
+      if (error) throw error;
 
-      setMessage({ type: "success", text: "✅ Kelime başarıyla güncellendi!" });
+      setMessage({ type: "success", text: "✅ Ders başarıyla güncellendi!" });
       setEditing(false);
 
-      const updatedWord = { ...selectedWord, ...formData };
-      setSelectedWord(updatedWord);
+      const updatedLesson = { 
+        ...selectedLesson, 
+        ...formData,
+        content_json: contentToSave
+      };
+      setSelectedLesson(updatedLesson);
 
       setSearchResults(prev => 
-        prev.map(w => w.id === updatedWord.id ? updatedWord : w)
+        prev.map(l => l.id === updatedLesson.id ? updatedLesson : l)
       );
 
     } catch (error) {
@@ -308,93 +248,22 @@ function WordEditor({ onBack }) {
     }
   };
 
-  // 🔥 CÜMLE EKLEME - KONTROLLÜ
-  const addExample = async () => {
-    if (!selectedWord) return;
-    if (!newExample.en.trim() || !newExample.tr.trim()) {
-      setMessage({ type: "error", text: "Cümle ve çevirisi zorunlu" });
-      return;
-    }
-
-    setLoading(true);
+  // JSON'u formatlı göster
+  const getPrettyJson = (json) => {
     try {
-      // Önce kontrol et: Aynı cümle zaten var mı?
-      const { data: existing, error: checkError } = await supabase
-        .from("en_example_sentences")
-        .select("id")
-        .eq("word_id", selectedWord.id)
-        .eq("sentence_en", newExample.en.trim())
-        .maybeSingle();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existing) {
-        setMessage({ type: "error", text: "⚠️ Bu cümle zaten mevcut!" });
-        setLoading(false);
-        return;
-      }
-
-      // Cümle yoksa ekle
-      const { data, error } = await supabase
-        .from("en_example_sentences")
-        .insert({
-          word_id: selectedWord.id,
-          sentence_en: newExample.en.trim(),
-          sentence_tr: newExample.tr.trim(),
-          difficulty: formData.difficulty,
-          order_index: formData.examples.length,
-          source: "manual",
-          is_approved: true,
-        })
-        .select();
-
-      if (error) throw error;
-
-      const updatedExamples = [...formData.examples, data[0]];
-      setFormData(prev => ({ ...prev, examples: updatedExamples }));
-      setNewExample({ en: "", tr: "" });
-      setMessage({ type: "success", text: "✅ Cümle eklendi!" });
-
-    } catch (error) {
-      setMessage({ type: "error", text: "Cümle eklenemedi: " + error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🗑️ CÜMLE SİL
-  const deleteExample = async (exampleId) => {
-    if (!window.confirm("Bu cümleyi silmek istediğinize emin misiniz?")) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("en_example_sentences")
-        .delete()
-        .eq("id", exampleId);
-
-      if (error) throw error;
-
-      const updatedExamples = formData.examples.filter(e => e.id !== exampleId);
-      setFormData(prev => ({ ...prev, examples: updatedExamples }));
-      setMessage({ type: "success", text: "✅ Cümle silindi!" });
-
-    } catch (error) {
-      setMessage({ type: "error", text: "Cümle silinemedi: " + error.message });
-    } finally {
-      setLoading(false);
+      return JSON.stringify(json, null, 2);
+    } catch {
+      return JSON.stringify(json);
     }
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>✏️ Kelime Düzenle</div>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Arama yapmak için yazmaya başlayın</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>📚 Ders Düzenle</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Ders aramak için yazmaya başlayın</div>
         </div>
         <button 
           onClick={onBack} 
@@ -412,7 +281,7 @@ function WordEditor({ onBack }) {
         </button>
       </div>
 
-      {/* 🔥 ARAMA KUTUSU - Anında arama */}
+      {/* 🔥 ARAMA KUTUSU */}
       <div style={{ 
         background: "#1a1a2e", 
         borderRadius: 14, 
@@ -425,7 +294,7 @@ function WordEditor({ onBack }) {
             type="text"
             value={searchTerm}
             onChange={handleSearchChange}
-            placeholder="Kelime veya anlam ara (örn: ca, car, happy)..."
+            placeholder="Ders numarası veya başlık ara (örn: 1, greetings)..."
             autoFocus
             style={{
               width: "100%",
@@ -475,8 +344,7 @@ function WordEditor({ onBack }) {
           )}
         </div>
 
-        {/* Arama istatistikleri */}
-        {searchResults.length > 0 && !selectedWord && (
+        {searchResults.length > 0 && !selectedLesson && (
           <div style={{ 
             marginTop: 10, 
             fontSize: 12, 
@@ -485,10 +353,7 @@ function WordEditor({ onBack }) {
             justifyContent: "space-between",
             alignItems: "center"
           }}>
-            <span>{searchResults.length} kelime bulundu</span>
-            <span style={{ fontSize: 10, color: "#475569" }}>
-              {searchTerm.length > 0 ? `"${searchTerm}" için` : "Tüm kelimeler"}
-            </span>
+            <span>{searchResults.length} ders bulundu</span>
           </div>
         )}
 
@@ -507,8 +372,8 @@ function WordEditor({ onBack }) {
         )}
       </div>
 
-      {/* 🔥 ARAMA SONUÇLARI - Anında listelenir */}
-      {searchResults.length > 0 && !selectedWord && (
+      {/* 🔥 ARAMA SONUÇLARI */}
+      {searchResults.length > 0 && !selectedLesson && (
         <div style={{ 
           background: "#1a1a2e", 
           borderRadius: 14, 
@@ -518,10 +383,10 @@ function WordEditor({ onBack }) {
           maxHeight: 400,
           overflowY: "auto"
         }}>
-          {searchResults.map((word, index) => (
+          {searchResults.map((lesson, index) => (
             <div 
-              key={word.id}
-              onClick={() => selectWord(word)}
+              key={lesson.id}
+              onClick={() => selectLesson(lesson)}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -537,32 +402,24 @@ function WordEditor({ onBack }) {
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
               <div>
-                <span style={{ fontWeight: 700, fontSize: 16 }}>{word.word}</span>
-                <span style={{ color: "#64748b", marginLeft: 12, fontSize: 14 }}>{word.meaning}</span>
-                {word.en_example_sentences && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ 
-                    fontSize: 10, 
-                    color: "#475569", 
-                    marginLeft: 8,
-                    background: "#0f0f1a",
-                    padding: "2px 8px",
-                    borderRadius: 4
+                    fontSize: 12, 
+                    background: "#6366f122", 
+                    color: "#6366f1", 
+                    padding: "2px 10px", 
+                    borderRadius: 4,
+                    fontWeight: 600
                   }}>
-                    📝 {word.en_example_sentences.length} cümle
+                    #{lesson.lesson_number}
                   </span>
-                )}
+                  <span style={{ fontWeight: 700, fontSize: 16 }}>{lesson.title}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                  Seviye: {lesson.level || "A1"}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <span style={{ 
-                  fontSize: 10, 
-                  background: "#6366f122", 
-                  color: "#6366f1", 
-                  padding: "2px 10px", 
-                  borderRadius: 4,
-                  fontWeight: 600
-                }}>
-                  {word.level || "A1"}
-                </span>
                 <span style={{ 
                   fontSize: 10, 
                   background: "#1e293b", 
@@ -570,7 +427,7 @@ function WordEditor({ onBack }) {
                   padding: "2px 10px", 
                   borderRadius: 4
                 }}>
-                  ⭐ {word.difficulty || 1}
+                  📝 {Object.keys(lesson.content_json || {}).length} bölüm
                 </span>
               </div>
             </div>
@@ -578,8 +435,8 @@ function WordEditor({ onBack }) {
         </div>
       )}
 
-      {/* Kelime Düzenleme Formu */}
-      {selectedWord && (
+      {/* Ders Düzenleme Formu */}
+      {selectedLesson && (
         <div style={{ 
           background: "#1a1a2e", 
           borderRadius: 14, 
@@ -588,15 +445,15 @@ function WordEditor({ onBack }) {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
-              <span style={{ fontSize: 18, fontWeight: 800 }}>{selectedWord.word}</span>
-              <span style={{ fontSize: 14, color: "#64748b", marginLeft: 12 }}>#{selectedWord.id.slice(0, 8)}</span>
+              <span style={{ fontSize: 18, fontWeight: 800 }}>#{selectedLesson.lesson_number} - {selectedLesson.title}</span>
+              <span style={{ fontSize: 14, color: "#64748b", marginLeft: 12 }}>ID: {selectedLesson.id.slice(0, 8)}</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button 
                 onClick={() => {
-                  setSelectedWord(null);
-                  setSearchResults(prev => prev.map(w => 
-                    w.id === selectedWord.id ? { ...w, ...formData } : w
+                  setSelectedLesson(null);
+                  setSearchResults(prev => prev.map(l => 
+                    l.id === selectedLesson.id ? { ...l, ...formData } : l
                   ));
                 }}
                 style={{
@@ -650,10 +507,11 @@ function WordEditor({ onBack }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Kelime</label>
+              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Ders Numarası</label>
               <input
-                value={formData.word}
-                onChange={(e) => handleFormChange("word", e.target.value)}
+                type="number"
+                value={formData.lesson_number}
+                onChange={(e) => handleFormChange("lesson_number", e.target.value)}
                 disabled={!editing}
                 style={{
                   width: "100%",
@@ -672,10 +530,10 @@ function WordEditor({ onBack }) {
             </div>
 
             <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Anlam</label>
+              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Başlık</label>
               <input
-                value={formData.meaning}
-                onChange={(e) => handleFormChange("meaning", e.target.value)}
+                value={formData.title}
+                onChange={(e) => handleFormChange("title", e.target.value)}
                 disabled={!editing}
                 style={{
                   width: "100%",
@@ -721,233 +579,459 @@ function WordEditor({ onBack }) {
             </div>
 
             <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Zorluk (1-5)</label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                value={formData.difficulty}
-                onChange={(e) => handleFormChange("difficulty", Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
-                disabled={!editing}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: editing ? "#0f0f1a" : "#1a1a2e",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#e2e8f0",
-                  fontSize: 14,
-                  outline: "none",
-                  fontFamily: "inherit",
-                  opacity: editing ? 1 : 0.7
-                }}
-              />
-            </div>
-
-            <div>
               <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Tür (virgülle ayır)
+                Oluşturulma Tarihi
               </label>
-              <input
-                value={formData.part_of_speech.join(", ")}
-                onChange={(e) => handleArrayChange("part_of_speech", e.target.value)}
-                disabled={!editing}
-                placeholder="noun, verb, adjective"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: editing ? "#0f0f1a" : "#1a1a2e",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#e2e8f0",
-                  fontSize: 13,
-                  outline: "none",
-                  fontFamily: "inherit",
-                  opacity: editing ? 1 : 0.7
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Kategori (virgülle ayır)
-              </label>
-              <input
-                value={formData.category.join(", ")}
-                onChange={(e) => handleArrayChange("category", e.target.value)}
-                disabled={!editing}
-                placeholder="daily, business, travel"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: editing ? "#0f0f1a" : "#1a1a2e",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#e2e8f0",
-                  fontSize: 13,
-                  outline: "none",
-                  fontFamily: "inherit",
-                  opacity: editing ? 1 : 0.7
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Eş Anlamlılar (virgülle ayır)
-              </label>
-              <input
-                value={formData.synonyms.join(", ")}
-                onChange={(e) => handleArrayChange("synonyms", e.target.value)}
-                disabled={!editing}
-                placeholder="joyful, cheerful"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: editing ? "#0f0f1a" : "#1a1a2e",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#e2e8f0",
-                  fontSize: 13,
-                  outline: "none",
-                  fontFamily: "inherit",
-                  opacity: editing ? 1 : 0.7
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                Zıt Anlamlılar (virgülle ayır)
-              </label>
-              <input
-                value={formData.antonyms.join(", ")}
-                onChange={(e) => handleArrayChange("antonyms", e.target.value)}
-                disabled={!editing}
-                placeholder="sad, unhappy"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: editing ? "#0f0f1a" : "#1a1a2e",
-                  border: "1px solid #1e293b",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#e2e8f0",
-                  fontSize: 13,
-                  outline: "none",
-                  fontFamily: "inherit",
-                  opacity: editing ? 1 : 0.7
-                }}
-              />
+              <div style={{
+                padding: "8px 12px",
+                background: "#0f0f1a",
+                borderRadius: 8,
+                color: "#64748b",
+                fontSize: 13,
+                border: "1px solid #1e293b"
+              }}>
+                {new Date(selectedLesson.created_at).toLocaleString('tr-TR')}
+              </div>
             </div>
           </div>
 
           <div style={{ marginTop: 24, borderTop: "1px solid #1e293b", paddingTop: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📝 Örnek Cümleler ({formData.examples.length})</div>
-            
-            {editing && (
-              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                <input
-                  value={newExample.en}
-                  onChange={(e) => setNewExample(prev => ({ ...prev, en: e.target.value }))}
-                  placeholder="İngilizce cümle..."
-                  style={{
-                    flex: 1,
-                    background: "#0f0f1a",
-                    border: "1px solid #1e293b",
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                    color: "#e2e8f0",
-                    fontSize: 13,
-                    outline: "none",
-                    fontFamily: "inherit"
-                  }}
-                />
-                <input
-                  value={newExample.tr}
-                  onChange={(e) => setNewExample(prev => ({ ...prev, tr: e.target.value }))}
-                  placeholder="Türkçe çeviri..."
-                  style={{
-                    flex: 1,
-                    background: "#0f0f1a",
-                    border: "1px solid #1e293b",
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                    color: "#e2e8f0",
-                    fontSize: 13,
-                    outline: "none",
-                    fontFamily: "inherit"
-                  }}
-                />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>📦 İçerik (JSON)</div>
+              {!editing && (
                 <button
-                  onClick={addExample}
-                  disabled={loading}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "#6366f1",
-                    color: "#fff",
-                    fontWeight: 600,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1,
-                    whiteSpace: "nowrap"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getPrettyJson(formData.content_json));
+                    setMessage({ type: "success", text: "✅ JSON kopyalandı!" });
+                    setTimeout(() => setMessage(null), 2000);
                   }}
-                >
-                  ➕ Ekle
-                </button>
-              </div>
-            )}
-
-            <div style={{ maxHeight: 300, overflowY: "auto" }}>
-              {formData.examples.map((example, index) => (
-                <div 
-                  key={example.id || index}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 12px",
-                    background: index % 2 === 0 ? "#0f0f1a" : "transparent",
+                    padding: "4px 12px",
                     borderRadius: 6,
-                    marginBottom: 4
+                    border: "1px solid #1e293b",
+                    background: "transparent",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    fontSize: 11
                   }}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: "#e2e8f0" }}>{example.sentence_en}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{example.sentence_tr}</div>
-                  </div>
-                  {editing && (
-                    <button
-                      onClick={() => deleteExample(example.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: "4px 8px"
-                      }}
-                      title="Sil"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-              {formData.examples.length === 0 && (
-                <div style={{ fontSize: 13, color: "#64748b", padding: "12px 0", textAlign: "center" }}>
-                  Henüz örnek cümle yok
-                </div>
+                  📋 Kopyala
+                </button>
               )}
             </div>
+            
+            {editing ? (
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  color: "#64748b", 
+                  marginBottom: 8,
+                  background: "#0f0f1a",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #1e293b"
+                }}>
+                  💡 JSON formatında ders içeriğini düzenleyin. Örnek format için aşağıdaki butona tıklayın.
+                </div>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Örnek JSON ile değiştirmek istediğinize emin misiniz? Mevcut içerik kaybolacak!")) {
+                      try {
+                        const example = JSON.parse(LESSON_EXAMPLE_JSON);
+                        setFormData(prev => ({ ...prev, content_json: example }));
+                        setMessage({ type: "success", text: "✅ Örnek JSON yüklendi!" });
+                        setTimeout(() => setMessage(null), 2000);
+                      } catch (e) {
+                        setMessage({ type: "error", text: "Örnek JSON yüklenemedi" });
+                      }
+                    }
+                  }}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #6366f1",
+                    background: "transparent",
+                    color: "#6366f1",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    marginBottom: 10
+                  }}
+                >
+                  📄 Örnek JSON Yükle
+                </button>
+                <textarea
+                  value={typeof formData.content_json === 'string' ? formData.content_json : getPrettyJson(formData.content_json)}
+                  onChange={(e) => handleJsonChange(e.target.value)}
+                  rows={20}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "#0f0f1a",
+                    border: "1px solid #1e293b",
+                    borderRadius: 8,
+                    padding: "12px",
+                    color: "#e2e8f0",
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                    lineHeight: 1.6,
+                    resize: "vertical",
+                    outline: "none"
+                  }}
+                />
+                {typeof formData.content_json === 'string' && (
+                  <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 6 }}>
+                    ⚠️ Geçersiz JSON formatı. Lütfen düzeltin.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                background: "#0f0f1a",
+                borderRadius: 8,
+                padding: "16px",
+                maxHeight: 400,
+                overflowY: "auto",
+                border: "1px solid #1e293b"
+              }}>
+                <pre style={{
+                  margin: 0,
+                  color: "#94a3b8",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word"
+                }}>
+                  {getPrettyJson(formData.content_json)}
+                </pre>
+              </div>
+            )}
           </div>
+
+          {/* İçerik Özeti */}
+          {!editing && typeof formData.content_json === 'object' && formData.content_json.sections && (
+            <div style={{ marginTop: 16, borderTop: "1px solid #1e293b", paddingTop: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>📊 İçerik Özeti</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {formData.content_json.sections.map((section, index) => (
+                  <div 
+                    key={index}
+                    style={{
+                      background: "#0f0f1a",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      border: "1px solid #1e293b",
+                      fontSize: 12,
+                      color: "#94a3b8"
+                    }}
+                  >
+                    {section.type}: {section.title}
+                    {section.items && ` (${section.items.length} item)`}
+                    {section.questions && ` (${section.questions.length} soru)`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================
+// DERS EKLEME BİLEŞENİ
+// ============================
+function LessonAdder() {
+  const [lessonNumber, setLessonNumber] = useState("");
+  const [title, setTitle] = useState("");
+  const [level, setLevel] = useState("A1");
+  const [jsonInput, setJsonInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [showExample, setShowExample] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleAddLesson = async () => {
+    // Validasyon
+    if (!lessonNumber || !title) {
+      setMessage({ type: "error", text: "Ders numarası ve başlık zorunludur!" });
+      return;
+    }
+
+    let contentJson = {};
+    try {
+      if (jsonInput.trim()) {
+        contentJson = JSON.parse(jsonInput.trim());
+      } else {
+        // Boş JSON
+        contentJson = { sections: [] };
+      }
+    } catch (e) {
+      setMessage({ type: "error", text: "⚠️ Geçersiz JSON formatı!" });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      // Aynı level ve lesson_number kontrolü
+      const { data: existing, error: checkError } = await supabase
+        .from("en_lessons")
+        .select("id, lesson_number")
+        .eq("level", level)
+        .eq("lesson_number", parseInt(lessonNumber))
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existing) {
+        setMessage({ 
+          type: "error", 
+          text: `⚠️ Bu seviyede (${level}) ${lessonNumber}. ders zaten mevcut!` 
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Yeni ders ekle
+      const { data, error } = await supabase
+        .from("en_lessons")
+        .insert({
+          lesson_number: parseInt(lessonNumber),
+          title: title.trim(),
+          level: level,
+          content_json: contentJson
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMessage({ 
+        type: "success", 
+        text: `✅ ${level} seviyesi ${lessonNumber}. ders başarıyla eklendi!` 
+      });
+
+      // Formu temizle
+      setLessonNumber("");
+      setTitle("");
+      setJsonInput("");
+      
+    } catch (error) {
+      setMessage({ type: "error", text: "Ders eklenemedi: " + error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyExample = () => {
+    navigator.clipboard.writeText(LESSON_EXAMPLE_JSON);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase" }}>WordFlow</div>
+        <div style={{ fontSize: 22, fontWeight: 800 }}>➕ Yeni Ders Ekle</div>
+        <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Her seviye için ders numarası benzersiz olmalıdır</div>
+      </div>
+
+      {message && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 12, 
+          borderRadius: 10, 
+          background: message.type === "error" ? "#2d1a0e" : "#0e2d1f",
+          border: `1px solid ${message.type === "error" ? "#ef4444" : "#10b981"}`,
+          color: message.type === "error" ? "#ef4444" : "#10b981",
+          fontSize: 14
+        }}>
+          {message.text}
+        </div>
+      )}
+
+      <div style={{ 
+        background: "#1a1a2e", 
+        borderRadius: 14, 
+        padding: 24, 
+        border: "1px solid #1e293b",
+        marginBottom: 20
+      }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+          <div>
+            <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Ders Numarası *</label>
+            <input
+              type="number"
+              value={lessonNumber}
+              onChange={(e) => setLessonNumber(e.target.value)}
+              placeholder="1, 2, 3..."
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                background: "#0f0f1a",
+                border: "1px solid #1e293b",
+                borderRadius: 8,
+                padding: "10px 12px",
+                color: "#e2e8f0",
+                fontSize: 14,
+                outline: "none",
+                fontFamily: "inherit"
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Seviye *</label>
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                background: "#0f0f1a",
+                border: "1px solid #1e293b",
+                borderRadius: 8,
+                padding: "10px 12px",
+                color: "#e2e8f0",
+                fontSize: 14,
+                outline: "none",
+                fontFamily: "inherit"
+              }}
+            >
+              <option value="A1">A1</option>
+              <option value="A2">A2</option>
+              <option value="B1">B1</option>
+              <option value="B2">B2</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>Ders Başlığı *</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Örn: Greetings and Introductions"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "#0f0f1a",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+              padding: "10px 12px",
+              color: "#e2e8f0",
+              fontSize: 14,
+              outline: "none",
+              fontFamily: "inherit"
+            }}
+          />
+        </div>
+
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: "#64748b", display: "block" }}>İçerik (JSON)</label>
+            <button
+              onClick={() => setShowExample(!showExample)}
+              style={{
+                background: "none",
+                border: "1px solid #1e293b",
+                borderRadius: 6,
+                color: "#64748b",
+                fontSize: 11,
+                padding: "4px 10px",
+                cursor: "pointer"
+              }}
+            >
+              {showExample ? "Gizle" : "Örnek JSON"}
+            </button>
+          </div>
+          <textarea
+            value={jsonInput}
+            onChange={(e) => setJsonInput(e.target.value)}
+            placeholder='{"sections": [...]} veya boş bırakın'
+            rows={8}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "#0f0f1a",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+              padding: "12px",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontFamily: "monospace",
+              lineHeight: 1.6,
+              resize: "vertical",
+              outline: "none"
+            }}
+          />
+          {showExample && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ 
+                fontSize: 11, 
+                color: "#64748b", 
+                marginBottom: 6,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <span>📄 Örnek JSON Formatı</span>
+                <button
+                  onClick={handleCopyExample}
+                  style={{
+                    background: copied ? "#0e2d1f" : "#1e293b",
+                    border: "none",
+                    borderRadius: 4,
+                    color: copied ? "#10b981" : "#94a3b8",
+                    fontSize: 10,
+                    padding: "4px 10px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {copied ? "✓ Kopyalandı!" : "📋 Kopyala"}
+                </button>
+              </div>
+              <pre style={{
+                background: "#0f0f1a",
+                padding: 12,
+                borderRadius: 6,
+                fontSize: 11,
+                color: "#94a3b8",
+                margin: 0,
+                overflowX: "auto",
+                lineHeight: 1.5,
+                border: "1px solid #1e293b"
+              }}>
+                {LESSON_EXAMPLE_JSON}
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={handleAddLesson}
+        disabled={loading || !lessonNumber || !title}
+        style={{
+          width: "100%",
+          padding: "14px",
+          borderRadius: 12,
+          border: "none",
+          background: (loading || !lessonNumber || !title) ? "#1e1e30" : "#6366f1",
+          color: (loading || !lessonNumber || !title) ? "#475569" : "#fff",
+          fontWeight: 700,
+          fontSize: 15,
+          cursor: (loading || !lessonNumber || !title) ? "not-allowed" : "pointer",
+          transition: "all 0.2s"
+        }}
+      >
+        {loading ? "⏳ Ekleniyor..." : "📚 Dersi Ekle"}
+      </button>
     </div>
   );
 }
@@ -957,255 +1041,48 @@ function WordEditor({ onBack }) {
 // ============================
 function AdminPanel({ onLogout }) {
   const [currentPage, setCurrentPage] = useState("add");
-  const [jsonInput, setJsonInput] = useState("");
-  const [parsed, setParsed] = useState(null);
-  const [parseError, setParseError] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [results, setResults] = useState([]);
-  const [showExample, setShowExample] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [recentWords, setRecentWords] = useState([]);
+  const [recentLessons, setRecentLessons] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
 
-  const fetchRecentWords = async () => {
+  const fetchRecentLessons = async () => {
     setLoadingRecent(true);
     try {
-      const { data, error } = await supabase        .from("en_words")
-        .select("word, meaning, level, created_at")
+      const { data, error } = await supabase
+        .from("en_lessons")
+        .select("lesson_number, title, level, created_at")
         .order("created_at", { ascending: false })
-        .limit(3);
+        .limit(5);
 
       if (error) throw error;
-      setRecentWords(data || []);
+      setRecentLessons(data || []);
     } catch (error) {
-      console.error("Son kelimeler çekilirken hata:", error);
+      console.error("Son dersler çekilirken hata:", error);
     } finally {
       setLoadingRecent(false);
     }
   };
 
   useEffect(() => {
-    fetchRecentWords();
+    fetchRecentLessons();
   }, []);
 
-  useEffect(() => {
-    if (results.length > 0 && results.some(r => r.ok && r.status === "eklendi")) {
-      fetchRecentWords();
-    }
-  }, [results]);
-
-  const handleParse = () => {
-    setParseError(null);
-    setParsed(null);
-    try {
-      const data = JSON.parse(jsonInput.trim());
-      if (!Array.isArray(data)) throw new Error("JSON bir array olmalı: [ ... ]");
-      if (data.length === 0) throw new Error("Array boş.");
-      
-      data.forEach((item, index) => {
-        if (!item.examples || !Array.isArray(item.examples) || item.examples.length === 0) {
-          throw new Error(`"${item.word}" kelimesi için examples array'i eksik veya boş`);
-        }
-        item.examples.forEach((example, i) => {
-          if (!example.en || !example.tr) {
-            throw new Error(`"${item.word}" kelimesinin ${i+1}. örneğinde en veya tr eksik`);
-          }
-        });
-      });
-      
-      setParsed(data);
-    } catch (e) {
-      setParseError(e.message);
-    }
-  };
-
-  const handleInsertWithCheck = async () => {
-    if (!parsed) return;
-    setStatus("loading");
-    setResults([]);
-    const resultList = [];
-    
-    for (const item of parsed) {
-      try {
-        const { data: existing, error: checkError } = await supabase
-          .from("en_words")
-          .select("id, word, meaning, level")
-          .eq("word", item.word)
-          .maybeSingle();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          throw checkError;
-        }
-
-        let wordData;
-        let wordStatus = "hata";
-        let addedExampleCount = 0;
-        let existingExampleCount = 0;
-        let errorExampleCount = 0;
-
-        if (existing) {
-          wordData = existing;
-          wordStatus = "zaten var";
-          
-          if (item.examples && Array.isArray(item.examples) && wordData) {
-            for (const example of item.examples) {
-              const { data: existingExample, error: exampleCheckError } = await supabase
-                .from("en_example_sentences")
-                .select("id")
-                .eq("word_id", wordData.id)
-                .eq("sentence_en", example.en)
-                .maybeSingle();
-
-              if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
-                console.error("Cümle kontrol hatası:", exampleCheckError);
-                errorExampleCount++;
-                continue;
-              }
-
-              if (!existingExample) {
-                const { error: insertExampleError } = await supabase
-                  .from("en_example_sentences")
-                  .insert({
-                    word_id: wordData.id,
-                    sentence_en: example.en,
-                    sentence_tr: example.tr || null,
-                    difficulty: item.difficulty || null,
-                    order_index: 0,
-                    source: "manual",
-                    is_approved: true,
-                  });
-
-                if (insertExampleError) {
-                  console.error("Cümle eklenemedi:", insertExampleError);
-                  errorExampleCount++;
-                } else {
-                  addedExampleCount++;
-                }
-              } else {
-                existingExampleCount++;
-              }
-            }
-          }
-        } else {
-          const { data: inserted, error: insertError } = await supabase
-            .from("en_words")
-            .insert({
-              word: item.word,
-              meaning: item.meaning,
-              level: item.level || null,
-              type: item.type || "word",
-              part_of_speech: item.part_of_speech || [],
-              category: item.category || [],
-              difficulty: item.difficulty || null,
-              synonyms: item.synonyms || [],
-              antonyms: item.antonyms || [],
-            })
-            .select()
-            .single();
-
-          if (insertError) throw insertError;
-          wordData = inserted;
-          wordStatus = "eklendi";
-
-          if (item.examples && Array.isArray(item.examples) && wordData) {
-            for (const example of item.examples) {
-              const { error: insertExampleError } = await supabase
-                .from("en_example_sentences")
-                .insert({
-                  word_id: wordData.id,
-                  sentence_en: example.en,
-                  sentence_tr: example.tr || null,
-                  difficulty: item.difficulty || null,
-                  order_index: 0,
-                  source: "manual",
-                  is_approved: true,
-                });
-
-              if (insertExampleError) {
-                console.error("Cümle eklenemedi:", insertExampleError);
-                errorExampleCount++;
-              } else {
-                addedExampleCount++;
-              }
-            }
-          }
-        }
-
-        let exampleStatus = "yok";
-        if (addedExampleCount > 0 && existingExampleCount === 0 && errorExampleCount === 0) {
-          exampleStatus = `${addedExampleCount} cümle eklendi`;
-        } else if (addedExampleCount > 0 && existingExampleCount > 0 && errorExampleCount === 0) {
-          exampleStatus = `${addedExampleCount} cümle eklendi, ${existingExampleCount} cümle zaten var`;
-        } else if (addedExampleCount === 0 && existingExampleCount > 0 && errorExampleCount === 0) {
-          exampleStatus = `${existingExampleCount} cümle zaten var`;
-        } else if (addedExampleCount > 0 && errorExampleCount > 0) {
-          exampleStatus = `${addedExampleCount} cümle eklendi, ${errorExampleCount} hata`;
-        } else if (errorExampleCount > 0) {
-          exampleStatus = `${errorExampleCount} cümle hatası`;
-        }
-
-        resultList.push({ 
-          word: item.word, 
-          ok: true, 
-          status: wordStatus,
-          exampleStatus: exampleStatus,
-          addedExampleCount: addedExampleCount,
-          existingExampleCount: existingExampleCount,
-          errorExampleCount: errorExampleCount
-        });
-        
-      } catch (e) {
-        resultList.push({ 
-          word: item.word, 
-          ok: false, 
-          error: e.message,
-          exampleStatus: "hata"
-        });
-      }
-    }
-    
-    setResults(resultList);
-    setStatus(resultList.every(r => r.ok) ? "success" : "error");
-  };
-
-  const handleReset = () => {
-    setJsonInput("");
-    setParsed(null);
-    setParseError(null);
-    setStatus(null);
-    setResults([]);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(PROMPT_TEXT);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const successCount = results.filter(r => r.ok).length;
-  const failCount = results.filter(r => !r.ok).length;
-  const addedCount = results.filter(r => r.status === "eklendi").length;
-  const existsCount = results.filter(r => r.status === "zaten var").length;
-  const totalAddedExamples = results.reduce((sum, r) => sum + (r.addedExampleCount || 0), 0);
-  const totalExistingExamples = results.reduce((sum, r) => sum + (r.existingExampleCount || 0), 0);
-
-  // Eğer düzenleme sayfası gösterilecekse
+  // Eğer ders düzenleme sayfası gösterilecekse
   if (currentPage === "edit") {
     return (
       <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", padding: "28px 20px 48px" }}>
-        <WordEditor onBack={() => setCurrentPage("add")} />
+        <LessonEditor onBack={() => setCurrentPage("add")} />
       </div>
     );
   }
 
-  // Kelime Ekleme Sayfası
+  // Ders Ekleme Sayfası
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 3, color: "#6366f1", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>WordFlow</div>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>Admin — Kelime Ekle</div>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>JSON formatında toplu kelime ekle</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Admin — Ders Yönetimi</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Ders ekle ve düzenle</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
           <button 
@@ -1221,7 +1098,7 @@ function AdminPanel({ onLogout }) {
               fontWeight: 600
             }}
           >
-            ✏️ Kelime Düzenle
+            ✏️ Ders Düzenle
           </button>
           
           <button onClick={onLogout} style={{ background: "#1e293b", border: "none", borderRadius: 8, padding: "6px 12px", color: "#64748b", fontSize: 12, cursor: "pointer" }}>
@@ -1245,13 +1122,13 @@ function AdminPanel({ onLogout }) {
               textTransform: "uppercase",
               marginBottom: 6
             }}>
-              📚 Son Eklenenler
+              📚 Son Eklenen Dersler
             </div>
             {loadingRecent ? (
               <div style={{ fontSize: 12, color: "#64748b" }}>Yükleniyor...</div>
-            ) : recentWords.length > 0 ? (
+            ) : recentLessons.length > 0 ? (
               <div>
-                {recentWords.map((word, index) => (
+                {recentLessons.map((lesson, index) => (
                   <div 
                     key={index} 
                     style={{ 
@@ -1259,11 +1136,14 @@ function AdminPanel({ onLogout }) {
                       justifyContent: "space-between", 
                       alignItems: "center",
                       padding: "4px 0",
-                      borderBottom: index < recentWords.length - 1 ? "1px solid #0f0f1a" : "none",
+                      borderBottom: index < recentLessons.length - 1 ? "1px solid #0f0f1a" : "none",
                       fontSize: 12
                     }}
                   >
-                    <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{word.word}</span>
+                    <div>
+                      <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{lesson.title}</span>
+                      <span style={{ fontSize: 10, color: "#475569", marginLeft: 6 }}>#{lesson.lesson_number}</span>
+                    </div>
                     <span style={{ 
                       fontSize: 9, 
                       color: "#64748b", 
@@ -1271,162 +1151,19 @@ function AdminPanel({ onLogout }) {
                       padding: "1px 6px", 
                       borderRadius: 4 
                     }}>
-                      {word.level || "A1"}
+                      {lesson.level || "A1"}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: "#64748b" }}>Henüz kelime yok</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>Henüz ders yok</div>
             )}
           </div>
         </div>
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: 14, padding: 16, marginBottom: 20, border: "1px solid #1e293b" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>🤖 Yapay Zeka Promptu</div>
-          <button onClick={() => setShowExample(e => !e)} style={{ background: "none", border: "1px solid #1e293b", borderRadius: 8, color: "#64748b", fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>
-            {showExample ? "Gizle" : "Örnek JSON"}
-          </button>
-        </div>
-        <div style={{ background: "#0f0f1a", borderRadius: 10, padding: 14, fontSize: 12, color: "#94a3b8", lineHeight: 1.7, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {PROMPT_TEXT}
-        </div>
-        <button onClick={handleCopy} style={{ marginTop: 10, background: copied ? "#0e2d1f" : "#1e293b", border: "none", borderRadius: 8, color: copied ? "#10b981" : "#94a3b8", fontSize: 11, padding: "6px 12px", cursor: "pointer", transition: "all 0.2s" }}>
-          {copied ? "✓ Kopyalandı!" : "📋 Promptu Kopyala"}
-        </button>
-      </div>
-
-      {showExample && (
-        <div style={{ background: "#1a1a2e", borderRadius: 14, padding: 16, marginBottom: 20, border: "1px solid #1e293b" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: "#64748b" }}>Örnek JSON</div>
-          <pre style={{ fontSize: 11, color: "#94a3b8", margin: 0, overflowX: "auto", lineHeight: 1.6 }}>{EXAMPLE_JSON}</pre>
-        </div>
-      )}
-
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>JSON Yapıştır</div>
-        <textarea
-          value={jsonInput}
-          onChange={e => { setJsonInput(e.target.value); setParsed(null); setParseError(null); setStatus(null); setResults([]); }}
-          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "..." } ] } ]'
-          rows={10}
-          style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2e", border: `1px solid ${parseError ? "#ef4444" : "#1e293b"}`, borderRadius: 12, padding: 14, color: "#e2e8f0", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, resize: "vertical", outline: "none" }}
-        />
-        {parseError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>⚠️ {parseError}</div>}
-      </div>
-
-      {!parsed && !status && (
-        <button onClick={handleParse} disabled={!jsonInput.trim()} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: jsonInput.trim() ? "#6366f1" : "#1e1e30", color: jsonInput.trim() ? "#fff" : "#475569", fontWeight: 700, fontSize: 15, cursor: jsonInput.trim() ? "pointer" : "not-allowed" }}>
-          JSON Kontrol Et →
-        </button>
-      )}
-
-      {parsed && !status && (
-        <>
-          <div style={{ background: "#0e2d1f", border: "1px solid #10b981", borderRadius: 12, padding: 14, marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981", marginBottom: 10 }}>✓ {parsed.length} kelime hazır</div>
-            {parsed.map((item, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderBottom: "1px solid #0f2d1a" }}>
-                <div>
-                  <span style={{ fontWeight: 700 }}>{item.word}</span>
-                  <span style={{ color: "#64748b", marginLeft: 8 }}>{item.meaning}</span>
-                  {item.examples && (
-                    <span style={{ fontSize: 10, color: "#475569", marginLeft: 8 }}>
-                      📝 {item.examples.length} cümle
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#10b981", background: "#10b98122", padding: "2px 6px", borderRadius: 5 }}>{item.level}</span>
-                  <span style={{ fontSize: 10, color: "#475569", background: "#1e293b", padding: "2px 6px", borderRadius: 5 }}>{item.difficulty}/5</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={handleReset} style={{ flex: 1, padding: 14, borderRadius: 12, border: "1px solid #1e293b", background: "#1a1a2e", color: "#64748b", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>İptal</button>
-            <button onClick={handleInsertWithCheck} style={{ flex: 2, padding: 14, borderRadius: 12, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-              Supabase'e Ekle ({parsed.length} kelime)
-            </button>
-          </div>
-        </>
-      )}
-
-      {status === "loading" && (
-        <div style={{ textAlign: "center", padding: "32px 0", color: "#64748b" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-          <div style={{ fontSize: 14 }}>Kelimeler ekleniyor...</div>
-        </div>
-      )}
-
-      {results.length > 0 && status !== "loading" && (
-        <>
-          <div style={{ 
-            background: failCount === 0 ? "#0e2d1f" : "#2d1a0e", 
-            border: `1px solid ${failCount === 0 ? "#10b981" : "#f59e0b"}`, 
-            borderRadius: 12, 
-            padding: 14, 
-            marginBottom: 14 
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: failCount === 0 ? "#10b981" : "#f59e0b", marginBottom: 10 }}>
-              {failCount === 0 ? (
-                <>
-                  {addedCount > 0 && `✅ ${addedCount} kelime eklendi`}
-                  {addedCount > 0 && existsCount > 0 && ", "}
-                  {existsCount > 0 && `⏭️ ${existsCount} kelime zaten mevcut`}
-                  {addedCount === 0 && existsCount > 0 && `ℹ️ ${existsCount} kelime zaten mevcut`}
-                  {(totalAddedExamples > 0 || totalExistingExamples > 0) && (
-                    <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4, color: "#94a3b8" }}>
-                      {totalAddedExamples > 0 && `📝 ${totalAddedExamples} yeni cümle eklendi`}
-                      {totalAddedExamples > 0 && totalExistingExamples > 0 && ", "}
-                      {totalExistingExamples > 0 && `⏭️ ${totalExistingExamples} cümle zaten mevcut`}
-                    </div>
-                  )}
-                </>
-              ) : (
-                `${successCount} başarılı, ${failCount} hata`
-              )}
-            </div>
-            {results.map((r, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid #0f0f1a" }}>
-                <div>
-                  <span style={{ fontWeight: 600 }}>{r.word}</span>
-                  {r.exampleStatus && r.exampleStatus !== "yok" && (
-                    <span style={{ 
-                      fontSize: 10, 
-                      color: r.exampleStatus.includes("eklendi") ? "#10b981" : r.exampleStatus.includes("zaten var") ? "#64748b" : "#ef4444",
-                      marginLeft: 8,
-                      background: r.exampleStatus.includes("eklendi") ? "#10b98122" : r.exampleStatus.includes("zaten var") ? "#1e293b" : "#ef444422",
-                      padding: "2px 6px",
-                      borderRadius: 4
-                    }}>
-                      {r.exampleStatus.includes("eklendi") && `📝 ${r.exampleStatus}`}
-                      {r.exampleStatus.includes("zaten var") && `⏭️ ${r.exampleStatus}`}
-                      {r.exampleStatus === "hata" && "❌ Cümle hatası"}
-                    </span>
-                  )}
-                  {!r.ok && (
-                    <span style={{ fontSize: 10, color: "#ef4444", marginLeft: 8 }}>
-                      ❌ {r.error}
-                    </span>
-                  )}
-                </div>
-                <span style={{ 
-                  color: r.ok ? (r.status === "eklendi" ? "#10b981" : "#64748b") : "#ef4444",
-                  fontSize: 12
-                }}>
-                  {r.ok ? (r.status === "eklendi" ? "✅ Yeni" : "⏭️ Mevcut") : "❌ Hata"}
-                </span>
-              </div>
-            ))}
-          </div>
-          <button onClick={handleReset} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
-            Yeni Kelimeler Ekle
-          </button>
-        </>
-      )}
+      <LessonAdder />
     </div>
   );
 }
