@@ -30,6 +30,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [selectedWordForExample, setSelectedWordForExample] = useState(null);
   const [speaking, setSpeaking] = useState(false);
+  const [speakingExample, setSpeakingExample] = useState(null); // Hangi cümlenin konuşulduğunu takip et
   const [isFinished, setIsFinished] = useState(false);
 
   const levelColor = LEVEL_COLOR[userLevel];
@@ -43,10 +44,22 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion, answered, saving]);
 
-  const handleSpeak = (text) => {
-    setSpeaking(true);
+  const handleSpeak = (text, isExample = false, exampleIndex = null) => {
+    if (isExample) {
+      setSpeakingExample(exampleIndex);
+    } else {
+      setSpeaking(true);
+    }
+    
     speak(text);
-    setTimeout(() => setSpeaking(false), 1800);
+    
+    setTimeout(() => {
+      if (isExample) {
+        setSpeakingExample(null);
+      } else {
+        setSpeaking(false);
+      }
+    }, 1800);
   };
 
   const onSelect = async (opt) => {
@@ -210,37 +223,84 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             fontWeight: 700, 
             fontSize: 13, 
             color: selected === correctAnswer ? "#10b981" : "#ef4444", 
-            marginBottom: 8 
+            marginBottom: 12 
           }}>
             {selected === correctAnswer ? "✓ Doğru!" : `✗ Doğru cevap: "${correctAnswer}"`}
           </div>
 
           {cardExamples.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>Örnek cümleler:</div>
-              {cardExamples.slice(0, 2).map((ex, idx) => (
-                <div key={idx} style={{ marginBottom: idx < 1 ? 10 : 0 }}>
-                  <div style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic", lineHeight: 1.4 }}>"{ex.sentence_en}"</div>
-                  {ex.sentence_tr && <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>"{ex.sentence_tr}"</div>}
+            <div style={{ marginTop: 6 }}>
+              <div style={{ 
+                fontSize: 13, 
+                color: "#94a3b8", 
+                marginBottom: 10, 
+                fontWeight: 600 
+              }}>
+                📚 Örnek Cümleler:
+              </div>
+              {cardExamples.slice(0, 3).map((ex, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    marginBottom: idx < 2 ? 14 : 0,
+                    padding: "12px 14px",
+                    background: "#1a1a2e",
+                    borderRadius: 10,
+                    border: "1px solid #1e293b"
+                  }}
+                >
+                  <div style={{ 
+                    fontSize: 14, 
+                    color: "#e2e8f0", 
+                    fontStyle: "italic", 
+                    lineHeight: 1.6,
+                    marginBottom: 4
+                  }}>
+                    "{ex.sentence_en}"
+                  </div>
+                  {ex.sentence_tr && (
+                    <div style={{ 
+                      fontSize: 13, 
+                      color: "#94a3b8", 
+                      marginTop: 4,
+                      marginBottom: 8
+                    }}>
+                      "{ex.sentence_tr}"
+                    </div>
+                  )}
                   <button 
-                    onClick={() => handleSpeak(ex.sentence_en)} 
+                    onClick={() => handleSpeak(ex.sentence_en, true, idx)} 
                     style={{ 
-                      marginTop: 4, 
-                      background: "none", 
+                      marginTop: 6,
+                      background: speakingExample === idx ? "#6366f1" : "#1e293b", 
                       border: "none", 
-                      color: "#64748b", 
+                      borderRadius: 8, 
+                      padding: "6px 14px",
+                      color: "#e2e8f0", 
                       cursor: "pointer", 
-                      fontSize: 10, 
                       display: "inline-flex", 
                       alignItems: "center", 
-                      gap: 3, 
-                      padding: 0 
+                      gap: 6, 
+                      fontSize: 12, 
+                      fontWeight: 500,
+                      transition: "all 0.2s"
                     }}
                   >
-                    <SpeakerIcon /> Cümleyi dinle
+                    <SpeakerIcon /> 
+                    {speakingExample === idx ? "Çalıyor..." : "Cümleyi dinle"}
                   </button>
                 </div>
               ))}
+              {cardExamples.length > 3 && (
+                <div style={{ 
+                  fontSize: 12, 
+                  color: "#64748b", 
+                  textAlign: "center", 
+                  marginTop: 8 
+                }}>
+                  +{cardExamples.length - 3} cümle daha
+                </div>
+              )}
             </div>
           )}
           
@@ -248,7 +308,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             onClick={onNext} 
             disabled={saving} 
             style={{ 
-              marginTop: 12, 
+              marginTop: 14, 
               width: "100%", 
               padding: 12, 
               borderRadius: 12, 
