@@ -13,7 +13,7 @@ const LEVEL_COLOR = {
 // NAV_ITEMS'den stats'i kaldır
 const NAV_ITEMS = [
   { key: "home",      icon: "ti-home",             label: "ANASAYFA"   },
-  { key: "dashboard", icon: "ti-layout-dashboard",  label: "PANEL" },
+  { key: "dashboard", icon: "ti-layout-dashboard",  label: "RAPORLAR" },
   { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
   // stats buradan kaldırıldı
 ];
