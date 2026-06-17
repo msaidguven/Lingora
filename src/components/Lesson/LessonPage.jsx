@@ -361,6 +361,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
 // 🎭 DIALOGUE ADIMI - Diyalog
 // 🎭 DIALOGUE ADIMI - Diyalog (DÜZELTİLMİŞ)
 // 🎭 DIALOGUE ADIMI - Otomatik Kontrol (Enter ile)
+// 🎭 DIALOGUE ADIMI - Diyalog (DÜZELTİLMİŞ)
 function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -370,8 +371,9 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const scenes = content.scenes || [];
   const practice = step.practice || {};
   const practiceQuestions = practice.questions || [];
-  const question = practiceQuestions[0];
+  const question = practiceQuestions[0]; // Tek soru
 
+  // Adım değiştiğinde state'leri sıfırla
   useEffect(() => {
     setAnswer('');
     setShowFeedback(false);
@@ -386,6 +388,12 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const handleCheckAnswer = () => {
     if (!answer) {
       alert('Lütfen bir cevap yazın!');
+      return;
+    }
+    
+    // question kontrolü
+    if (!question) {
+      alert('Soru bulunamadı!');
       return;
     }
     
@@ -423,17 +431,97 @@ function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
   };
 
   return (
-    // ... JSX aynı, sadece handleKeyPress eklendi
-    <input
-      type="text"
-      className="fill-blank-input"
-      value={answer}
-      onChange={(e) => handleInputChange(e.target.value)}
-      onKeyPress={handleKeyPress}  // Enter tuşu için
-      disabled={showFeedback}
-      placeholder="Cevabınızı yazın..."
-    />
-    // ... devamı
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+        <h2 className="step-title">{step.title}</h2>
+      </div>
+
+      <div className="step-content dialogue-content">
+        {content.context && (
+          <div className="dialogue-context">📌 {content.context}</div>
+        )}
+
+        <div className="dialogue-container">
+          {scenes.map((scene, idx) => (
+            <div key={idx} className={`dialogue-line ${idx % 2 === 0 ? 'speaker-a' : 'speaker-b'}`}>
+              <div className="dialogue-speaker">
+                <span className="speaker-name">{scene.speaker}:</span>
+                <span className="dialogue-text">{scene.text}</span>
+              </div>
+              <div className="dialogue-translation">🇹🇷 {scene.translation}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Sadece question varsa göster */}
+        {question && (
+          <div className="dialogue-practice">
+            <h4>{practice.instructions || 'Diyalogdaki boşluğu doldurun:'}</h4>
+            <div className="practice-question">
+              <p className="question-text">{question.question}</p>
+              <div className="fill-blank-group">
+                <input
+                  type="text"
+                  className="fill-blank-input"
+                  value={answer}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={showFeedback}
+                  placeholder="Cevabınızı yazın..."
+                />
+                {!showFeedback && (
+                  <button 
+                    className="check-btn"
+                    onClick={handleCheckAnswer}
+                  >
+                    Kontrol Et
+                  </button>
+                )}
+              </div>
+              {showFeedback && (
+                <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
+                  {isCorrect 
+                    ? question.feedback_correct || '✅ Doğru!'
+                    : question.feedback_wrong || '❌ Yanlış. Tekrar deneyin.'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Eğer question yoksa mesaj göster */}
+        {!question && (
+          <div className="dialogue-practice" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
+            <p>Bu adımda pratik sorusu bulunmuyor.</p>
+            <p style={{ fontSize: 13, marginTop: 8 }}>Diyalogu okuduktan sonra devam edin.</p>
+          </div>
+        )}
+
+        <div className="step-navigation">
+          <button 
+            onClick={handlePrevious} 
+            disabled={isFirst}
+            className="nav-btn prev-btn"
+          >
+            ← Geri
+          </button>
+          <button 
+            onClick={handleNext} 
+            disabled={question ? (!showFeedback || !isCorrect) : false}
+            className="nav-btn next-btn"
+          >
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
+
+        {showFeedback && !isCorrect && (
+          <div className="progress-warning">
+            ⚠️ Doğru cevabı bulmadan ilerleyemezsiniz. Tekrar deneyin!
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
