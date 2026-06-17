@@ -117,12 +117,12 @@ function AdminPanel({ onLogout }) {
     setResults([]);
     const resultList = [];
     
-    for (const item of parsed) {
-      try {
-        // 1. Önce kelimeyi ekle
-        const { data: wordData, error: wordError } = await supabase
-          .from("en_words")
-          .insert({
+    try {
+      // 1. Tüm kelimeleri tek seferde upsert et
+      const { data: wordData, error: wordError } = await supabase
+        .from("en_words")
+        .upsert(
+          parsed.map(item => ({
             word: item.word,
             meaning: item.meaning,
             level: item.level || null,
@@ -132,30 +132,168 @@ function AdminPanel({ onLogout }) {
             difficulty: item.difficulty || null,
             synonyms: item.synonyms || [],
             antonyms: item.antonyms || [],
-          })
-          .select()
+          })),
+          { 
+            onConflict: 'word',
+            ignoreDuplicates: false // false = varsa güncelle
+          }
+        )
+        .select();
+
+      if (wordError) throw wordError;
+
+      // 2. Her kelime için örnek cümleleri ekle
+      for (const item of parsed) {
+        const word = wordData.find(w => w.word === item.word);
+        if (item.example && word) {
+          // Önce mevcut cümle var mı kontrol et (opsiyonel)
+          const { data: existingExample } = await supabase
+            .from("en_example_sentences")
+            .select("id")
+            .eq("word_id", word.id)
+            .eq("sentence_en", item.example)
+            .single();
+
+          if (!existingExample) {
+            const { error: exampleError } = await supabase
+              .from("en_example_sentences")
+              .insert({
+                word_id: word.id,
+                sentence_en: item.example,
+                sentence_tr: item.example_tr || null,
+                difficulty: item.difficulty || null,
+                order_index: 0,
+                source: "manual",
+                is_approved: true,
+              });
+
+            if (exampleError) console.error("Cümle eklenemedi:", exampleError);
+          }
+        }
+      }
+
+      // 3. Sonuçları hazırla
+      parsed.forEach(item => {
+        const word = wordData.find(w => w.word === item.word);
+        // Kelimenin önceden var olup olmadığını kontrol etmek için
+        // Basitçe tüm kelimeleri "eklendi" veya "güncellendi" olarak işaretle
+        // Daha doğru sonuç için ayrı bir kontrol yapabiliriz
+        resultList.push({ 
+          word: item.word, 
+          ok: true, 
+          status: "eklendi/güncellendi" 
+        });
+      });
+
+      setResults(resultList);
+      setStatus("success");
+      
+    } catch (e) {
+      console.error("Hata:", e);
+      // Hata durumunda her kelime için hata göster
+      parsed.forEach(item => {
+        resultList.push({ word: item.word, ok: false, error: e.message });
+      });
+      setResults(resultList);
+      setStatus("error");
+    }
+  };
+
+  // Daha doğru sonuçlar için kelimeleri tek tek kontrol edip ekleyen versiyon
+  const handleInsertWithCheck = async () => {
+    if (!parsed) return;
+    setStatus("loading");
+    setResults([]);
+    const resultList = [];
+    
+    for (const item of parsed) {
+      try {
+        // Önce kelime var mı kontrol et
+        const { data: existing, error: checkError } = await supabase
+          .from("en_words")
+          .select("id, word, meaning, level")
+          .eq("word", item.word)
           .single();
 
-        if (wordError) throw wordError;
+        let wordData;
+        let isUpdate = false;
 
-        // 2. Örnek cümle varsa en_example_sentences'a ekle
-        if (item.example && wordData) {
-          const { error: exampleError } = await supabase
-            .from("en_example_sentences")
-            .insert({
-              word_id: wordData.id,
-              sentence_en: item.example,
-              sentence_tr: item.example_tr || null,
+        if (existing) {
+          // Kelime varsa güncelle
+          const { data: updated, error: updateError } = await supabase
+            .from("en_words")
+            .update({
+              meaning: item.meaning,
+              level: item.level || null,
+              type: item.type || "word",
+              part_of_speech: item.part_of_speech || [],
+              category: item.category || [],
               difficulty: item.difficulty || null,
-              order_index: 0,
-              source: "manual",
-              is_approved: true,
-            });
+              synonyms: item.synonyms || [],
+              antonyms: item.antonyms || [],
+            })
+            .eq("id", existing.id)
+            .select()
+            .single();
 
-          if (exampleError) console.error("Cümle eklenemedi:", exampleError);
+          if (updateError) throw updateError;
+          wordData = updated;
+          isUpdate = true;
+        } else {
+          // Yeni kelime ekle
+          const { data: inserted, error: insertError } = await supabase
+            .from("en_words")
+            .insert({
+              word: item.word,
+              meaning: item.meaning,
+              level: item.level || null,
+              type: item.type || "word",
+              part_of_speech: item.part_of_speech || [],
+              category: item.category || [],
+              difficulty: item.difficulty || null,
+              synonyms: item.synonyms || [],
+              antonyms: item.antonyms || [],
+            })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          wordData = inserted;
+          isUpdate = false;
         }
 
-        resultList.push({ word: item.word, ok: true });
+        // Örnek cümle ekle
+        if (item.example && wordData) {
+          const { data: existingExample } = await supabase
+            .from("en_example_sentences")
+            .select("id")
+            .eq("word_id", wordData.id)
+            .eq("sentence_en", item.example)
+            .single();
+
+          if (!existingExample) {
+            const { error: exampleError } = await supabase
+              .from("en_example_sentences")
+              .insert({
+                word_id: wordData.id,
+                sentence_en: item.example,
+                sentence_tr: item.example_tr || null,
+                difficulty: item.difficulty || null,
+                order_index: 0,
+                source: "manual",
+                is_approved: true,
+              });
+
+            if (exampleError) console.error("Cümle eklenemedi:", exampleError);
+          }
+        }
+
+        resultList.push({ 
+          word: item.word, 
+          ok: true, 
+          status: isUpdate ? "güncellendi" : "eklendi" 
+        });
+        
       } catch (e) {
         resultList.push({ word: item.word, ok: false, error: e.message });
       }
@@ -181,6 +319,8 @@ function AdminPanel({ onLogout }) {
 
   const successCount = results.filter(r => r.ok).length;
   const failCount = results.filter(r => !r.ok).length;
+  const addedCount = results.filter(r => r.status === "eklendi").length;
+  const updatedCount = results.filter(r => r.status === "güncellendi").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
@@ -254,7 +394,7 @@ function AdminPanel({ onLogout }) {
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={handleReset} style={{ flex: 1, padding: 14, borderRadius: 12, border: "1px solid #1e293b", background: "#1a1a2e", color: "#64748b", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>İptal</button>
-            <button onClick={handleInsert} style={{ flex: 2, padding: 14, borderRadius: 12, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            <button onClick={handleInsertWithCheck} style={{ flex: 2, padding: 14, borderRadius: 12, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
               Supabase'e Ekle ({parsed.length} kelime)
             </button>
           </div>
@@ -270,14 +410,35 @@ function AdminPanel({ onLogout }) {
 
       {results.length > 0 && status !== "loading" && (
         <>
-          <div style={{ background: failCount === 0 ? "#0e2d1f" : "#2d1a0e", border: `1px solid ${failCount === 0 ? "#10b981" : "#f59e0b"}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ 
+            background: failCount === 0 ? "#0e2d1f" : "#2d1a0e", 
+            border: `1px solid ${failCount === 0 ? "#10b981" : "#f59e0b"}`, 
+            borderRadius: 12, 
+            padding: 14, 
+            marginBottom: 14 
+          }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: failCount === 0 ? "#10b981" : "#f59e0b", marginBottom: 10 }}>
-              {failCount === 0 ? `✓ ${successCount} kelime başarıyla eklendi!` : `${successCount} eklendi, ${failCount} hata`}
+              {failCount === 0 ? (
+                <>
+                  ✅ {addedCount > 0 && `${addedCount} kelime eklendi`}
+                  {addedCount > 0 && updatedCount > 0 && ", "}
+                  {updatedCount > 0 && `🔄 ${updatedCount} kelime güncellendi`}
+                  {addedCount === 0 && updatedCount === 0 && "Hiçbir değişiklik yapılmadı"}
+                </>
+              ) : (
+                `${successCount} başarılı, ${failCount} hata`
+              )}
             </div>
             {results.map((r, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: "1px solid #0f0f1a" }}>
                 <span style={{ fontWeight: 600 }}>{r.word}</span>
-                {r.ok ? <span style={{ color: "#10b981" }}>✓ Eklendi</span> : <span style={{ color: "#ef4444" }}>✗ {r.error}</span>}
+                {r.ok ? (
+                  <span style={{ color: r.status === "eklendi" ? "#10b981" : "#f59e0b" }}>
+                    {r.status === "eklendi" ? "✅ Yeni eklendi" : "🔄 Güncellendi"}
+                  </span>
+                ) : (
+                  <span style={{ color: "#ef4444" }}>❌ {r.error}</span>
+                )}
               </div>
             ))}
           </div>
