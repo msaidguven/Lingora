@@ -81,15 +81,7 @@ export default function Header({ currentScreen, onNavigate, userLevel, quizType 
       <div style={styles.glow} className="header-glow" />
       
       <div style={styles.bar}>
-        {/* Sol - Sadece isim (admin linki menüye taşındı) */}
-        <div style={styles.userBlock}>
-          <div style={styles.username} className="text-primary">
-            <i className="ti ti-user" style={styles.userIcon} />
-            {user?.username || "Öğrenci"}
-          </div>
-        </div>
-
-        {/* Orta - Navigasyon */}
+        {/* Orta - Navigasyon (tam genişlik) */}
         <div style={styles.nav} className="nav-container">
           {NAV_ITEMS.map(({ key, icon, label }) => {
             const active = isActive(key);
@@ -386,26 +378,7 @@ const styles = {
     gap: 10,
     padding: "12px 16px",
     overflow: "visible",
-  },
-  userBlock: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    minWidth: 60,
-    flexShrink: 0,
-  },
-  username: {
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: "-0.2px",
-    fontFamily: "'Manrope', sans-serif",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  userIcon: {
-    fontSize: 14,
-    opacity: 0.6,
+    justifyContent: "center", // Ortala
   },
   nav: {
     display: "flex",
@@ -414,6 +387,7 @@ const styles = {
     padding: 5,
     gap: 4,
     minWidth: 0,
+    maxWidth: 320, // Maksimum genişlik sınırı
   },
   navBtn: {
     flex: 1,
