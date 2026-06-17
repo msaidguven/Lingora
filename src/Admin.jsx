@@ -7,40 +7,90 @@ const EXAMPLE_JSON = `[
   {
     "word": "happy",
     "meaning": "mutlu",
-    "example": "She felt very happy today.",
-    "example_tr": "Bugün çok mutlu hissetti.",
     "level": "A1",
     "type": "word",
     "part_of_speech": ["adjective"],
     "category": ["daily", "emotion"],
     "difficulty": 1,
     "synonyms": ["joyful", "cheerful"],
-    "antonyms": ["sad", "unhappy"]
+    "antonyms": ["sad", "unhappy"],
+    "examples": [
+      {
+        "en": "She felt very happy today.",
+        "tr": "Bugün çok mutlu hissetti."
+      },
+      {
+        "en": "I am happy to see you.",
+        "tr": "Seni gördüğüme mutluyum."
+      },
+      {
+        "en": "They live a happy life.",
+        "tr": "Mutlu bir hayat yaşıyorlar."
+      },
+      {
+        "en": "He has a happy smile.",
+        "tr": "Mutlu bir gülümsemesi var."
+      },
+      {
+        "en": "We are happy together.",
+        "tr": "Birlikte mutluyuz."
+      }
+    ]
   }
 ]`;
 
-const PROMPT_TEXT = `Aşağıdaki kelimeleri analiz et. SADECE JSON array döndür, başka hiçbir şey yazma.
+const PROMPT_TEXT = `
+
+Aşağıdaki kelimeleri analiz et. SADECE JSON array döndür, başka hiçbir şey yazma.
+
+Her kelime için:
+- 5 adet örnek cümle üret
+- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2) uygun olsun
+- A1 ise tamamen A1 seviyesinde 5 cümle
+- A2 ise A2 seviyesinde 5 cümle vb.
+- Her cümle için Türkçe çeviri de ekle
+
+Kelimeler: [Aşağıda verildi]
+
+Tüm kelimeler A1 seviyesindedir, bunu dikkate al.
 
 [
   {
     "word": "kelime",
     "meaning": "türkçe anlam",
-    "example": "İngilizce örnek cümle",
-    "example_tr": "Türkçe çevirisi",
-    "level": "A1|A2|B1|B2",
+    "level": "A1",
     "type": "word|phrase",
-    "part_of_speech": ["noun","verb","adjective","adverb"],
-    "category": ["daily","business","travel","food","emotion","health","technology","education","social"],
+    "part_of_speech": ["noun", "verb", "adjective", "adverb"],
+    "category": ["daily", "business", "travel", "food", "emotion", "health", "technology", "education", "social"],
     "difficulty": 1,
-    "synonyms": ["eş1","eş2"],
-    "antonyms": ["zıt1","zıt2"]
+    "synonyms": ["eş1", "eş2"],
+    "antonyms": ["zıt1", "zıt2"],
+    "examples": [
+      {
+        "en": "English sentence 1",
+        "tr": "Türkçe çeviri 1"
+      },
+      {
+        "en": "English sentence 2",
+        "tr": "Türkçe çeviri 2"
+      },
+      {
+        "en": "English sentence 3",
+        "tr": "Türkçe çeviri 3"
+      },
+      {
+        "en": "English sentence 4",
+        "tr": "Türkçe çeviri 4"
+      },
+      {
+        "en": "English sentence 5",
+        "tr": "Türkçe çeviri 5"
+      }
+    ]
   }
 ]
 
-Kelimeler: [Aşağıda verildi] 
-
-ANLAMLARI ARASINA VİRGÜL KOYARAK PROMPTTAKİ GİBİ DOLDURABİLİR MİSİN. 
-NOT BU KELİMELERİN HEPSİ A1 SEVİYESİNDE. A1 OLARAK KAYDET`;
+`;
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -108,6 +158,19 @@ function AdminPanel({ onLogout }) {
       const data = JSON.parse(jsonInput.trim());
       if (!Array.isArray(data)) throw new Error("JSON bir array olmalı: [ ... ]");
       if (data.length === 0) throw new Error("Array boş.");
+      
+      // examples alanının varlığını kontrol et
+      data.forEach((item, index) => {
+        if (!item.examples || !Array.isArray(item.examples) || item.examples.length === 0) {
+          throw new Error(`"${item.word}" kelimesi için examples array'i eksik veya boş`);
+        }
+        item.examples.forEach((example, i) => {
+          if (!example.en || !example.tr) {
+            throw new Error(`"${item.word}" kelimesinin ${i+1}. örneğinde en veya tr eksik`);
+          }
+        });
+      });
+      
       setParsed(data);
     } catch (e) {
       setParseError(e.message);
@@ -135,49 +198,55 @@ function AdminPanel({ onLogout }) {
 
         let wordData;
         let wordStatus = "hata";
-        let exampleStatus = "yok";
+        let addedExampleCount = 0;
+        let existingExampleCount = 0;
+        let errorExampleCount = 0;
 
         if (existing) {
-          // Kelime zaten var - sadece ID'sini al, güncelleme yapma
+          // Kelime zaten var
           wordData = existing;
           wordStatus = "zaten var";
           
-          // 2. Cümle kontrol et - kelime var olsa bile cümle eklenebilir
-          if (item.example && wordData) {
-            // Aynı cümle var mı kontrol et
-            const { data: existingExample, error: exampleCheckError } = await supabase
-              .from("en_example_sentences")
-              .select("id")
-              .eq("word_id", wordData.id)
-              .eq("sentence_en", item.example)
-              .maybeSingle();
-
-            if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
-              console.error("Cümle kontrol hatası:", exampleCheckError);
-            }
-
-            if (!existingExample) {
-              // Aynı cümle YOKSA ekle
-              const { error: insertExampleError } = await supabase
+          // 2. Cümleleri kontrol et ve ekle
+          if (item.examples && Array.isArray(item.examples) && wordData) {
+            for (const example of item.examples) {
+              // Aynı cümle var mı kontrol et
+              const { data: existingExample, error: exampleCheckError } = await supabase
                 .from("en_example_sentences")
-                .insert({
-                  word_id: wordData.id,
-                  sentence_en: item.example,
-                  sentence_tr: item.example_tr || null,
-                  difficulty: item.difficulty || null,
-                  order_index: 0,
-                  source: "manual",
-                  is_approved: true,
-                });
+                .select("id")
+                .eq("word_id", wordData.id)
+                .eq("sentence_en", example.en)
+                .maybeSingle();
 
-              if (insertExampleError) {
-                console.error("Cümle eklenemedi:", insertExampleError);
-                exampleStatus = "hata";
-              } else {
-                exampleStatus = "eklendi";
+              if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
+                console.error("Cümle kontrol hatası:", exampleCheckError);
+                errorExampleCount++;
+                continue;
               }
-            } else {
-              exampleStatus = "zaten var";
+
+              if (!existingExample) {
+                // Aynı cümle YOKSA ekle
+                const { error: insertExampleError } = await supabase
+                  .from("en_example_sentences")
+                  .insert({
+                    word_id: wordData.id,
+                    sentence_en: example.en,
+                    sentence_tr: example.tr || null,
+                    difficulty: item.difficulty || null,
+                    order_index: 0,
+                    source: "manual",
+                    is_approved: true,
+                  });
+
+                if (insertExampleError) {
+                  console.error("Cümle eklenemedi:", insertExampleError);
+                  errorExampleCount++;
+                } else {
+                  addedExampleCount++;
+                }
+              } else {
+                existingExampleCount++;
+              }
             }
           }
         } else {
@@ -202,34 +271,53 @@ function AdminPanel({ onLogout }) {
           wordData = inserted;
           wordStatus = "eklendi";
 
-          // Yeni kelimeye cümle ekle
-          if (item.example && wordData) {
-            const { error: insertExampleError } = await supabase
-              .from("en_example_sentences")
-              .insert({
-                word_id: wordData.id,
-                sentence_en: item.example,
-                sentence_tr: item.example_tr || null,
-                difficulty: item.difficulty || null,
-                order_index: 0,
-                source: "manual",
-                is_approved: true,
-              });
+          // Yeni kelimeye cümleleri ekle
+          if (item.examples && Array.isArray(item.examples) && wordData) {
+            for (const example of item.examples) {
+              const { error: insertExampleError } = await supabase
+                .from("en_example_sentences")
+                .insert({
+                  word_id: wordData.id,
+                  sentence_en: example.en,
+                  sentence_tr: example.tr || null,
+                  difficulty: item.difficulty || null,
+                  order_index: 0,
+                  source: "manual",
+                  is_approved: true,
+                });
 
-            if (insertExampleError) {
-              console.error("Cümle eklenemedi:", insertExampleError);
-              exampleStatus = "hata";
-            } else {
-              exampleStatus = "eklendi";
+              if (insertExampleError) {
+                console.error("Cümle eklenemedi:", insertExampleError);
+                errorExampleCount++;
+              } else {
+                addedExampleCount++;
+              }
             }
           }
+        }
+
+        // Sonuç mesajını oluştur
+        let exampleStatus = "yok";
+        if (addedExampleCount > 0 && existingExampleCount === 0 && errorExampleCount === 0) {
+          exampleStatus = `${addedExampleCount} cümle eklendi`;
+        } else if (addedExampleCount > 0 && existingExampleCount > 0 && errorExampleCount === 0) {
+          exampleStatus = `${addedExampleCount} cümle eklendi, ${existingExampleCount} cümle zaten var`;
+        } else if (addedExampleCount === 0 && existingExampleCount > 0 && errorExampleCount === 0) {
+          exampleStatus = `${existingExampleCount} cümle zaten var`;
+        } else if (addedExampleCount > 0 && errorExampleCount > 0) {
+          exampleStatus = `${addedExampleCount} cümle eklendi, ${errorExampleCount} hata`;
+        } else if (errorExampleCount > 0) {
+          exampleStatus = `${errorExampleCount} cümle hatası`;
         }
 
         resultList.push({ 
           word: item.word, 
           ok: true, 
           status: wordStatus,
-          exampleStatus: exampleStatus
+          exampleStatus: exampleStatus,
+          addedExampleCount: addedExampleCount,
+          existingExampleCount: existingExampleCount,
+          errorExampleCount: errorExampleCount
         });
         
       } catch (e) {
@@ -264,8 +352,8 @@ function AdminPanel({ onLogout }) {
   const failCount = results.filter(r => !r.ok).length;
   const addedCount = results.filter(r => r.status === "eklendi").length;
   const existsCount = results.filter(r => r.status === "zaten var").length;
-  const exampleAddedCount = results.filter(r => r.exampleStatus === "eklendi").length;
-  const exampleExistsCount = results.filter(r => r.exampleStatus === "zaten var").length;
+  const totalAddedExamples = results.reduce((sum, r) => sum + (r.addedExampleCount || 0), 0);
+  const totalExistingExamples = results.reduce((sum, r) => sum + (r.existingExampleCount || 0), 0);
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 560, margin: "0 auto", padding: "28px 20px 48px" }}>
@@ -307,7 +395,7 @@ function AdminPanel({ onLogout }) {
         <textarea
           value={jsonInput}
           onChange={e => { setJsonInput(e.target.value); setParsed(null); setParseError(null); setStatus(null); setResults([]); }}
-          placeholder='[ { "word": "...", "meaning": "...", "example": "...", "example_tr": "..." } ]'
+          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "..." } ] } ]'
           rows={10}
           style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2e", border: `1px solid ${parseError ? "#ef4444" : "#1e293b"}`, borderRadius: 12, padding: 14, color: "#e2e8f0", fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, resize: "vertical", outline: "none" }}
         />
@@ -329,9 +417,9 @@ function AdminPanel({ onLogout }) {
                 <div>
                   <span style={{ fontWeight: 700 }}>{item.word}</span>
                   <span style={{ color: "#64748b", marginLeft: 8 }}>{item.meaning}</span>
-                  {item.example && (
+                  {item.examples && (
                     <span style={{ fontSize: 10, color: "#475569", marginLeft: 8 }}>
-                      📝 {item.example.substring(0, 20)}...
+                      📝 {item.examples.length} cümle
                     </span>
                   )}
                 </div>
@@ -374,11 +462,11 @@ function AdminPanel({ onLogout }) {
                   {addedCount > 0 && existsCount > 0 && ", "}
                   {existsCount > 0 && `⏭️ ${existsCount} kelime zaten mevcut`}
                   {addedCount === 0 && existsCount > 0 && `ℹ️ ${existsCount} kelime zaten mevcut`}
-                  {(exampleAddedCount > 0 || exampleExistsCount > 0) && (
+                  {(totalAddedExamples > 0 || totalExistingExamples > 0) && (
                     <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4, color: "#94a3b8" }}>
-                      {exampleAddedCount > 0 && `📝 ${exampleAddedCount} yeni cümle eklendi`}
-                      {exampleAddedCount > 0 && exampleExistsCount > 0 && ", "}
-                      {exampleExistsCount > 0 && `⏭️ ${exampleExistsCount} cümle zaten mevcut`}
+                      {totalAddedExamples > 0 && `📝 ${totalAddedExamples} yeni cümle eklendi`}
+                      {totalAddedExamples > 0 && totalExistingExamples > 0 && ", "}
+                      {totalExistingExamples > 0 && `⏭️ ${totalExistingExamples} cümle zaten mevcut`}
                     </div>
                   )}
                 </>
@@ -393,15 +481,15 @@ function AdminPanel({ onLogout }) {
                   {r.exampleStatus && r.exampleStatus !== "yok" && (
                     <span style={{ 
                       fontSize: 10, 
-                      color: r.exampleStatus === "eklendi" ? "#10b981" : r.exampleStatus === "zaten var" ? "#64748b" : "#ef4444",
+                      color: r.exampleStatus.includes("eklendi") ? "#10b981" : r.exampleStatus.includes("zaten var") ? "#64748b" : "#ef4444",
                       marginLeft: 8,
-                      background: r.exampleStatus === "eklendi" ? "#10b98122" : r.exampleStatus === "zaten var" ? "#1e293b" : "#ef444422",
+                      background: r.exampleStatus.includes("eklendi") ? "#10b98122" : r.exampleStatus.includes("zaten var") ? "#1e293b" : "#ef444422",
                       padding: "2px 6px",
                       borderRadius: 4
                     }}>
-                      {r.exampleStatus === "eklendi" && "📝 +cümle"}
-                      {r.exampleStatus === "zaten var" && "⏭️ cümle var"}
-                      {r.exampleStatus === "hata" && "❌ cümle hatası"}
+                      {r.exampleStatus.includes("eklendi") && `📝 ${r.exampleStatus}`}
+                      {r.exampleStatus.includes("zaten var") && `⏭️ ${r.exampleStatus}`}
+                      {r.exampleStatus === "hata" && "❌ Cümle hatası"}
                     </span>
                   )}
                   {!r.ok && (
