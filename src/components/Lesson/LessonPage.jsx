@@ -371,8 +371,8 @@ export default function LessonPage({ lessonId, onBack }) {
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState(0);
   const [sections, setSections] = useState([]);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
 
   useEffect(() => {
     if (lessonId) {
@@ -385,13 +385,13 @@ export default function LessonPage({ lessonId, onBack }) {
   const fetchLesson = async (id) => {
     setLoading(true);
     setError(null);
+    setCurrentSectionIndex(0);
     
     try {
       let query = supabase
         .from("en_lessons")
         .select("*");
 
-      // UUID veya lesson_number kontrolü
       if (id && id.length === 36) {
         query = query.eq("id", id);
       } else if (id) {
@@ -410,75 +410,6 @@ export default function LessonPage({ lessonId, onBack }) {
 
       const lessonData = data[0];
       
-      // İçeriği parse et - content_json'u kontrol et
-      let content = lessonData.content_json;
-      
-      // Eğer content_json string ise parse et
-      if (typeof content === 'string') {
-        try {
-          content = JSON.parse(content);
-          lessonData.content_json = content;
-        } catch (e) {
-          console.error("JSON parse hatası:", e);
-          // Parse edilemezse boş obje olarak ayarla
-          lessonData.content_json = {};
-        }
-      }
-      
-      // content_json objesini kontrol et
-      if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
-        // Eski format kontrolü (direkt alanlar)
-        if (lessonData.content_json.theory_text || 
-            lessonData.content_json.vocabulary || 
-            lessonData.content_json.example_sentences) {
-          // Eski formatı işle
-          const parsedSections = parseLegacyFormat(lessonData.content_json);
-          setSections(parsedSections);
-        } 
-        // Yeni format (sections array)
-        else if (lessonData.content_json.sections && Array.isArray(lessonData.content_json.sections)) {
-          setSections(lessonData.content_json.sections);
-        } 
-        else {
-          // Boş veya bilinmeyen format
-          setSections([]);
-        }
-      } else {
-        setSections([]);
-      }
-      
-      setLesson(lessonData);
-    } catch (error) {
-      console.error("Ders yüklenirken hata:", error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFirstLesson = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const { data, error } = await supabase
-        .from("en_lessons")
-        .select("*")
-        .order("level")
-        .order("lesson_number")
-        .limit(1);
-
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        setError("Ders bulunamadı");
-        setLoading(false);
-        return;
-      }
-
-      const lessonData = data[0];
-      
-      // İçeriği parse et
       let content = lessonData.content_json;
       if (typeof content === 'string') {
         try {
@@ -514,7 +445,64 @@ export default function LessonPage({ lessonId, onBack }) {
     }
   };
 
-  // Eski formatı dönüştür
+  const fetchFirstLesson = async () => {
+    setLoading(true);
+    setError(null);
+    setCurrentSectionIndex(0);
+    
+    try {
+      const { data, error } = await supabase
+        .from("en_lessons")
+        .select("*")
+        .order("level")
+        .order("lesson_number")
+        .limit(1);
+
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        setError("Ders bulunamadı");
+        setLoading(false);
+        return;
+      }
+
+      const lessonData = data[0];
+      
+      let content = lessonData.content_json;
+      if (typeof content === 'string') {
+        try {
+          content = JSON.parse(content);
+          lessonData.content_json = content;
+        } catch (e) {
+          console.error("JSON parse hatası:", e);
+          lessonData.content_json = {};
+        }
+      }
+      
+      if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
+        if (lessonData.content_json.theory_text || 
+            lessonData.content_json.vocabulary || 
+            lessonData.content_json.example_sentences) {
+          const parsedSections = parseLegacyFormat(lessonData.content_json);
+          setSections(parsedSections);
+        } else if (lessonData.content_json.sections && Array.isArray(lessonData.content_json.sections)) {
+          setSections(lessonData.content_json.sections);
+        } else {
+          setSections([]);
+        }
+      } else {
+        setSections([]);
+      }
+      
+      setLesson(lessonData);
+    } catch (error) {
+      console.error("Ders yüklenirken hata:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const parseLegacyFormat = (content) => {
     const sections = [];
     
@@ -573,26 +561,25 @@ export default function LessonPage({ lessonId, onBack }) {
     return sections;
   };
 
-  const renderSection = (section, index) => {
+  const renderSection = (section) => {
     if (!section) return null;
     
     switch(section.type) {
       case 'theory':
-        return <TheorySection key={index} section={section} />;
+        return <TheorySection section={section} />;
       case 'vocabulary':
-        return <VocabularySection key={index} section={section} />;
+        return <VocabularySection section={section} />;
       case 'example_sentences':
-        return <ExampleSentencesSection key={index} section={section} />;
+        return <ExampleSentencesSection section={section} />;
       case 'dialogue':
-        return <DialogueSection key={index} section={section} />;
+        return <DialogueSection section={section} />;
       case 'quiz':
-        return <QuizSection key={index} section={section} />;
+        return <QuizSection section={section} />;
       case 'summary':
-        return <SummarySection key={index} section={section} />;
+        return <SummarySection section={section} />;
       default:
-        // Bilinmeyen bölüm tipi - içeriği göster
         return (
-          <div key={index} className="section unknown-section">
+          <div className="section unknown-section">
             <h3 className="section-title">{section.title || 'Bölüm'}</h3>
             <pre style={{ color: '#94a3b8', fontSize: 13, overflow: 'auto' }}>
               {JSON.stringify(section, null, 2)}
@@ -602,13 +589,33 @@ export default function LessonPage({ lessonId, onBack }) {
     }
   };
 
-  // Navigasyon
+  // Navigasyon fonksiyonları
+  const goToPreviousSection = () => {
+    if (currentSectionIndex > 0) {
+      setCurrentSectionIndex(currentSectionIndex - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToNextSection = () => {
+    if (currentSectionIndex < sections.length - 1) {
+      setCurrentSectionIndex(currentSectionIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToSection = (index) => {
+    if (index >= 0 && index < sections.length) {
+      setCurrentSectionIndex(index);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Önceki/Sonraki Ders
   const handlePrevLesson = () => {
     if (lesson && lesson.lesson_number > 1) {
       const prev = lesson.lesson_number - 1;
       fetchLesson(prev.toString());
-      setActiveSection(0);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -616,8 +623,6 @@ export default function LessonPage({ lessonId, onBack }) {
     if (lesson) {
       const next = lesson.lesson_number + 1;
       fetchLesson(next.toString());
-      setActiveSection(0);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -642,6 +647,10 @@ export default function LessonPage({ lessonId, onBack }) {
       </div>
     );
   }
+
+  const currentSection = sections[currentSectionIndex];
+  const totalSections = sections.length;
+  const progress = totalSections > 0 ? ((currentSectionIndex + 1) / totalSections) * 100 : 0;
 
   return (
     <div className="lesson-page" style={{ 
@@ -683,7 +692,7 @@ export default function LessonPage({ lessonId, onBack }) {
       <header style={{
         background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
         borderBottom: "1px solid #1e293b",
-        padding: "32px 0",
+        padding: "24px 0",
         position: "relative",
         overflow: "hidden"
       }}>
@@ -698,7 +707,8 @@ export default function LessonPage({ lessonId, onBack }) {
             display: "flex",
             alignItems: "center",
             gap: 12,
-            marginBottom: 12
+            marginBottom: 8,
+            flexWrap: "wrap"
           }}>
             <div style={{
               fontSize: 13,
@@ -722,11 +732,23 @@ export default function LessonPage({ lessonId, onBack }) {
             }}>
               {lesson.level}
             </div>
+            {totalSections > 0 && (
+              <div style={{
+                fontSize: 12,
+                color: "#64748b",
+                background: "#0f0f1a",
+                padding: "4px 12px",
+                borderRadius: 6,
+                border: "1px solid #1e293b"
+              }}>
+                {currentSectionIndex + 1} / {totalSections} Bölüm
+              </div>
+            )}
           </div>
           <h1 style={{
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: 800,
-            margin: "0 0 8px 0",
+            margin: "0 0 4px 0",
             lineHeight: 1.2,
             background: "linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)",
             WebkitBackgroundClip: "text",
@@ -735,22 +757,46 @@ export default function LessonPage({ lessonId, onBack }) {
           }}>
             {lesson.title}
           </h1>
-          <div style={{ fontSize: 12, color: "#475569" }}>
-            📅 {new Date(lesson.created_at).toLocaleDateString('tr-TR')}
-          </div>
+          {currentSection && (
+            <div style={{
+              fontSize: 14,
+              color: "#6366f1",
+              fontWeight: 600
+            }}>
+              {currentSection.title || `Bölüm ${currentSectionIndex + 1}`}
+            </div>
+          )}
         </div>
       </header>
 
-      {/* NAVIGATION */}
-      {sections.length > 1 && (
-        <nav style={{
-          background: "#1a1a2e",
-          borderBottom: "1px solid #1e293b",
-          padding: "12px 0",
-          overflowX: "auto",
+      {/* PROGRESS BAR */}
+      {totalSections > 0 && (
+        <div style={{
+          height: 4,
+          background: "#1e293b",
           position: "sticky",
           top: 0,
-          zIndex: 10,
+          zIndex: 20
+        }}>
+          <div style={{
+            height: "100%",
+            width: `${progress}%`,
+            background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+            transition: "width 0.4s ease"
+          }} />
+        </div>
+      )}
+
+      {/* SECTION NAVIGATION - Mini */}
+      {totalSections > 1 && (
+        <div style={{
+          background: "#1a1a2e",
+          borderBottom: "1px solid #1e293b",
+          padding: "8px 0",
+          overflowX: "auto",
+          position: "sticky",
+          top: 4,
+          zIndex: 15,
           backdropFilter: "blur(10px)",
           background: "rgba(26, 26, 46, 0.95)"
         }}>
@@ -759,20 +805,21 @@ export default function LessonPage({ lessonId, onBack }) {
             margin: "0 auto",
             padding: "0 24px",
             display: "flex",
-            gap: 8,
-            flexWrap: "nowrap"
+            gap: 6,
+            flexWrap: "nowrap",
+            justifyContent: "center"
           }}>
             {sections.map((section, index) => (
               <button
                 key={index}
-                onClick={() => setActiveSection(index)}
+                onClick={() => goToSection(index)}
                 style={{
-                  padding: "8px 16px",
-                  background: activeSection === index ? "#6366f1" : "transparent",
-                  border: activeSection === index ? "1px solid #6366f1" : "1px solid #1e293b",
-                  borderRadius: 8,
-                  color: activeSection === index ? "#fff" : "#64748b",
-                  fontSize: 13,
+                  padding: "4px 12px",
+                  background: currentSectionIndex === index ? "#6366f1" : "transparent",
+                  border: currentSectionIndex === index ? "1px solid #6366f1" : "1px solid #1e293b",
+                  borderRadius: 6,
+                  color: currentSectionIndex === index ? "#fff" : "#64748b",
+                  fontSize: 11,
                   fontWeight: 600,
                   cursor: "pointer",
                   transition: "all 0.2s",
@@ -780,31 +827,25 @@ export default function LessonPage({ lessonId, onBack }) {
                   fontFamily: "inherit"
                 }}
               >
-                {section.title || `Bölüm ${index + 1}`}
+                {index + 1}
               </button>
             ))}
           </div>
-        </nav>
+        </div>
       )}
 
       {/* CONTENT */}
       <main style={{
         maxWidth: 1200,
         margin: "0 auto",
-        padding: "32px 24px"
+        padding: "24px 24px 16px"
       }}>
-        {sections.length > 0 ? (
-          sections.map((section, index) => (
-            <div 
-              key={index} 
-              style={{
-                display: activeSection === index ? 'block' : 'none',
-                animation: "fadeIn 0.3s ease-in"
-              }}
-            >
-              {renderSection(section, index)}
-            </div>
-          ))
+        {totalSections > 0 && currentSection ? (
+          <div style={{
+            animation: "fadeIn 0.3s ease-in"
+          }}>
+            {renderSection(currentSection)}
+          </div>
         ) : (
           <div style={{
             textAlign: "center",
@@ -812,9 +853,6 @@ export default function LessonPage({ lessonId, onBack }) {
             color: "#64748b"
           }}>
             <p style={{ fontSize: 16 }}>Bu ders için içerik bulunamadı.</p>
-            <p style={{ fontSize: 13, marginTop: 8 }}>
-              İçerik JSON formatında eklenmemiş olabilir.
-            </p>
             <button 
               onClick={() => {
                 console.log("Ders içeriği:", lesson?.content_json);
@@ -836,6 +874,164 @@ export default function LessonPage({ lessonId, onBack }) {
           </div>
         )}
       </main>
+
+      {/* NAVIGATION BUTTONS - Previous / Next Section */}
+      {totalSections > 0 && (
+        <div style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "0 24px 24px"
+        }}>
+          <div style={{
+            display: "flex",
+            gap: 12,
+            justifyContent: "center",
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
+            <button
+              onClick={goToPreviousSection}
+              disabled={currentSectionIndex === 0}
+              style={{
+                padding: "12px 24px",
+                background: currentSectionIndex === 0 ? "#1a1a2e" : "#6366f1",
+                border: currentSectionIndex === 0 ? "1px solid #1e293b" : "none",
+                borderRadius: 10,
+                color: currentSectionIndex === 0 ? "#475569" : "#fff",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: currentSectionIndex === 0 ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 120,
+                justifyContent: "center"
+              }}
+            >
+              ← Önceki Bölüm
+            </button>
+
+            <div style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center"
+            }}>
+              {sections.map((_, index) => (
+                <div
+                  key={index}
+                  onClick={() => goToSection(index)}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: currentSectionIndex === index ? "#6366f1" : "#1e293b",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    border: currentSectionIndex === index ? "2px solid #6366f1" : "none"
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={goToNextSection}
+              disabled={currentSectionIndex === totalSections - 1}
+              style={{
+                padding: "12px 24px",
+                background: currentSectionIndex === totalSections - 1 ? "#1a1a2e" : "#6366f1",
+                border: currentSectionIndex === totalSections - 1 ? "1px solid #1e293b" : "none",
+                borderRadius: 10,
+                color: currentSectionIndex === totalSections - 1 ? "#475569" : "#fff",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: currentSectionIndex === totalSections - 1 ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 120,
+                justifyContent: "center"
+              }}
+            >
+              Sonraki Bölüm →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER - Previous / Next Lesson */}
+      <footer style={{
+        background: "#1a1a2e",
+        borderTop: "1px solid #1e293b",
+        padding: "16px 0"
+      }}>
+        <div style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "0 24px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap"
+        }}>
+          <button 
+            onClick={handlePrevLesson}
+            disabled={!lesson || lesson.lesson_number <= 1}
+            style={{
+              padding: "10px 20px",
+              background: "#0f0f1a",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+              color: "#94a3b8",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: lesson && lesson.lesson_number > 1 ? "pointer" : "not-allowed",
+              transition: "all 0.2s",
+              fontFamily: "inherit",
+              opacity: lesson && lesson.lesson_number > 1 ? 1 : 0.3
+            }}
+          >
+            ← Önceki Ders
+          </button>
+          
+          <button onClick={onBack} style={{
+            padding: "10px 24px",
+            background: "#6366f1",
+            border: "none",
+            borderRadius: 8,
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "all 0.2s",
+            fontFamily: "inherit"
+          }}>
+            🏠 Ana Sayfa
+          </button>
+          
+          <button 
+            onClick={handleNextLesson}
+            style={{
+              padding: "10px 20px",
+              background: "#0f0f1a",
+              border: "1px solid #1e293b",
+              borderRadius: 8,
+              color: "#94a3b8",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontFamily: "inherit"
+            }}
+          >
+            Sonraki Ders →
+          </button>
+        </div>
+      </footer>
 
       {/* CSS Animations */}
       <style>{`
@@ -1397,85 +1593,18 @@ export default function LessonPage({ lessonId, onBack }) {
             grid-template-columns: 1fr;
           }
           .lesson-title {
-            font-size: 24px;
+            font-size: 22px;
           }
           .quiz-results {
             flex-direction: column;
             align-items: center;
             text-align: center;
           }
+          .lesson-header-content h1 {
+            font-size: 22px;
+          }
         }
       `}</style>
-
-      {/* FOOTER */}
-      <footer style={{
-        background: "#1a1a2e",
-        borderTop: "1px solid #1e293b",
-        padding: "20px 0",
-        marginTop: 40
-      }}>
-        <div style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "0 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap"
-        }}>
-          <button 
-            onClick={handlePrevLesson}
-            disabled={!lesson || lesson.lesson_number <= 1}
-            style={{
-              padding: "10px 20px",
-              background: "#0f0f1a",
-              border: "1px solid #1e293b",
-              borderRadius: 8,
-              color: "#94a3b8",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: lesson && lesson.lesson_number > 1 ? "pointer" : "not-allowed",
-              transition: "all 0.2s",
-              fontFamily: "inherit",
-              opacity: lesson && lesson.lesson_number > 1 ? 1 : 0.3
-            }}
-          >
-            ← Önceki Ders
-          </button>
-          <button onClick={onBack} style={{
-            padding: "10px 24px",
-            background: "#6366f1",
-            border: "none",
-            borderRadius: 8,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: "pointer",
-            transition: "all 0.2s",
-            fontFamily: "inherit"
-          }}>
-            🏠 Ana Sayfa
-          </button>
-          <button 
-            onClick={handleNextLesson}
-            style={{
-              padding: "10px 20px",
-              background: "#0f0f1a",
-              border: "1px solid #1e293b",
-              borderRadius: 8,
-              color: "#94a3b8",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              transition: "all 0.2s",
-              fontFamily: "inherit"
-            }}
-          >
-            Sonraki Ders →
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }
