@@ -282,35 +282,114 @@ Kelimeler: `;
     }
   };
 
-  const handleInsert = async () => {
-    if (!parsedData) return;
-    
-    setLoading(true);
-    setMessage(null);
-    const resultList = [];
-    
-    for (const item of parsedData) {
-      try {
-        const { data: existing, error: checkError } = await supabase
-          .from("en_words")
-          .select("id, word")
-          .eq("word", item.word)
-          .maybeSingle();
+  // ============================
+// handleInsert - Güncellenmiş (Cümle Kontrolü ile)
+// ============================
+const handleInsert = async () => {
+  if (!parsedData) return;
+  
+  setLoading(true);
+  setMessage(null);
+  const resultList = [];
+  
+  for (const item of parsedData) {
+    try {
+      // 1. Kelimeyi kontrol et
+      const { data: existing, error: checkError } = await supabase
+        .from("en_words")
+        .select("id, word")
+        .eq("word", item.word)
+        .maybeSingle();
 
-        if (checkError && checkError.code !== 'PGRST116') {
-          throw checkError;
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      let wordId;
+      let wordStatus;
+
+      if (existing) {
+        // Kelime zaten var
+        wordId = existing.id;
+        wordStatus = "zaten var";
+        
+        // 🔥 MEVCUT KELİME İÇİN CÜMLELERİ KONTROL ET
+        let addedExampleCount = 0;
+        let existingExampleCount = 0;
+        let errorExampleCount = 0;
+
+        if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
+          for (const example of item.examples) {
+            if (example.en && example.tr) {
+              // Cümle zaten var mı kontrol et
+              const { data: existingExample, error: exampleCheckError } = await supabase
+                .from("en_example_sentences")
+                .select("id")
+                .eq("word_id", wordId)
+                .eq("sentence_en", example.en)
+                .maybeSingle();
+
+              if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
+                console.error("Cümle kontrol hatası:", exampleCheckError);
+                errorExampleCount++;
+                continue;
+              }
+
+              if (!existingExample) {
+                // Cümle yok, ekle
+                const { error: insertExampleError } = await supabase
+                  .from("en_example_sentences")
+                  .insert({
+                    word_id: wordId,
+                    sentence_en: example.en,
+                    sentence_tr: example.tr,
+                    difficulty: item.difficulty || 1,
+                    order_index: 0,
+                    source: "manual",
+                    is_approved: true,
+                  });
+
+                if (insertExampleError) {
+                  console.error("Cümle eklenemedi:", insertExampleError);
+                  errorExampleCount++;
+                } else {
+                  addedExampleCount++;
+                }
+              } else {
+                existingExampleCount++;
+              }
+            }
+          }
         }
 
-        if (existing) {
-          resultList.push({ 
-            word: item.word, 
-            ok: true, 
-            status: "zaten var",
-            message: "Kelime zaten mevcut"
-          });
-          continue;
+        // Sonuç mesajını oluştur
+        let messageText = "";
+        if (addedExampleCount > 0 && existingExampleCount === 0 && errorExampleCount === 0) {
+          messageText = `${addedExampleCount} yeni cümle eklendi`;
+        } else if (addedExampleCount > 0 && existingExampleCount > 0 && errorExampleCount === 0) {
+          messageText = `${addedExampleCount} cümle eklendi, ${existingExampleCount} cümle zaten var`;
+        } else if (addedExampleCount === 0 && existingExampleCount > 0 && errorExampleCount === 0) {
+          messageText = `${existingExampleCount} cümle zaten var, yeni cümle eklenmedi`;
+        } else if (addedExampleCount > 0 && errorExampleCount > 0) {
+          messageText = `${addedExampleCount} cümle eklendi, ${errorExampleCount} hata`;
+        } else if (errorExampleCount > 0 && addedExampleCount === 0) {
+          messageText = `${errorExampleCount} cümle hatası`;
+        } else {
+          messageText = "Cümle işlemi tamamlandı";
         }
 
+        resultList.push({ 
+          word: item.word, 
+          ok: true, 
+          status: wordStatus,
+          message: messageText,
+          addedExampleCount,
+          existingExampleCount,
+          errorExampleCount
+        });
+
+      } else {
+        // YENİ KELİME EKLE
         const { data: inserted, error: insertError } = await supabase
           .from("en_words")
           .insert({
@@ -328,15 +407,19 @@ Kelimeler: `;
           .single();
 
         if (insertError) throw insertError;
+        
+        wordId = inserted.id;
+        wordStatus = "eklendi";
 
+        // Cümleleri ekle
         let addedExampleCount = 0;
         if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
           for (const example of item.examples) {
             if (example.en && example.tr) {
-              const { error: exampleError } = await supabase
+              const { error: insertExampleError } = await supabase
                 .from("en_example_sentences")
                 .insert({
-                  word_id: inserted.id,
+                  word_id: wordId,
                   sentence_en: example.en,
                   sentence_tr: example.tr,
                   difficulty: item.difficulty || 1,
@@ -344,7 +427,12 @@ Kelimeler: `;
                   source: "manual",
                   is_approved: true,
                 });
-              if (!exampleError) addedExampleCount++;
+
+              if (insertExampleError) {
+                console.error("Cümle eklenemedi:", insertExampleError);
+              } else {
+                addedExampleCount++;
+              }
             }
           }
         }
@@ -352,34 +440,58 @@ Kelimeler: `;
         resultList.push({ 
           word: item.word, 
           ok: true, 
-          status: "eklendi",
-          message: `${addedExampleCount} cümle eklendi`
-        });
-
-      } catch (error) {
-        resultList.push({ 
-          word: item.word, 
-          ok: false, 
-          status: "hata",
-          message: error.message
+          status: wordStatus,
+          message: addedExampleCount > 0 ? `${addedExampleCount} cümle eklendi` : "Cümle eklenmedi",
+          addedExampleCount,
+          existingExampleCount: 0,
+          errorExampleCount: 0
         });
       }
+
+    } catch (error) {
+      resultList.push({ 
+        word: item.word, 
+        ok: false, 
+        status: "hata",
+        message: error.message
+      });
     }
-    
-    setResults(resultList);
-    setLoading(false);
-    
-    const successCount = resultList.filter(r => r.ok).length;
-    const failCount = resultList.filter(r => !r.ok).length;
-    
-    if (failCount === 0) {
-      setMessage({ type: "success", text: `✅ ${successCount} kelime başarıyla eklendi!` });
-      setJsonInput("");
-      setParsedData(null);
-    } else {
-      setMessage({ type: "error", text: `⚠️ ${successCount} başarılı, ${failCount} hata` });
+  }
+  
+  setResults(resultList);
+  setLoading(false);
+  
+  const successCount = resultList.filter(r => r.ok).length;
+  const failCount = resultList.filter(r => !r.ok).length;
+  const addedCount = resultList.filter(r => r.status === "eklendi").length;
+  const existsCount = resultList.filter(r => r.status === "zaten var").length;
+  const totalAddedExamples = resultList.reduce((sum, r) => sum + (r.addedExampleCount || 0), 0);
+  const totalExistingExamples = resultList.reduce((sum, r) => sum + (r.existingExampleCount || 0), 0);
+  
+  let successMessage = "";
+  if (addedCount > 0 && existsCount === 0) {
+    successMessage = `✅ ${addedCount} kelime eklendi`;
+  } else if (addedCount === 0 && existsCount > 0) {
+    successMessage = `ℹ️ ${existsCount} kelime zaten mevcut`;
+  } else if (addedCount > 0 && existsCount > 0) {
+    successMessage = `✅ ${addedCount} kelime eklendi, ⏭️ ${existsCount} kelime zaten mevcut`;
+  }
+  
+  if (totalAddedExamples > 0 || totalExistingExamples > 0) {
+    successMessage += `\n📝 ${totalAddedExamples} yeni cümle eklendi`;
+    if (totalExistingExamples > 0) {
+      successMessage += `, ⏭️ ${totalExistingExamples} cümle zaten mevcut`;
     }
-  };
+  }
+  
+  if (failCount === 0) {
+    setMessage({ type: "success", text: successMessage });
+    setJsonInput("");
+    setParsedData(null);
+  } else {
+    setMessage({ type: "error", text: `⚠️ ${successCount} başarılı, ${failCount} hata` });
+  }
+};
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(PROMPT_TEXT);
