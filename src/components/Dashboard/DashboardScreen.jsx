@@ -477,7 +477,7 @@ export default function DashboardScreen() {
                           borderRadius: 8,
                           padding: "5px 8px",
                         }}>
-                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📖</span>
+                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>Kelime</span>
                           {wordTotal > 0 ? (
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                               <MiniBadge icon="✅" value={day.word_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
@@ -496,7 +496,7 @@ export default function DashboardScreen() {
                           borderRadius: 8,
                           padding: "5px 8px",
                         }}>
-                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>📝</span>
+                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>Cümle</span>
                           {sentenceTotal > 0 ? (
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                               <MiniBadge icon="✅" value={day.sentence_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
