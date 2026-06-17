@@ -496,20 +496,7 @@ Kelimeler: `;
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <label style={{ fontSize: 11, color: "#64748b", display: "block" }}>JSON Verisi</label>
           <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={handleUseExample}
-              style={{
-                background: "none",
-                border: "1px solid #6366f1",
-                borderRadius: 6,
-                color: "#6366f1",
-                fontSize: 10,
-                padding: "4px 10px",
-                cursor: "pointer"
-              }}
-            >
-              📄 Örnek Yükle
-            </button>
+            
             <button
               onClick={() => setShowExample(!showExample)}
               style={{
