@@ -499,8 +499,8 @@ export default function DashboardScreen() {
                           <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>Cümle</span>
                           {sentenceTotal > 0 ? (
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <MiniBadge icon="✅" value={day.sentence_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
-                              <MiniBadge icon="❌" value={day.sentence_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
+                              <MiniBadge value={day.sentence_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
+                              <MiniBadge value={day.sentence_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
                               <span style={{ fontSize: 11, color: getAccColor(sentenceAcc), fontWeight: 700 }}>%{sentenceAcc}</span>
                             </span>
                           ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
