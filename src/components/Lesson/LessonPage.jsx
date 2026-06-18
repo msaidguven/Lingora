@@ -211,6 +211,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // ❓ PRACTICE ADIMI - Tek Soru (Yanlışları Kaydet ve Tekrar Göster)
+// ❓ PRACTICE ADIMI - DÜZELTİLMİŞ VERSİYON
 function PracticeStep({ 
   step, 
   onNext, 
@@ -226,72 +227,88 @@ function PracticeStep({
   const [isCorrect, setIsCorrect] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [internalWrongQuestions, setInternalWrongQuestions] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const allQuestions = step.questions || [];
   
   // DEBUG: Soruları kontrol et
   console.log('🔍 PracticeStep - Sorular:', allQuestions);
-  console.log('🔍 PracticeStep - Step:', step);
-  
-  // Wrong questions: external'dan gelenleri veya internal'ı kullan
-  const wrongQuestions = externalWrongQuestions || internalWrongQuestions;
-  
-  const setWrongQuestions = (newWrong) => {
-    if (onWrongAnswer) {
-      onWrongAnswer(newWrong);
-    }
-    setInternalWrongQuestions(newWrong);
-  };
+  console.log('🔍 PracticeStep - External Wrong:', externalWrongQuestions);
+  console.log('🔍 PracticeStep - Step ID:', step.id);
 
-  // Soruları karıştır
+  // INIT: Soruları başlat
   useEffect(() => {
-    console.log('🔄 PracticeStep - useEffect çalıştı, sorular:', allQuestions);
+    console.log('🔄 PracticeStep - useEffect çalıştı');
     
     if (allQuestions.length === 0) {
       console.warn('⚠️ Hiç soru yok!');
       setInternalWrongQuestions([]);
       setCurrentQuestionIndex(0);
+      setIsInitialized(true);
       return;
     }
     
-    // Eğer external wrongQuestions varsa ve boş değilse onu kullan
+    // Eğer external wrongQuestions varsa ve doluysa onu kullan
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
       console.log('📝 External wrong questions kullanılıyor:', externalWrongQuestions);
       setInternalWrongQuestions(externalWrongQuestions);
       setCurrentQuestionIndex(0);
     } else {
+      // İlk yükleme: tüm soruları karıştır ve listeye ekle
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-      console.log('🔀 Sorular karıştırıldı:', shuffled);
+      console.log('🔀 Tüm sorular karıştırıldı:', shuffled);
       setInternalWrongQuestions(shuffled);
       setCurrentQuestionIndex(0);
+      
+      // Parent'a bildir (ilk yükleme)
+      if (onWrongAnswer) {
+        onWrongAnswer(shuffled);
+      }
     }
+    
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
+    setIsInitialized(true);
   }, [step.id, allQuestions]);
 
   // Mevcut soruyu al
   const getCurrentQuestion = () => {
-    if (wrongQuestions.length === 0) {
-      console.log('ℹ️ Yanlış soru listesi boş');
+    if (!isInitialized) {
+      console.log('⏳ Henüz başlatılmadı');
       return null;
     }
-    const q = wrongQuestions[currentQuestionIndex];
+    
+    if (internalWrongQuestions.length === 0) {
+      console.log('ℹ️ Yanlış soru listesi boş - tüm sorular tamamlandı!');
+      return null;
+    }
+    
+    // currentQuestionIndex'in geçerli olduğundan emin ol
+    if (currentQuestionIndex >= internalWrongQuestions.length) {
+      console.log('🔄 Index sınırı aşıldı, sıfırlanıyor');
+      setCurrentQuestionIndex(0);
+      return internalWrongQuestions[0] || null;
+    }
+    
+    const q = internalWrongQuestions[currentQuestionIndex];
     console.log('📌 Mevcut soru:', q);
     return q;
   };
 
   const question = getCurrentQuestion();
 
+  // Soru değiştiğinde state'leri sıfırla
   useEffect(() => {
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-  }, [currentQuestionIndex]);
+    if (question) {
+      setAnswer('');
+      setShowFeedback(false);
+      setIsCorrect(false);
+    }
+  }, [currentQuestionIndex, question]);
 
-  // Eğer soru yoksa veya allQuestions boşsa
-  if (!question || allQuestions.length === 0) {
-    console.warn('⚠️ Soru bulunamadı! allQuestions:', allQuestions, 'question:', question);
+  // Eğer soru yoksa ve tüm sorular tamamlandıysa
+  if (allQuestions.length === 0) {
     return (
       <div className="step-container">
         <div className="step-content">
@@ -299,9 +316,6 @@ function PracticeStep({
             <div style={{ fontSize: 48, marginBottom: 16 }}>❓</div>
             <h3 style={{ color: '#f1f5f9', marginBottom: 8 }}>Soru Bulunamadı</h3>
             <p style={{ color: '#94a3b8' }}>Bu adım için soru mevcut değil.</p>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>
-              Adım ID: {step.id} | Tip: {step.type}
-            </p>
             <button 
               onClick={onNext} 
               className="nav-btn next-btn"
@@ -315,6 +329,44 @@ function PracticeStep({
     );
   }
 
+  // Eğer tüm sorular tamamlandıysa (liste boş)
+  if (internalWrongQuestions.length === 0 && isInitialized) {
+    console.log('🎉 Tüm sorular tamamlandı!');
+    return (
+      <div className="step-container">
+        <div className="step-content">
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <h3 style={{ color: '#10b981', marginBottom: 8 }}>Tüm Sorular Tamamlandı!</h3>
+            <p style={{ color: '#94a3b8' }}>Tüm soruları başarıyla cevapladınız.</p>
+            <button 
+              onClick={onNext} 
+              className="nav-btn next-btn"
+              style={{ marginTop: 16 }}
+            >
+              Devam Et →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Eğer henüz başlatılmadıysa veya soru yoksa
+  if (!question) {
+    console.log('⏳ Soru yükleniyor veya başlatılmadı...');
+    return (
+      <div className="step-container">
+        <div className="step-content">
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div className="loading-spinner">⏳</div>
+            <p style={{ color: '#94a3b8' }}>Soru yükleniyor...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleOptionSelect = (value) => {
     if (showFeedback) return;
     setAnswer(value);
@@ -322,14 +374,22 @@ function PracticeStep({
     setIsCorrect(correct);
     setShowFeedback(true);
     
-    const newWrongList = [...wrongQuestions];
+    // Soruyu listeden çıkar
+    const newWrongList = [...internalWrongQuestions];
+    newWrongList.splice(currentQuestionIndex, 1);
+    
+    // Eğer yanlışsa sona ekle, doğruysa tamamen çıkar
     if (!correct) {
-      newWrongList.splice(currentQuestionIndex, 1);
       newWrongList.push(question);
-    } else {
-      newWrongList.splice(currentQuestionIndex, 1);
     }
-    setWrongQuestions(newWrongList);
+    
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newWrongList.length}`);
+    setInternalWrongQuestions(newWrongList);
+    
+    // Parent'a bildir
+    if (onWrongAnswer) {
+      onWrongAnswer(newWrongList);
+    }
     
     if (onQuestionCompleted) {
       onQuestionCompleted(question);
@@ -350,14 +410,19 @@ function PracticeStep({
     setIsCorrect(correct);
     setShowFeedback(true);
     
-    const newWrongList = [...wrongQuestions];
+    const newWrongList = [...internalWrongQuestions];
+    newWrongList.splice(currentQuestionIndex, 1);
+    
     if (!correct) {
-      newWrongList.splice(currentQuestionIndex, 1);
       newWrongList.push(question);
-    } else {
-      newWrongList.splice(currentQuestionIndex, 1);
     }
-    setWrongQuestions(newWrongList);
+    
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newWrongList.length}`);
+    setInternalWrongQuestions(newWrongList);
+    
+    if (onWrongAnswer) {
+      onWrongAnswer(newWrongList);
+    }
     
     if (onQuestionCompleted) {
       onQuestionCompleted(question);
@@ -376,12 +441,14 @@ function PracticeStep({
       return;
     }
     
-    if (wrongQuestions.length > 0) {
+    // Eğer hala soru varsa, sıradakine geç
+    if (internalWrongQuestions.length > 0) {
       setCurrentQuestionIndex(0);
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
     } else {
+      // Tüm sorular bitti
       onNext();
     }
   };
@@ -393,7 +460,7 @@ function PracticeStep({
     onPrevious();
   };
 
-  const wrongCount = wrongQuestions.length;
+  const wrongCount = internalWrongQuestions.length;
 
   return (
     <div className="step-container">
@@ -403,7 +470,7 @@ function PracticeStep({
         {wrongCount > 0 && (
           <span className="wrong-count">⚠️ {wrongCount} soru kaldı</span>
         )}
-        {wrongCount === 0 && showFeedback && isCorrect && (
+        {wrongCount === 0 && (
           <span className="completed-count">✅ Tüm sorular tamamlandı!</span>
         )}
       </div>
@@ -501,9 +568,9 @@ function PracticeStep({
             disabled={!showFeedback}
             className="nav-btn next-btn"
           >
-            {isLast && wrongQuestions.length === 0
+            {isLast && wrongCount === 0
               ? '✅ Dersi Tamamla'
-              : wrongQuestions.length > 0 
+              : wrongCount > 0 
                 ? 'Sonraki Soru →' 
                 : 'İlerle →'}
           </button>
