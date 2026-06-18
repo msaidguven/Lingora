@@ -1,4 +1,4 @@
-// LessonPage.jsx - Sabit User ID ile
+// LessonPage.jsx - Hata Ayıklamalı Versiyon
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../config.js";
 import "./LessonPage.css";
@@ -229,12 +229,15 @@ function PracticeStep({
 
   const allQuestions = step.questions || [];
   
+  // DEBUG: Soruları kontrol et
+  console.log('🔍 PracticeStep - Sorular:', allQuestions);
+  console.log('🔍 PracticeStep - Step:', step);
+  
   // Wrong questions: external'dan gelenleri veya internal'ı kullan
   const wrongQuestions = externalWrongQuestions || internalWrongQuestions;
   
   const setWrongQuestions = (newWrong) => {
     if (onWrongAnswer) {
-      // Parent'a bildir
       onWrongAnswer(newWrong);
     }
     setInternalWrongQuestions(newWrong);
@@ -242,12 +245,23 @@ function PracticeStep({
 
   // Soruları karıştır
   useEffect(() => {
+    console.log('🔄 PracticeStep - useEffect çalıştı, sorular:', allQuestions);
+    
+    if (allQuestions.length === 0) {
+      console.warn('⚠️ Hiç soru yok!');
+      setInternalWrongQuestions([]);
+      setCurrentQuestionIndex(0);
+      return;
+    }
+    
     // Eğer external wrongQuestions varsa ve boş değilse onu kullan
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
+      console.log('📝 External wrong questions kullanılıyor:', externalWrongQuestions);
       setInternalWrongQuestions(externalWrongQuestions);
       setCurrentQuestionIndex(0);
     } else {
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+      console.log('🔀 Sorular karıştırıldı:', shuffled);
       setInternalWrongQuestions(shuffled);
       setCurrentQuestionIndex(0);
     }
@@ -258,8 +272,13 @@ function PracticeStep({
 
   // Mevcut soruyu al
   const getCurrentQuestion = () => {
-    if (wrongQuestions.length === 0) return null;
-    return wrongQuestions[currentQuestionIndex];
+    if (wrongQuestions.length === 0) {
+      console.log('ℹ️ Yanlış soru listesi boş');
+      return null;
+    }
+    const q = wrongQuestions[currentQuestionIndex];
+    console.log('📌 Mevcut soru:', q);
+    return q;
   };
 
   const question = getCurrentQuestion();
@@ -270,12 +289,27 @@ function PracticeStep({
     setIsCorrect(false);
   }, [currentQuestionIndex]);
 
+  // Eğer soru yoksa veya allQuestions boşsa
   if (!question || allQuestions.length === 0) {
+    console.warn('⚠️ Soru bulunamadı! allQuestions:', allQuestions, 'question:', question);
     return (
       <div className="step-container">
         <div className="step-content">
-          <p>Soru bulunamadı.</p>
-          <button onClick={onNext} className="nav-btn next-btn">İlerle →</button>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>❓</div>
+            <h3 style={{ color: '#f1f5f9', marginBottom: 8 }}>Soru Bulunamadı</h3>
+            <p style={{ color: '#94a3b8' }}>Bu adım için soru mevcut değil.</p>
+            <p style={{ color: '#64748b', fontSize: 13, marginTop: 8 }}>
+              Adım ID: {step.id} | Tip: {step.type}
+            </p>
+            <button 
+              onClick={onNext} 
+              className="nav-btn next-btn"
+              style={{ marginTop: 16 }}
+            >
+              İlerle →
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -288,19 +322,15 @@ function PracticeStep({
     setIsCorrect(correct);
     setShowFeedback(true);
     
-    // Doğruysa listeden çıkar, yanlışsa listeye ekle
     const newWrongList = [...wrongQuestions];
     if (!correct) {
-      // Yanlış: soruyu listeden çıkar ve sona ekle
       newWrongList.splice(currentQuestionIndex, 1);
       newWrongList.push(question);
     } else {
-      // Doğru: soruyu listeden tamamen çıkar
       newWrongList.splice(currentQuestionIndex, 1);
     }
     setWrongQuestions(newWrongList);
     
-    // Soru tamamlandı olarak işaretle (doğru veya yanlış fark etmez)
     if (onQuestionCompleted) {
       onQuestionCompleted(question);
     }
@@ -346,15 +376,12 @@ function PracticeStep({
       return;
     }
     
-    // Kalan soru var mı kontrol et
     if (wrongQuestions.length > 0) {
-      // Sıradaki soruya geç
       setCurrentQuestionIndex(0);
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
     } else {
-      // Tüm sorular bitti
       onNext();
     }
   };
@@ -396,7 +423,7 @@ function PracticeStep({
         <div className="practice-question">
           <p className="question-text">{question.question}</p>
 
-          {question.options && (
+          {question.options && question.options.length > 0 ? (
             <div className="options-group">
               {question.options.map((option, optIndex) => {
                 const isSelected = answer === option;
@@ -430,9 +457,7 @@ function PracticeStep({
                 );
               })}
             </div>
-          )}
-
-          {!question.options && (
+          ) : (
             <div className="fill-blank-group">
               <input
                 type="text"
@@ -676,6 +701,7 @@ export default function LessonPage({ lessonId, onBack }) {
   const [savingProgress, setSavingProgress] = useState(false);
   const [wrongQuestionsMap, setWrongQuestionsMap] = useState({});
   const [saveError, setSaveError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
   const contentRef = useRef(null);
 
   // Sabit kullanıcı ID'si
@@ -724,7 +750,6 @@ export default function LessonPage({ lessonId, onBack }) {
       const isCompleted = stepIndex >= totalSteps - 1;
       const score = isCompleted ? 100 : Math.round((stepIndex / totalSteps) * 100);
 
-      // Yanlış soruları JSON olarak kaydet
       const wrongQuestionsJson = JSON.stringify(wrongQuestions);
 
       console.log('💾 Progress kaydediliyor...', { 
@@ -736,7 +761,6 @@ export default function LessonPage({ lessonId, onBack }) {
         wrongQuestionsCount: Object.keys(wrongQuestions).length
       });
 
-      // Önce var mı kontrol et
       const { data: existing } = await supabase
         .from('en_user_lesson_progress')
         .select('id')
@@ -746,7 +770,6 @@ export default function LessonPage({ lessonId, onBack }) {
 
       let result;
       if (existing) {
-        // Güncelle
         const { data, error } = await supabase
           .from('en_user_lesson_progress')
           .update({
@@ -762,7 +785,6 @@ export default function LessonPage({ lessonId, onBack }) {
         result = data;
         console.log('✅ Progress güncellendi:', result);
       } else {
-        // Yeni kayıt
         const { data, error } = await supabase
           .from('en_user_lesson_progress')
           .insert({
@@ -837,6 +859,8 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
+      console.log('📚 Ders içeriği:', content);
+      
       let loadedSteps = [];
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
         if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
@@ -846,13 +870,26 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
+      console.log('📝 Yüklenen adımlar:', loadedSteps);
+      
+      // Debug: Her adımın sorularını kontrol et
+      loadedSteps.forEach((step, index) => {
+        if (step.type === 'practice' || step.type === 'dialogue') {
+          console.log(`🔍 Adım ${index} (${step.type}) - Sorular:`, step.questions || step.practice?.questions || 'Yok');
+        }
+      });
+      
       setSteps(loadedSteps);
       setLesson(lessonData);
+      setDebugInfo({
+        totalSteps: loadedSteps.length,
+        stepTypes: loadedSteps.map(s => s.type),
+        hasQuestions: loadedSteps.some(s => s.questions?.length > 0 || s.practice?.questions?.length > 0)
+      });
 
       // Supabase'den ilerlemeyi yükle
       const progress = await loadProgressFromSupabase(lessonData.id);
       if (progress) {
-        // Score'a göre step index hesapla
         if (progress.score !== null && progress.score !== undefined) {
           const stepIndex = Math.floor((progress.score / 100) * loadedSteps.length);
           if (stepIndex < loadedSteps.length) {
@@ -861,7 +898,6 @@ export default function LessonPage({ lessonId, onBack }) {
           }
         }
         
-        // Yanlış soruları yükle
         if (progress.wrong_questions) {
           try {
             const wrongQuestions = typeof progress.wrong_questions === 'string' 
@@ -928,7 +964,6 @@ export default function LessonPage({ lessonId, onBack }) {
       setSteps(loadedSteps);
       setLesson(lessonData);
 
-      // Supabase'den ilerlemeyi yükle
       const progress = await loadProgressFromSupabase(lessonData.id);
       if (progress) {
         if (progress.score !== null && progress.score !== undefined) {
@@ -962,7 +997,6 @@ export default function LessonPage({ lessonId, onBack }) {
     let timeoutId;
     
     if (lesson && steps.length > 0) {
-      // Debounce: 1 saniye bekleyip kaydet
       timeoutId = setTimeout(() => {
         saveProgressToSupabase(
           lesson.id, 
@@ -1154,7 +1188,6 @@ export default function LessonPage({ lessonId, onBack }) {
       }
     } else {
       alert('🎉 Tebrikler! Dersi tamamladınız!');
-      // Ders tamamlandı olarak işaretle
       if (lesson) {
         saveProgressToSupabase(
           lesson.id, 
@@ -1234,6 +1267,25 @@ export default function LessonPage({ lessonId, onBack }) {
             className="progress-fill"
             style={{ width: `${progress}%` }}
           />
+        </div>
+      )}
+
+      {/* DEBUG INFO */}
+      {debugInfo && (
+        <div style={{ 
+          background: '#1a1a2e', 
+          padding: '8px 16px', 
+          fontSize: 12, 
+          color: '#94a3b8',
+          borderBottom: '1px solid #1e293b',
+          display: 'flex',
+          gap: 16,
+          flexWrap: 'wrap'
+        }}>
+          <span>📚 Toplam Adım: {debugInfo.totalSteps}</span>
+          <span>📝 Tipler: {debugInfo.stepTypes.join(', ')}</span>
+          <span>❓ Soru Var mı: {debugInfo.hasQuestions ? '✅ Evet' : '❌ Hayır'}</span>
+          <span>📍 Mevcut Adım: {currentStepIndex + 1}</span>
         </div>
       )}
 
