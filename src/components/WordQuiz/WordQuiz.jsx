@@ -1,7 +1,6 @@
 // components/quiz/QuizScreen.jsx
 import { useState } from "react";
 import WordQuiz from "./WordQuiz.jsx";
-import SentenceQuiz from "./SentenceQuiz.jsx"; // Varsa
 
 export default function QuizScreen({ userLevel, onChangeLevel, onBack, initialMode }) {
   const [mode, setMode] = useState(initialMode || null);
