@@ -4,11 +4,19 @@
    SAYFA TEMEL STİLLERİ
    ============================ */
 
+* {
+  box-sizing: border-box;
+}
+
 .lesson-page {
   min-height: 100vh;
   background: #0f0f1a;
   color: #e2e8f0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ============================
@@ -18,7 +26,9 @@
 .lesson-header {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border-bottom: 1px solid #1e293b;
-  padding: 12px 0;
+  padding: 10px 0;
+  flex-shrink: 0;
+  z-index: 30;
 }
 
 .header-content {
@@ -90,6 +100,7 @@
 .progress-bar {
   height: 3px;
   background: #1e293b;
+  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -102,13 +113,36 @@
 }
 
 /* ============================
-   MAIN CONTENT
+   MAIN CONTENT - ESAS DÜZENLEME
    ============================ */
 
 .main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 24px 24px;
   max-width: 900px;
   margin: 0 auto;
-  padding: 20px 24px 100px;
+  width: 100%;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar stil düzenlemesi */
+.main-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 .no-content {
@@ -118,7 +152,7 @@
 }
 
 /* ============================
-   STEP CONTAINER
+   STEP CONTAINER - YENİ TASARIM
    ============================ */
 
 .step-container {
@@ -127,6 +161,9 @@
   border: 1px solid #1e293b;
   overflow: hidden;
   animation: fadeIn 0.3s ease-in;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
 }
 
 @keyframes fadeIn {
@@ -141,9 +178,21 @@
 }
 
 .step-header {
-  padding: 24px 28px;
+  padding: 16px 24px;
   border-bottom: 1px solid #1e293b;
   background: #0f0f1a;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.step-header .step-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .step-number {
@@ -152,17 +201,59 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
+  background: #0f0f1a;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid #1e293b;
 }
 
 .step-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 4px 0 0 0;
+  margin: 0;
   color: #f1f5f9;
 }
 
+/* Yanlış sayacı */
+.wrong-count {
+  font-size: 12px;
+  color: #f59e0b;
+  background: #1a1a0f;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid #f59e0b33;
+  white-space: nowrap;
+}
+
+.progress-info {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #0e2d1f;
+  border-radius: 8px;
+  color: #10b981;
+  text-align: center;
+  font-size: 14px;
+  border: 1px solid #10b98133;
+}
+
 .step-content {
-  padding: 28px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Scrollbar içerik için */
+.step-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.step-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.step-content::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
 }
 
 /* ============================
@@ -170,34 +261,35 @@
    ============================ */
 
 .explanation-text {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.7;
   color: #cbd5e1;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-/* Items Grid */
+/* Items Grid - Daha kompakt */
 .items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-  margin: 16px 0;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
 }
 
 .item-card {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   background: #0f0f1a;
   border-radius: 8px;
   border: 1px solid #1e293b;
+  font-size: 14px;
 }
 
 .item-pronoun {
   font-weight: 700;
   color: #f1f5f9;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .item-arrow {
@@ -208,9 +300,9 @@
   color: #94a3b8;
 }
 
-/* Table */
+/* Table - Daha kompakt */
 .table-container {
-  margin: 16px 0;
+  margin: 12px 0;
   overflow-x: auto;
 }
 
@@ -226,17 +318,18 @@
   background: #1e293b;
   color: #94a3b8;
   font-weight: 600;
-  padding: 10px 16px;
+  padding: 8px 14px;
   text-align: left;
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .info-table td {
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-bottom: 1px solid #1e293b;
   color: #e2e8f0;
+  font-size: 14px;
 }
 
 .info-table .verb-cell {
@@ -244,74 +337,80 @@
   font-weight: 600;
 }
 
-/* Rule Box */
+/* Rule Box - Daha kompakt */
 .rule-box {
   background: #0f0f1a;
   border-left: 4px solid #6366f1;
-  padding: 14px 18px;
-  margin: 16px 0;
+  padding: 10px 16px;
+  margin: 12px 0;
   border-radius: 0 8px 8px 0;
   color: #e2e8f0;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 10px;
+  font-size: 14px;
 }
 
 .rule-icon {
-  font-size: 18px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .short-forms-box {
   background: #0f1a1a;
   border-left: 4px solid #10b981;
-  padding: 14px 18px;
-  margin: 12px 0;
+  padding: 10px 16px;
+  margin: 10px 0;
   border-radius: 0 8px 8px 0;
   color: #6ee7b7;
   display: flex;
   align-items: center;
   gap: 10px;
+  font-size: 14px;
 }
 
 .short-icon {
-  font-size: 18px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .tip-box {
   background: #1a1a0f;
   border-left: 4px solid #f59e0b;
-  padding: 14px 18px;
-  margin: 16px 0;
+  padding: 10px 16px;
+  margin: 12px 0;
   border-radius: 0 8px 8px 0;
   color: #fcd34d;
   display: flex;
   align-items: center;
   gap: 10px;
+  font-size: 14px;
 }
 
 .tip-icon {
-  font-size: 18px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .examples-box {
   background: #0f0f1a;
-  padding: 16px;
+  padding: 14px;
   border-radius: 8px;
-  margin: 16px 0;
+  margin: 12px 0;
 }
 
 .examples-box h4 {
   color: #94a3b8;
-  margin: 0 0 10px 0;
-  font-size: 14px;
+  margin: 0 0 8px 0;
+  font-size: 13px;
 }
 
 .example-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 0;
+  padding: 4px 0;
   font-size: 14px;
   flex-wrap: wrap;
 }
@@ -330,46 +429,47 @@
 }
 
 /* ============================
-   PRACTICE STEP
+   PRACTICE STEP - Daha Kompakt
    ============================ */
 
 .instructions-text {
-  font-size: 15px;
+  font-size: 14px;
   color: #94a3b8;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .practice-question {
   background: #0f0f1a;
-  padding: 20px;
+  padding: 16px;
   border-radius: 12px;
   border: 1px solid #1e293b;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .question-text {
   font-weight: 500;
   color: #f1f5f9;
-  margin: 0 0 16px 0;
-  font-size: 18px;
+  margin: 0 0 14px 0;
+  font-size: 16px;
 }
 
 .options-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .option-label {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   background: #0a0a14;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
   border: 2px solid transparent;
+  font-size: 14px;
 }
 
 .option-label:hover:not(.correct-option):not(.wrong-option) {
@@ -379,9 +479,10 @@
 
 .option-label input[type="radio"] {
   accent-color: #6366f1;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .option-label input[type="radio"]:disabled {
@@ -405,24 +506,25 @@
 
 .check-icon {
   margin-left: auto;
-  font-size: 20px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .fill-blank-group {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .fill-blank-input {
   flex: 1;
-  min-width: 200px;
-  padding: 12px 16px;
+  min-width: 150px;
+  padding: 10px 14px;
   background: #0a0a14;
   border: 2px solid #1e293b;
   border-radius: 8px;
   color: #e2e8f0;
-  font-size: 16px;
+  font-size: 15px;
   font-family: inherit;
   transition: border-color 0.2s;
 }
@@ -437,17 +539,17 @@
 }
 
 .check-btn {
-  padding: 12px 28px;
+  padding: 10px 24px;
   background: #6366f1;
   color: #fff;
   border: none;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .check-btn:hover:not(:disabled) {
@@ -461,10 +563,10 @@
 }
 
 .feedback {
-  margin-top: 12px;
-  padding: 12px 16px;
+  margin-top: 10px;
+  padding: 10px 14px;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .feedback.correct {
@@ -480,39 +582,54 @@
 }
 
 .progress-warning {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 10px;
+  padding: 10px 14px;
   background: #2d1a0e;
   border-radius: 8px;
   color: #f59e0b;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   border: 1px solid #f59e0b33;
 }
 
 /* ============================
-   DIALOGUE STEP
+   DIALOGUE STEP - Daha Kompakt
    ============================ */
 
 .dialogue-context {
   background: #0f0f1a;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: #94a3b8;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .dialogue-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 20px;
+  gap: 4px;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dialogue-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dialogue-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dialogue-container::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
 }
 
 .dialogue-line {
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
 }
 
 .speaker-a {
@@ -529,51 +646,53 @@
   font-weight: 700;
   color: #f1f5f9;
   margin-right: 8px;
+  font-size: 14px;
 }
 
 .dialogue-text {
   color: #e2e8f0;
+  font-size: 14px;
 }
 
 .dialogue-translation {
-  font-size: 13px;
+  font-size: 12px;
   color: #94a3b8;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .dialogue-practice {
   background: #0f0f1a;
-  padding: 16px;
+  padding: 14px;
   border-radius: 10px;
   border: 1px solid #1e293b;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .dialogue-practice h4 {
   color: #94a3b8;
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 10px 0;
+  font-size: 13px;
 }
 
 /* ============================
-   SUMMARY STEP
+   SUMMARY STEP - Daha Kompakt
    ============================ */
 
 .summary-content {
-  padding: 28px;
+  padding: 20px 24px;
 }
 
 .summary-box {
   background: #0f0f1a;
-  padding: 24px;
+  padding: 16px 20px;
   border-radius: 12px;
   border: 1px solid #1e293b;
 }
 
 .summary-box h3 {
   color: #f1f5f9;
-  margin: 0 0 12px 0;
-  font-size: 18px;
+  margin: 0 0 8px 0;
+  font-size: 16px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -581,69 +700,71 @@
 
 .summary-box ul {
   margin: 0;
-  padding-left: 24px;
+  padding-left: 20px;
   color: #cbd5e1;
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .summary-box li {
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .summary-icon {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .summary-complete {
   background: linear-gradient(135deg, #0e2d1f, #0f1a2e);
-  padding: 30px;
+  padding: 20px;
   border-radius: 12px;
   border: 2px solid #10b981;
   text-align: center;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .complete-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: 40px;
+  margin-bottom: 8px;
 }
 
 .summary-complete h3 {
   color: #10b981;
-  font-size: 22px;
-  margin: 0 0 8px 0;
+  font-size: 20px;
+  margin: 0 0 6px 0;
 }
 
 .summary-complete p {
   color: #94a3b8;
-  font-size: 15px;
+  font-size: 14px;
   margin: 0;
   line-height: 1.6;
 }
 
 /* ============================
-   NAVIGATION
+   NAVIGATION - Sabit değil, içerikle birlikte
    ============================ */
 
 .step-navigation {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px solid #1e293b;
+  flex-shrink: 0;
 }
 
 .nav-btn {
-  padding: 12px 24px;
+  padding: 10px 24px;
   border: none;
   border-radius: 10px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  min-width: 100px;
 }
 
 .prev-btn {
@@ -680,53 +801,6 @@
 }
 
 /* ============================
-   FOOTER
-   ============================ */
-
-.lesson-footer {
-  background: #1a1a2e;
-  border-top: 1px solid #1e293b;
-  padding: 12px 0;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-}
-
-.footer-content {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-}
-
-.footer-btn {
-  padding: 8px 16px;
-  background: #0f0f1a;
-  border: 1px solid #1e293b;
-  border-radius: 6px;
-  color: #94a3b8;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.2s;
-}
-
-.footer-btn:hover:not(:disabled) {
-  background: #1a1a2e;
-  border-color: #334155;
-  color: #e2e8f0;
-}
-
-.footer-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-/* ============================
    LOADING & ERROR
    ============================ */
 
@@ -738,6 +812,7 @@
   justify-content: center;
   min-height: 60vh;
   color: #94a3b8;
+  height: 100vh;
 }
 
 .loading-spinner {
@@ -792,16 +867,27 @@
    ============================ */
 
 @media (max-width: 768px) {
+  .main-content {
+    padding: 12px 16px 16px;
+  }
+
   .step-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .step-header .step-title-wrapper {
+    flex-wrap: wrap;
   }
 
   .step-title {
-    font-size: 20px;
+    font-size: 17px;
   }
 
   .step-content {
-    padding: 16px 20px;
+    padding: 14px 16px;
   }
 
   .items-grid {
@@ -810,12 +896,15 @@
 
   .step-navigation {
     flex-direction: column;
+    gap: 8px;
   }
 
   .nav-btn {
     width: 100%;
     justify-content: center;
     text-align: center;
+    padding: 10px 16px;
+    min-width: unset;
   }
 
   .fill-blank-group {
@@ -827,49 +916,30 @@
   }
 
   .option-label {
-    padding: 10px 14px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .question-text {
-    font-size: 16px;
-  }
-
-  .step-header .step-title {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   .summary-content {
-    padding: 16px 20px;
+    padding: 14px 16px;
   }
 
   .summary-box {
-    padding: 16px;
+    padding: 14px;
   }
 
   .summary-complete {
-    padding: 20px;
+    padding: 16px;
   }
 
   .header-content {
     padding: 0 16px;
   }
 
-  .main-content {
-    padding: 12px 16px 100px;
-  }
-
-  .footer-content {
-    padding: 0 16px;
-    gap: 8px;
-  }
-
-  .footer-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
   .lesson-number,
   .step-counter {
     font-size: 10px;
@@ -886,21 +956,76 @@
     padding: 4px 10px;
   }
 
-  .step-title {
-    font-size: 17px;
+  .dialogue-container {
+    max-height: 200px;
   }
+}
 
-  .question-text {
+@media (max-width: 480px) {
+  .step-title {
     font-size: 15px;
   }
 
-  .option-label {
+  .question-text {
     font-size: 14px;
-    padding: 8px 12px;
+  }
+
+  .option-label {
+    font-size: 12px;
+    padding: 6px 10px;
   }
 
   .fill-blank-input {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .check-btn {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
+
+  .step-number {
+    font-size: 10px;
+    padding: 1px 8px;
+  }
+
+  .wrong-count {
+    font-size: 11px;
+    padding: 2px 10px;
+  }
+
+  .feedback {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .dialogue-text {
+    font-size: 13px;
+  }
+
+  .dialogue-translation {
+    font-size: 11px;
+  }
+
+  .summary-box h3 {
     font-size: 14px;
-    padding: 10px 14px;
+  }
+
+  .summary-box ul {
+    font-size: 13px;
+    padding-left: 16px;
+  }
+
+  .summary-complete h3 {
+    font-size: 17px;
+  }
+
+  .summary-complete p {
+    font-size: 13px;
+  }
+
+  .complete-icon {
+    font-size: 32px;
   }
 }
