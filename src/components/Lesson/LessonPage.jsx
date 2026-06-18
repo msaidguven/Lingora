@@ -141,72 +141,81 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // ❓ PRACTICE ADIMI - DÜZELTİLMİŞ KARARLI VERSİYON
+// ❓ PRACTICE ADIMI - SON KARARLI VERSİYON
 function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [questions, setQuestions] = useState([]);
-  const [isComplete, setIsComplete] = useState(false);
+  const [questionList, setQuestionList] = useState([]);
+  const [isAllCompleted, setIsAllCompleted] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const allQuestions = step.questions || [];
 
-  // BAŞLATMA: Sadece bir kere çalışır
+  // BAŞLATMA: Sadece step.id değiştiğinde çalışır
   useEffect(() => {
+    console.log('🔄 PracticeStep başlatılıyor...', step.id);
+    
     if (allQuestions.length === 0) {
-      setQuestions([]);
-      setIsComplete(true);
+      setQuestionList([]);
+      setIsAllCompleted(true);
       setIsInitialized(true);
       return;
     }
 
     // External'dan gelen yanlış soruları kontrol et
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
-      setQuestions(externalWrongQuestions);
+      console.log('📝 External sorular kullanılıyor:', externalWrongQuestions.length);
+      setQuestionList(externalWrongQuestions);
     } else {
       // Tüm soruları karıştır
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-      setQuestions(shuffled);
+      console.log('🔀 Yeni sorular karıştırıldı:', shuffled.length);
+      setQuestionList(shuffled);
       if (onWrongAnswer) {
         onWrongAnswer(shuffled);
       }
     }
+    
     setCurrentIndex(0);
-    setIsComplete(false);
+    setIsAllCompleted(false);
     setIsInitialized(true);
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
-  }, [step.id]); // Sadece step.id değiştiğinde çalışır
+  }, [step.id]); // Sadece step.id değiştiğinde
 
-  // Mevcut soruyu al
-  const getCurrentQuestion = useCallback(() => {
+  // Mevcut soruyu al - SADECE burada kontrol et
+  const currentQuestion = (() => {
     if (!isInitialized) return null;
-    if (questions.length === 0) return null;
-    if (currentIndex >= questions.length) return null;
-    return questions[currentIndex];
-  }, [isInitialized, questions, currentIndex]);
-
-  const question = getCurrentQuestion();
+    if (questionList.length === 0) return null;
+    if (currentIndex >= questionList.length) return null;
+    return questionList[currentIndex];
+  })();
 
   // Soru değiştiğinde state'leri sıfırla
   useEffect(() => {
-    if (question) {
+    if (currentQuestion) {
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
     }
-  }, [currentIndex, question]);
+  }, [currentIndex, currentQuestion]);
 
-  // Tüm sorular tamamlandı mı kontrol et
+  // TÜM SORULAR TAMAMLANDI MI? - Sadece questionList boşaldığında
   useEffect(() => {
-    if (isInitialized && questions.length === 0 && !isComplete) {
-      setIsComplete(true);
+    if (isInitialized && questionList.length === 0 && !isAllCompleted) {
+      console.log('🎉 Tüm sorular tamamlandı!');
+      setIsAllCompleted(true);
     }
-  }, [isInitialized, questions, isComplete]);
+  }, [isInitialized, questionList.length, isAllCompleted]);
 
-  // Soru yok veya tamamlandı
+  // ============================
+  // RENDER DURUMLARI
+  // ============================
+
+  // 1. Henüz başlatılmadı
   if (!isInitialized) {
     return (
       <div className="step-container">
@@ -220,6 +229,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     );
   }
 
+  // 2. Hiç soru yok
   if (allQuestions.length === 0) {
     return (
       <div className="step-container">
@@ -234,7 +244,8 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     );
   }
 
-  if (isComplete || questions.length === 0) {
+  // 3. Tüm sorular tamamlandı - SADECE isAllCompleted true ise
+  if (isAllCompleted) {
     return (
       <div className="step-container">
         <div className="step-header">
@@ -254,43 +265,51 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     );
   }
 
-  if (!question) {
+  // 4. Soru yok ama tamamlanmadı (arada bir durum)
+  if (!currentQuestion) {
     return (
       <div className="step-container">
         <div className="step-content">
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div className="loading-spinner">⏳</div>
-            <p style={{ color: '#94a3b8' }}>Soru yükleniyor...</p>
+            <p style={{ color: '#94a3b8' }}>Soru hazırlanıyor...</p>
           </div>
         </div>
       </div>
     );
   }
 
+  // ============================
+  // SORU GÖSTERİMİ
+  // ============================
+
   const handleOptionSelect = (value) => {
     if (showFeedback) return;
     setAnswer(value);
-    const correct = value === question.correct;
+    const correct = value === currentQuestion.correct;
     setIsCorrect(correct);
     setShowFeedback(true);
 
     // Soruyu listeden çıkar
-    const newList = [...questions];
+    const newList = [...questionList];
     newList.splice(currentIndex, 1);
     
     // Yanlışsa sona ekle
     if (!correct) {
-      newList.push(question);
+      newList.push(currentQuestion);
     }
 
-    setQuestions(newList);
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
+    setQuestionList(newList);
+    
     if (onWrongAnswer) {
       onWrongAnswer(newList);
     }
 
-    // Eğer liste boşaldıysa tamamlandı olarak işaretle
+    // Liste boşaldıysa tamamlandı olarak işaretle
     if (newList.length === 0) {
-      setIsComplete(true);
+      console.log('🎉 Liste boşaldı, tamamlandı!');
+      setIsAllCompleted(true);
     }
   };
 
@@ -304,24 +323,27 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       alert('Lütfen bir cevap yazın!');
       return;
     }
-    const correct = answer.trim().toLowerCase() === question.correct.toLowerCase();
+    const correct = answer.trim().toLowerCase() === currentQuestion.correct.toLowerCase();
     setIsCorrect(correct);
     setShowFeedback(true);
 
-    const newList = [...questions];
+    const newList = [...questionList];
     newList.splice(currentIndex, 1);
     
     if (!correct) {
-      newList.push(question);
+      newList.push(currentQuestion);
     }
 
-    setQuestions(newList);
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
+    setQuestionList(newList);
+    
     if (onWrongAnswer) {
       onWrongAnswer(newList);
     }
 
     if (newList.length === 0) {
-      setIsComplete(true);
+      console.log('🎉 Liste boşaldı, tamamlandı!');
+      setIsAllCompleted(true);
     }
   };
 
@@ -337,12 +359,14 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       return;
     }
     
-    if (questions.length > 0) {
+    // Eğer hala soru varsa, sıradakine geç
+    if (questionList.length > 0) {
       setCurrentIndex(0);
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
     } else {
+      // Tüm sorular bitti
       onNext();
     }
   };
@@ -354,14 +378,19 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     onPrevious();
   };
 
-  const remainingCount = questions.length;
+  const remainingCount = questionList.length;
 
   return (
     <div className="step-container">
       <div className="step-header">
         <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
-        {remainingCount > 0 && <span className="wrong-count">⚠️ {remainingCount} soru kaldı</span>}
+        {remainingCount > 0 && (
+          <span className="wrong-count">⚠️ {remainingCount} soru kaldı</span>
+        )}
+        {remainingCount === 0 && showFeedback && isCorrect && (
+          <span className="completed-count">✅ Tüm sorular tamamlandı!</span>
+        )}
       </div>
 
       <div className="step-content practice-content">
@@ -371,14 +400,14 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
         {step.instructions && <p className="instructions-text">{step.instructions}</p>}
 
         <div className="practice-question">
-          <p className="question-text">{question.question}</p>
+          <p className="question-text">{currentQuestion.question}</p>
 
-          {question.options && question.options.length > 0 ? (
+          {currentQuestion.options && currentQuestion.options.length > 0 ? (
             <div className="options-group">
-              {question.options.map((option, idx) => {
+              {currentQuestion.options.map((option, idx) => {
                 const isSelected = answer === option;
-                const isCorrectOption = showFeedback && option === question.correct;
-                const isWrongOption = showFeedback && isSelected && option !== question.correct;
+                const isCorrectOption = showFeedback && option === currentQuestion.correct;
+                const isWrongOption = showFeedback && isSelected && option !== currentQuestion.correct;
                 
                 return (
                   <label key={idx} className={`option-label 
@@ -420,8 +449,8 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
           {showFeedback && (
             <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
               {isCorrect 
-                ? question.feedback_correct || '✅ Doğru!'
-                : question.feedback_wrong || '❌ Yanlış. Tekrar deneyeceksiniz.'}
+                ? currentQuestion.feedback_correct || '✅ Doğru!'
+                : currentQuestion.feedback_wrong || '❌ Yanlış. Tekrar deneyeceksiniz.'}
             </div>
           )}
         </div>
@@ -429,7 +458,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
         <div className="step-navigation">
           <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
           <button onClick={handleNext} disabled={!showFeedback} className="nav-btn next-btn">
-            {isLast && questions.length === 0 ? '✅ Dersi Tamamla' : 'İlerle →'}
+            {isLast && questionList.length === 0 ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
 
@@ -438,6 +467,9 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
         )}
         {showFeedback && isCorrect && remainingCount > 0 && (
           <div className="progress-info">✅ Doğru cevap! Kalan {remainingCount} soru var.</div>
+        )}
+        {showFeedback && isCorrect && remainingCount === 0 && (
+          <div className="progress-info success">🎉 Tüm sorular tamamlandı! Devam edebilirsiniz.</div>
         )}
       </div>
     </div>
