@@ -1,15 +1,15 @@
 // HomeScreen.jsx
 import { useState, useEffect } from "react";
-import { FIXED_USER_ID } from "./components/home/constants.js";
-import { styles, globalCss } from "./components/home/styles.js";
-import LoadingScreen from "./components/home/LoadingScreen.jsx";
-import HomeHeader from "./components/home/HomeHeader.jsx";
-import LessonsSection from "./components/home/LessonsSection.jsx";
-import ProgressCard from "./components/home/ProgressCard.jsx";
-import OpenNewWordsButton from "./components/home/OpenNewWordsButton.jsx";
-import QuizButtons from "./components/home/QuizButtons.jsx";
-import StatTiles from "./components/home/StatTiles.jsx";
-import SummaryBar from "./components/home/SummaryBar.jsx";
+import { FIXED_USER_ID } from "./constants.js";
+import { styles, globalCss } from "./styles.js";
+import LoadingScreen from "./LoadingScreen.jsx";
+import HomeHeader from "./HomeHeader.jsx";
+import LessonsSection from "./LessonsSection.jsx";
+import ProgressCard from "./ProgressCard.jsx";
+import OpenNewWordsButton from "./OpenNewWordsButton.jsx";
+import QuizButtons from "./QuizButtons.jsx";
+import StatTiles from "./StatTiles.jsx";
+import SummaryBar from "./SummaryBar.jsx";
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   const [mounted, setMounted] = useState(false);
