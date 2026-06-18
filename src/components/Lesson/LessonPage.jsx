@@ -643,18 +643,20 @@ export default function LessonPage({ lessonId, onBack }) {
 
       const { data: existing } = await supabase
         .from('en_user_lesson_progress')
-        .select('id')
+        .select('id, completed, score, completed_at')
         .eq('user_id', FIXED_USER_ID)
         .eq('lesson_id', lessonId)
         .single();
 
       if (existing) {
+        const nextCompleted = existing.completed || isCompleted;
+        const nextScore = Math.max(existing.score || 0, score);
         const { error } = await supabase
           .from('en_user_lesson_progress')
           .update({
-            completed: isCompleted,
-            score: score,
-            completed_at: isCompleted ? new Date().toISOString() : null,
+            completed: nextCompleted,
+            score: nextScore,
+            completed_at: nextCompleted ? (existing.completed_at || new Date().toISOString()) : null,
             wrong_questions: wrongQuestionsJson
           })
           .eq('id', existing.id);
@@ -994,15 +996,35 @@ export default function LessonPage({ lessonId, onBack }) {
     }
   };
 
-  const goToNextStep = () => {
+  const handleBackToHome = async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (lesson && steps.length > 0 && isProgressLoaded) {
+      await saveProgressToSupabase(lesson.id, currentStepIndex, steps.length, wrongQuestionsMap);
+    }
+    onBack?.();
+  };
+
+  const goToNextStep = async () => {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
       if (contentRef.current) contentRef.current.scrollTop = 0;
     } else {
-      alert('🎉 Tebrikler! Dersi tamamladınız!');
       if (lesson) {
-        saveProgressToSupabase(lesson.id, steps.length - 1, steps.length, wrongQuestionsMap);
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        const completedWrongQuestionsMap = steps.reduce((acc, step) => {
+          if (step.type === 'practice') acc[step.id] = [];
+          return acc;
+        }, {});
+        setWrongQuestionsMap(completedWrongQuestionsMap);
+        await saveProgressToSupabase(lesson.id, steps.length - 1, steps.length, completedWrongQuestionsMap);
       }
+      onBack?.();
     }
   };
 
@@ -1034,14 +1056,13 @@ export default function LessonPage({ lessonId, onBack }) {
     <div className="lesson-page">
       <header className="lesson-header">
         <div className="header-content">
-          <button onClick={onBack} className="back-btn">← Geri</button>
+          <button onClick={handleBackToHome} className="back-btn">← Geri</button>
           <div className="header-info">
             <span className="lesson-number">Ders #{lesson.lesson_number}</span>
             <span className="lesson-level" style={{ backgroundColor: getLevelColor(lesson.level) }}>
               {lesson.level}
             </span>
             <span className="step-counter">{currentStepIndex + 1} / {totalSteps}</span>
-            {savingProgress && <span className="saving-indicator">💾 Kaydediliyor...</span>}
             {saveError && <span className="save-error">⚠️ Kayıt hatası</span>}
           </div>
         </div>

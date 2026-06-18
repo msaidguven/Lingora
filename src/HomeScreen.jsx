@@ -85,7 +85,28 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoT
         .limit(3);
 
       if (error) throw error;
-      setRecentLessons(data || []);
+      const lessons = data || [];
+      const lessonIds = lessons.map((lesson) => lesson.id);
+
+      let progressByLessonId = {};
+      if (lessonIds.length > 0) {
+        const { data: progressData, error: progressError } = await supabase
+          .from("en_user_lesson_progress")
+          .select("lesson_id, completed, score")
+          .eq("user_id", FIXED_USER_ID)
+          .in("lesson_id", lessonIds);
+
+        if (progressError) throw progressError;
+        progressByLessonId = (progressData || []).reduce((map, progress) => {
+          map[progress.lesson_id] = progress;
+          return map;
+        }, {});
+      }
+
+      setRecentLessons(lessons.map((lesson) => ({
+        ...lesson,
+        progress: progressByLessonId[lesson.id] || null
+      })));
     } catch (error) {
       console.error("Dersler çekilirken hata:", error);
     } finally {
@@ -241,25 +262,39 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoT
             </div>
           ) : recentLessons.length > 0 ? (
             <div style={styles.lessonsList}>
-              {recentLessons.map((lesson) => (
-                <div
-                  key={lesson.id}
-                  onClick={() => onGoToLesson?.(lesson.id)}
-                  style={styles.lessonCard}
-                  className="lesson-card"
-                >
-                  <div style={styles.lessonCardLeft}>
-                    <div style={styles.lessonNumber}>
-                      #{lesson.lesson_number}
+              {recentLessons.map((lesson) => {
+                const isCompleted = lesson.progress?.completed;
+                return (
+                  <div
+                    key={lesson.id}
+                    onClick={() => onGoToLesson?.(lesson.id)}
+                    style={{
+                      ...styles.lessonCard,
+                      ...(isCompleted ? styles.lessonCardCompleted : {})
+                    }}
+                    className="lesson-card"
+                  >
+                    <div style={styles.lessonCardLeft}>
+                      <div style={{
+                        ...styles.lessonNumber,
+                        ...(isCompleted ? styles.lessonNumberCompleted : {})
+                      }}>
+                        {isCompleted ? "✓" : `#${lesson.lesson_number}`}
+                      </div>
+                      <div>
+                        <div style={styles.lessonTitle}>{lesson.title}</div>
+                        <div style={styles.lessonMetaRow}>
+                          <span style={styles.lessonLevel}>{lesson.level}</span>
+                          {isCompleted && (
+                            <span style={styles.lessonCompletedBadge}>Tamamlandı</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={styles.lessonTitle}>{lesson.title}</div>
-                      <div style={styles.lessonLevel}>{lesson.level}</div>
-                    </div>
+                    <div style={styles.lessonArrow}>{isCompleted ? "Tekrar Et" : "→"}</div>
                   </div>
-                  <div style={styles.lessonArrow}>→</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div style={styles.noLessons}>
@@ -638,6 +673,10 @@ const styles = {
     borderRadius: 14,
     border: "1px solid #201c3a",
   },
+  lessonCardCompleted: {
+    border: "1px solid rgba(16,185,129,0.35)",
+    background: "linear-gradient(135deg, rgba(16,185,129,0.12), #130f24)",
+  },
   lessonCardLeft: {
     display: "flex",
     alignItems: "center",
@@ -652,23 +691,43 @@ const styles = {
     borderRadius: 6,
     fontFamily: "'Manrope', sans-serif",
   },
+  lessonNumberCompleted: {
+    color: "#10b981",
+    background: "rgba(16,185,129,0.14)",
+  },
   lessonTitle: {
     fontSize: 14,
     fontWeight: 600,
     color: "#e9e6f7",
   },
+  lessonMetaRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+    marginTop: 2,
+  },
   lessonLevel: {
     fontSize: 10,
     color: "#6b6690",
-    marginTop: 2,
     background: "#0a0915",
     padding: "1px 8px",
     borderRadius: 4,
     display: "inline-block",
   },
+  lessonCompletedBadge: {
+    fontSize: 10,
+    color: "#10b981",
+    background: "rgba(16,185,129,0.12)",
+    border: "1px solid rgba(16,185,129,0.2)",
+    padding: "1px 8px",
+    borderRadius: 4,
+    fontWeight: 700,
+  },
   lessonArrow: {
     color: "#4b4768",
-    fontSize: 16,
+    fontSize: 12,
+    fontWeight: 700,
     transition: "all 0.2s ease",
   },
   noLessons: {
