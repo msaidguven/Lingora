@@ -1,5 +1,5 @@
 // LessonPage.jsx - Her adımda tek soru versiyonu
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../config.js";
 import "./LessonPage.css";
 
@@ -205,22 +205,41 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
   );
 }
 
-// ❓ PRACTICE ADIMI - Tek Soru (OTOMATİK KONTROL)
+// ❓ PRACTICE ADIMI - Tek Soru (Yanlışta Geç, Sonra Tekrar Göster)
 function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [wrongQuestions, setWrongQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const questions = step.questions || [];
-  const question = questions[0];
+  
+  // Soruları karıştır ve state'e al
+  useEffect(() => {
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    setWrongQuestions(shuffled);
+    setCurrentQuestionIndex(0);
+    setAnswer('');
+    setShowFeedback(false);
+    setIsCorrect(false);
+  }, [step.id, questions]);
+
+  // Mevcut soruyu al
+  const getCurrentQuestion = () => {
+    if (wrongQuestions.length === 0) return null;
+    return wrongQuestions[currentQuestionIndex];
+  };
+
+  const question = getCurrentQuestion();
 
   useEffect(() => {
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
-  }, [step.id]);
+  }, [currentQuestionIndex]);
 
-  if (!question) {
+  if (!question || questions.length === 0) {
     return (
       <div className="step-container">
         <div className="step-content">
@@ -237,6 +256,19 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
     const correct = value === question.correct;
     setIsCorrect(correct);
     setShowFeedback(true);
+    
+    // Yanlışsa soruyu listeye ekle (tekrar için)
+    if (!correct) {
+      // Soruyu listenin sonuna ekle
+      setWrongQuestions(prev => {
+        const newList = [...prev];
+        // Mevcut soruyu çıkar
+        newList.splice(currentQuestionIndex, 1);
+        // Sonuna ekle
+        newList.push(question);
+        return newList;
+      });
+    }
   };
 
   const handleInputChange = (value) => {
@@ -252,6 +284,16 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
     const correct = answer.trim().toLowerCase() === question.correct.toLowerCase();
     setIsCorrect(correct);
     setShowFeedback(true);
+    
+    // Yanlışsa soruyu listeye ekle (tekrar için)
+    if (!correct) {
+      setWrongQuestions(prev => {
+        const newList = [...prev];
+        newList.splice(currentQuestionIndex, 1);
+        newList.push(question);
+        return newList;
+      });
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -265,14 +307,27 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
       alert('Lütfen önce soruyu cevaplayın!');
       return;
     }
-    if (!isCorrect) {
-      alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
-      return;
+    
+    // Sonraki soruya geç
+    if (currentQuestionIndex < wrongQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setAnswer('');
+      setShowFeedback(false);
+      setIsCorrect(false);
+    } else {
+      // Tüm sorular bitti mi kontrol et
+      const remainingWrong = wrongQuestions.filter((_, idx) => idx > currentQuestionIndex);
+      if (remainingWrong.length === 0) {
+        // Tüm sorular doğru cevaplandı
+        onNext();
+      } else {
+        // Kalan yanlış sorular var, başa dön
+        setCurrentQuestionIndex(0);
+        setAnswer('');
+        setShowFeedback(false);
+        setIsCorrect(false);
+      }
     }
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-    onNext();
   };
 
   const handlePrevious = () => {
@@ -282,11 +337,17 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
     onPrevious();
   };
 
+  // Yanlış sayısını hesapla
+  const wrongCount = wrongQuestions.filter((_, idx) => idx > currentQuestionIndex).length;
+
   return (
     <div className="step-container">
       <div className="step-header">
         <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
+        {wrongCount > 0 && (
+          <span className="wrong-count">⚠️ {wrongCount} soru tekrar edilecek</span>
+        )}
       </div>
 
       <div className="step-content practice-content">
@@ -365,8 +426,8 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
           {showFeedback && (
             <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
               {isCorrect 
-                ? question.feedback_correct 
-                : question.feedback_wrong}
+                ? question.feedback_correct || '✅ Doğru!'
+                : question.feedback_wrong || '❌ Yanlış. Tekrar deneyeceksiniz.'}
             </div>
           )}
         </div>
@@ -381,16 +442,24 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast }) {
           </button>
           <button 
             onClick={handleNext} 
-            disabled={!showFeedback || !isCorrect}
+            disabled={!showFeedback}
             className="nav-btn next-btn"
           >
-            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+            {isLast && currentQuestionIndex === wrongQuestions.length - 1 && wrongCount === 0
+              ? '✅ Dersi Tamamla'
+              : 'İlerle →'}
           </button>
         </div>
 
         {showFeedback && !isCorrect && (
           <div className="progress-warning">
-            ⚠️ Doğru cevabı bulmadan ilerleyemezsiniz. Tekrar deneyin!
+            ⚠️ Bu soruyu yanlış cevapladınız. İleride tekrar karşınıza çıkacak.
+          </div>
+        )}
+
+        {showFeedback && isCorrect && wrongCount > 0 && (
+          <div className="progress-info">
+            ✅ Doğru cevap! Kalan {wrongCount} soru tekrar edilecek.
           </div>
         )}
       </div>
@@ -565,6 +634,34 @@ export default function LessonPage({ lessonId, onBack }) {
   const [error, setError] = useState(null);
   const [steps, setSteps] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [savedProgress, setSavedProgress] = useState(null);
+  const contentRef = useRef(null);
+
+  // Kaydedilmiş ilerlemeyi yükle
+  useEffect(() => {
+    const saved = localStorage.getItem(`lesson_progress_${lessonId}`);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setSavedProgress(data);
+      } catch (e) {
+        console.error('Progress yükleme hatası:', e);
+      }
+    }
+  }, [lessonId]);
+
+  // İlerlemeyi kaydet
+  useEffect(() => {
+    if (lesson && steps.length > 0) {
+      const progress = {
+        lessonId: lesson.id,
+        stepIndex: currentStepIndex,
+        totalSteps: steps.length,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(`lesson_progress_${lesson.id}`, JSON.stringify(progress));
+    }
+  }, [currentStepIndex, lesson, steps]);
 
   useEffect(() => {
     if (lessonId) {
@@ -613,18 +710,30 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
+      let loadedSteps = [];
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
         if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
-          setSteps(lessonData.content_json.steps);
+          loadedSteps = lessonData.content_json.steps;
         } else {
-          const convertedSteps = convertLegacyToSteps(lessonData.content_json);
-          setSteps(convertedSteps);
+          loadedSteps = convertLegacyToSteps(lessonData.content_json);
         }
-      } else {
-        setSteps([]);
       }
       
+      setSteps(loadedSteps);
       setLesson(lessonData);
+
+      // Kaydedilmiş ilerlemeyi kontrol et
+      const saved = localStorage.getItem(`lesson_progress_${lessonData.id}`);
+      if (saved) {
+        try {
+          const progress = JSON.parse(saved);
+          if (progress.stepIndex < loadedSteps.length) {
+            setCurrentStepIndex(progress.stepIndex);
+          }
+        } catch (e) {
+          console.error('Progress yükleme hatası:', e);
+        }
+      }
     } catch (error) {
       console.error("Ders yüklenirken hata:", error);
       setError(error.message);
@@ -667,18 +776,30 @@ export default function LessonPage({ lessonId, onBack }) {
         }
       }
       
+      let loadedSteps = [];
       if (typeof lessonData.content_json === 'object' && lessonData.content_json !== null) {
         if (lessonData.content_json.steps && Array.isArray(lessonData.content_json.steps)) {
-          setSteps(lessonData.content_json.steps);
+          loadedSteps = lessonData.content_json.steps;
         } else {
-          const convertedSteps = convertLegacyToSteps(lessonData.content_json);
-          setSteps(convertedSteps);
+          loadedSteps = convertLegacyToSteps(lessonData.content_json);
         }
-      } else {
-        setSteps([]);
       }
       
+      setSteps(loadedSteps);
       setLesson(lessonData);
+
+      // Kaydedilmiş ilerlemeyi kontrol et
+      const saved = localStorage.getItem(`lesson_progress_${lessonData.id}`);
+      if (saved) {
+        try {
+          const progress = JSON.parse(saved);
+          if (progress.stepIndex < loadedSteps.length) {
+            setCurrentStepIndex(progress.stepIndex);
+          }
+        } catch (e) {
+          console.error('Progress yükleme hatası:', e);
+        }
+      }
     } catch (error) {
       console.error("Ders yüklenirken hata:", error);
       setError(error.message);
@@ -835,16 +956,24 @@ export default function LessonPage({ lessonId, onBack }) {
   const goToPreviousStep = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (contentRef.current) {
+        contentRef.current.scrollTop = 0;
+      }
     }
   };
 
   const goToNextStep = () => {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (contentRef.current) {
+        contentRef.current.scrollTop = 0;
+      }
     } else {
       alert('🎉 Tebrikler! Dersi tamamladınız!');
+      // İlerlemeyi temizle
+      if (lesson) {
+        localStorage.removeItem(`lesson_progress_${lesson.id}`);
+      }
     }
   };
 
@@ -926,7 +1055,7 @@ export default function LessonPage({ lessonId, onBack }) {
       )}
 
       {/* MAIN CONTENT */}
-      <main className="main-content">
+      <main className="main-content" ref={contentRef}>
         {totalSteps > 0 && currentStep ? (
           renderStep(currentStep)
         ) : (
@@ -935,25 +1064,6 @@ export default function LessonPage({ lessonId, onBack }) {
           </div>
         )}
       </main>
-
-      {/* FOOTER */}
-      <footer className="lesson-footer">
-        <div className="footer-content">
-          <button 
-            onClick={handlePrevLesson}
-            disabled={!lesson || lesson.lesson_number <= 1}
-            className="footer-btn"
-          >
-            ← Önceki Ders
-          </button>
-          <button 
-            onClick={handleNextLesson}
-            className="footer-btn"
-          >
-            Sonraki Ders →
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }
