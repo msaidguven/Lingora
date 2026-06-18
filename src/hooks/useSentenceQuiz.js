@@ -4,6 +4,7 @@ import { supabase } from "../config.js";
 import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+const SESSION_SENTENCE_LIMIT = 20;
 
 export function useSentenceQuiz(userLevel) {
   const [allSentences, setAllSentences] = useState([]);
@@ -17,6 +18,7 @@ export function useSentenceQuiz(userLevel) {
   const [selected, setSelected] = useState(null);
   const [answered, setAnswered] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sessionKey, setSessionKey] = useState(0);
 
   const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
 
@@ -30,18 +32,22 @@ export function useSentenceQuiz(userLevel) {
           .from("en_user_sentences")
           .select("sentence_id, next_review_at")
           .eq("user_id", FIXED_USER_ID)
-          .lt("next_review_at", new Date().toISOString());
+          .lt("next_review_at", new Date().toISOString())
+          .order("next_review_at", { ascending: true })
+          .limit(SESSION_SENTENCE_LIMIT);
         
         if (usError) throw usError;
         
         if (!userSentences || userSentences.length === 0) {
+          setAllSentences([]);
           setQueue([]);
           setCurrentQuestion(null);
+          setQueueIndex(0);
           setLoading(false);
           return;
         }
         
-        const sentenceIds = userSentences.map(s => s.sentence_id);
+        const sentenceIds = shuffle(userSentences.map(s => s.sentence_id));
         
         const { data: sentences, error: sError } = await supabase
           .from("en_example_sentences")
@@ -51,11 +57,16 @@ export function useSentenceQuiz(userLevel) {
         
         if (sError) throw sError;
         
-        const validSentences = (sentences || []).filter(s => s.sentence_en && s.sentence_tr && s.en_words);
-        setAllSentences(validSentences);
-        const shuffledQueue = shuffle(validSentences);
-        setQueue(shuffledQueue);
-        setCurrentQuestion(shuffledQueue[0] || null);
+        const sentencesById = new Map(
+          (sentences || [])
+            .filter(s => s.sentence_en && s.sentence_tr && s.en_words)
+            .map(sentence => [sentence.id, sentence])
+        );
+        const sessionQueue = sentenceIds.map(id => sentencesById.get(id)).filter(Boolean);
+
+        setAllSentences(sessionQueue);
+        setQueue(sessionQueue);
+        setCurrentQuestion(sessionQueue[0] || null);
         setQueueIndex(0);
         
         const { data: words } = await supabase
@@ -72,7 +83,7 @@ export function useSentenceQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-  }, [userLevel]);
+  }, [userLevel, sessionKey]);
 
   // Şıkları oluştur
   useEffect(() => {
@@ -163,6 +174,12 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
     }
   };
 
+  const restartQuizSession = () => {
+    setSelected(null);
+    setAnswered(false);
+    setSessionKey(key => key + 1);
+  };
+
   return {
     loading,
     error,
@@ -176,6 +193,7 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
     allCards,
     handleSelect,
     handleNext,
+    restartQuizSession,
     setSelected,
     setAnswered
   };
