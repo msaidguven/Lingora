@@ -1,6 +1,5 @@
 // HomeScreen.jsx
 import { useState, useEffect } from "react";
-import { useHomeData } from "./hooks/useHomeData.js";
 import { FIXED_USER_ID } from "./components/home/constants.js";
 import { styles, globalCss } from "./components/home/styles.js";
 import LoadingScreen from "./components/home/LoadingScreen.jsx";

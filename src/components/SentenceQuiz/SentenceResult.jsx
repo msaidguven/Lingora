@@ -55,7 +55,6 @@ export default function SentenceResult({
         <button 
           onClick={() => onSpeak(currentWord.word)} 
           style={{ 
-            background: "none", 
             border: "none", 
             color: "#64748b", 
             cursor: "pointer", 
