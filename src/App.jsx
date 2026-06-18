@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 import Header from "./Header.jsx";
-import HomeScreen from "./components/home/HomeScreen.jsx";
+import HomeScreen from "./HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen.jsx";
