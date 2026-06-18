@@ -109,8 +109,6 @@ export default function DashboardScreen() {
     sentenceTotalCorrect: 0,
     sentenceTotalWrong: 0,
     sentenceAccuracy: 0,
-    bestDay: null,
-    worstDay: null
   });
 
   useEffect(() => {
@@ -130,7 +128,6 @@ export default function DashboardScreen() {
       let totalCorrect = 0, totalWrong = 0;
       let wordTotalCorrect = 0, wordTotalWrong = 0;
       let sentenceTotalCorrect = 0, sentenceTotalWrong = 0;
-      let bestDay = null, worstDay = null;
 
       stats.forEach(day => {
         totalCorrect += day.total_correct || 0;
@@ -139,16 +136,6 @@ export default function DashboardScreen() {
         wordTotalWrong += day.word_wrong || 0;
         sentenceTotalCorrect += day.sentence_correct || 0;
         sentenceTotalWrong += day.sentence_wrong || 0;
-
-        const total = (day.total_correct || 0) + (day.total_wrong || 0);
-        if (total > 0) {
-          if (!bestDay || total > ((bestDay.total_correct || 0) + (bestDay.total_wrong || 0))) {
-            bestDay = day;
-          }
-          if (!worstDay || total < ((worstDay.total_correct || 0) + (worstDay.total_wrong || 0))) {
-            worstDay = day;
-          }
-        }
       });
 
       const totalAttempts = totalCorrect + totalWrong;
@@ -171,8 +158,6 @@ export default function DashboardScreen() {
         sentenceTotalCorrect,
         sentenceTotalWrong,
         sentenceAccuracy,
-        bestDay,
-        worstDay
       });
 
     } catch (error) {
@@ -364,47 +349,6 @@ export default function DashboardScreen() {
             }} />
           </div>
         </SurfaceCard>
-
-        {/* ── EN İYİ / EN KÖTÜ GÜN ── */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-          <SurfaceCard accentColor="#10b981">
-            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
-              🔥 En İyi Gün
-            </div>
-            {summary.bestDay ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
-                  {formatDate(summary.bestDay.stat_date)}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <StatPill value={summary.bestDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-                  <StatPill value={summary.bestDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: "#334155" }}>Veri yok</div>
-            )}
-          </SurfaceCard>
-
-          <SurfaceCard accentColor="#ef4444">
-            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
-              📉 En Kötü Gün
-            </div>
-            {summary.worstDay ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 8 }}>
-                  {formatDate(summary.worstDay.stat_date)}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <StatPill value={summary.worstDay.total_correct} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-                  <StatPill value={summary.worstDay.total_wrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: "#334155" }}>Veri yok</div>
-            )}
-          </SurfaceCard>
-        </div>
 
         {/* ── SON 30 GÜN TABLOSU ── */}
         <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
