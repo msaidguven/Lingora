@@ -327,29 +327,6 @@ export default function DashboardScreen() {
           </SurfaceCard>
         </div>
 
-        {/* ── GENEL TOPLAM ── */}
-        <SurfaceCard accentColor="#fbbf24" style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
-            📊 Genel Toplam
-          </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-            <StatPill value={summary.totalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-            <StatPill value={summary.totalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
-            <StatPill value={`%${summary.accuracy}`} label="Başarı" color={getAccColor(summary.accuracy)} bg={getAccTones(summary.accuracy).bg} border={getAccTones(summary.accuracy).border} />
-            <StatPill value={summary.totalAttempts} label="Toplam" color="#818cf8" bg="rgba(99,102,241,0.07)" border="rgba(99,102,241,0.12)" />
-          </div>
-          <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{
-              width: `${summary.accuracy}%`,
-              height: "100%",
-              background: `linear-gradient(90deg, ${getAccColor(summary.accuracy)}99, ${getAccColor(summary.accuracy)})`,
-              borderRadius: 4,
-              transition: "width 0.4s ease",
-              boxShadow: `0 0 8px ${getAccColor(summary.accuracy)}60`
-            }} />
-          </div>
-        </SurfaceCard>
-
         {/* ── SON 30 GÜN TABLOSU ── */}
         <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
