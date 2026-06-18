@@ -148,6 +148,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
   const [isCorrect, setIsCorrect] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionList, setQuestionList] = useState([]);
+  const [answeredQuestion, setAnsweredQuestion] = useState(null);
   const [isAllCompleted, setIsAllCompleted] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -184,10 +185,12 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
+    setAnsweredQuestion(null);
   }, [step.id]); // Sadece step.id değiştiğinde
 
   // Mevcut soruyu al - SADECE burada kontrol et
   const currentQuestion = (() => {
+    if (answeredQuestion) return answeredQuestion;
     if (!isInitialized) return null;
     if (questionList.length === 0) return null;
     if (currentIndex >= questionList.length) return null;
@@ -196,20 +199,12 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
 
   // Soru değiştiğinde state'leri sıfırla
   useEffect(() => {
-    if (currentQuestion) {
+    if (questionList.length > 0 && !answeredQuestion) {
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
     }
-  }, [currentIndex, currentQuestion]);
-
-  // TÜM SORULAR TAMAMLANDI MI? - Sadece questionList boşaldığında
-  useEffect(() => {
-    if (isInitialized && questionList.length === 0 && !isAllCompleted) {
-      console.log('🎉 Tüm sorular tamamlandı!');
-      setIsAllCompleted(true);
-    }
-  }, [isInitialized, questionList.length, isAllCompleted]);
+  }, [currentIndex, questionList.length, answeredQuestion]);
 
   // ============================
   // RENDER DURUMLARI
@@ -289,6 +284,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     const correct = value === currentQuestion.correct;
     setIsCorrect(correct);
     setShowFeedback(true);
+    setAnsweredQuestion(currentQuestion);
 
     // Soruyu listeden çıkar
     const newList = [...questionList];
@@ -305,12 +301,6 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     if (onWrongAnswer) {
       onWrongAnswer(newList);
     }
-
-    // Liste boşaldıysa tamamlandı olarak işaretle
-    if (newList.length === 0) {
-      console.log('🎉 Liste boşaldı, tamamlandı!');
-      setIsAllCompleted(true);
-    }
   };
 
   const handleInputChange = (value) => {
@@ -326,6 +316,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     const correct = answer.trim().toLowerCase() === currentQuestion.correct.toLowerCase();
     setIsCorrect(correct);
     setShowFeedback(true);
+    setAnsweredQuestion(currentQuestion);
 
     const newList = [...questionList];
     newList.splice(currentIndex, 1);
@@ -339,11 +330,6 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     
     if (onWrongAnswer) {
       onWrongAnswer(newList);
-    }
-
-    if (newList.length === 0) {
-      console.log('🎉 Liste boşaldı, tamamlandı!');
-      setIsAllCompleted(true);
     }
   };
 
@@ -365,6 +351,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       setAnswer('');
       setShowFeedback(false);
       setIsCorrect(false);
+      setAnsweredQuestion(null);
     } else {
       // Tüm sorular bitti
       onNext();
@@ -375,6 +362,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     setAnswer('');
     setShowFeedback(false);
     setIsCorrect(false);
+    setAnsweredQuestion(null);
     onPrevious();
   };
 
