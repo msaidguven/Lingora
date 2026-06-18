@@ -373,12 +373,6 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       <div className="step-header">
         <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
-        {remainingCount > 0 && (
-          <span className="wrong-count">⚠️ {remainingCount} soru kaldı</span>
-        )}
-        {remainingCount === 0 && showFeedback && isCorrect && (
-          <span className="completed-count">✅ Tüm sorular tamamlandı!</span>
-        )}
       </div>
 
       <div className="step-content practice-content">
