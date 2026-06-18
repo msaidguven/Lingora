@@ -4,6 +4,7 @@ import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
 import { updateDailyStats } from "../utils/dailyStats.js";
 
 const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+const SESSION_WORD_LIMIT = 20;
 
 export function useWordQuiz(userLevel) {
   const [allCards, setAllCards] = useState([]);
@@ -17,6 +18,7 @@ export function useWordQuiz(userLevel) {
   const [selected, setSelected] = useState(null);
   const [answered, setAnswered] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sessionKey, setSessionKey] = useState(0);
 
   const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
 
@@ -25,6 +27,7 @@ export function useWordQuiz(userLevel) {
     async function fetchData() {
       setLoading(true);
       setError(null);
+      setExamplesMap({});
       try {
         const { data: userWords, error: uwError } = await supabase
           .from("en_user_words")
@@ -35,13 +38,15 @@ export function useWordQuiz(userLevel) {
         if (uwError) throw uwError;
         
         if (!userWords || userWords.length === 0) {
+          setAllCards([]);
           setQueue([]);
           setCurrentQuestion(null);
+          setQueueIndex(0);
           setLoading(false);
           return;
         }
         
-        const wordIds = userWords.map(w => w.word_id);
+        const wordIds = shuffle(userWords.map(w => w.word_id)).slice(0, SESSION_WORD_LIMIT);
         
         const { data: words, error: wError } = await supabase
           .from("en_words")
@@ -50,13 +55,15 @@ export function useWordQuiz(userLevel) {
         
         if (wError) throw wError;
         
-        setAllCards(words || []);
-        const shuffledQueue = shuffle(words || []);
-        setQueue(shuffledQueue);
-        setCurrentQuestion(shuffledQueue[0] || null);
+        const wordsById = new Map((words || []).map(word => [word.id, word]));
+        const sessionQueue = wordIds.map(id => wordsById.get(id)).filter(Boolean);
+
+        setAllCards(sessionQueue);
+        setQueue(sessionQueue);
+        setCurrentQuestion(sessionQueue[0] || null);
         setQueueIndex(0);
         
-        if (words && words.length > 0) {
+        if (sessionQueue.length > 0) {
           const { data: examples } = await supabase
             .from("en_example_sentences")
             .select("*")
@@ -82,7 +89,7 @@ export function useWordQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-  }, [userLevel]);
+  }, [userLevel, sessionKey]);
 
   // Şıkları oluştur - HER SEFERİNDE FARKLI!
   useEffect(() => {
@@ -180,6 +187,12 @@ const saveWordResult = async (wordId, isCorrect) => {
     }
   };
 
+  const restartQuizSession = () => {
+    setSelected(null);
+    setAnswered(false);
+    setSessionKey(key => key + 1);
+  };
+
   // Hook'tan dönen değerler
   return {
     loading,
@@ -194,6 +207,7 @@ const saveWordResult = async (wordId, isCorrect) => {
     examplesMap,
     handleSelect,
     handleNext,
+    restartQuizSession,
     setSelected,
     setAnswered,
     setExamplesMap

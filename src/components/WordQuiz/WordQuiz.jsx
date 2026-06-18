@@ -22,6 +22,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     examplesMap,
     handleSelect,
     handleNext,
+    restartQuizSession,
     setSelected,
     setAnswered,
     setExamplesMap
@@ -34,6 +35,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [isFinished, setIsFinished] = useState(false);
 
   const levelColor = LEVEL_COLOR[userLevel];
+
+  useEffect(() => {
+    setIsFinished(false);
+  }, [userLevel]);
 
   // Kelime gelince telaffuz et
   useEffect(() => {
@@ -75,6 +80,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
+  const handleRestart = () => {
+    setIsFinished(false);
+    setShowExampleModal(false);
+    setSelectedWordForExample(null);
+    restartQuizSession();
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -93,7 +105,25 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     );
   }
 
-  if (!currentQuestion || queue.length === 0 || isFinished) {
+  if (isFinished) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 48 }}>🎉</div>
+        <div style={{ fontSize: 20, fontWeight: 800 }}>Tebrikler, bitirdiniz!</div>
+        <div style={{ fontSize: 13, color: "#64748b" }}>
+          Bu oturumda {queue.length} kelime çalıştınız.
+        </div>
+        <button onClick={handleRestart} style={{ background: "#6366f1", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", cursor: "pointer", fontWeight: 700, marginTop: 16 }}>
+          20 Kelime Daha Çalış
+        </button>
+        <button onClick={onChangeLevel} style={{ background: "transparent", border: "1px solid #1e293b", borderRadius: 10, padding: "10px 22px", color: "#64748b", cursor: "pointer", fontWeight: 600 }}>
+          Ana Sayfaya Dön
+        </button>
+      </div>
+    );
+  }
+
+  if (!currentQuestion || queue.length === 0) {
     return (
       <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 48 }}>🎉</div>
