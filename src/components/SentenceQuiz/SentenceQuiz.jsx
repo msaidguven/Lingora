@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
+import { updateDailyStats } from "../../utils/dailyStats.js"; // ✅ Eklendi
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
@@ -52,8 +53,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   };
 
   const onSelect = async (opt) => {
-    await handleSelect(opt, (isCorrect) => {
-      // Sonuç işlemi tamamlandı
+    await handleSelect(opt, async (isCorrect) => {
+      // ✅ İstatistikleri güncelle (Türkiye saatiyle)
+      try {
+        await updateDailyStats('sentence', isCorrect);
+      } catch (error) {
+        console.error('İstatistik güncelleme hatası:', error);
+      }
     });
   };
 
