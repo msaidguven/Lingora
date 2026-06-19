@@ -23,7 +23,6 @@ const calcAcc = (correct, wrong) => {
   return total > 0 ? Math.round(((correct || 0) / total) * 100) : 0;
 };
 
-// Stats sayfasındaki 4'lü stat pili (Doğru / Yanlış / Başarı / Tekrar) ile aynı görsel dil
 const StatPill = ({ value, label, color, bg, border }) => (
   <div style={{
     flex: 1,
@@ -39,7 +38,6 @@ const StatPill = ({ value, label, color, bg, border }) => (
   </div>
 );
 
-// Küçük, satır-içi kullanım için renkli çerçeveli mini rozet (Son 30 Gün listesinde)
 const MiniBadge = ({ icon, value, color, bg, border }) => (
   <span style={{
     display: "inline-flex",
@@ -59,7 +57,6 @@ const MiniBadge = ({ icon, value, color, bg, border }) => (
   </span>
 );
 
-// Stats kartlarındaki dış kabuk: gradient yüzey + sol accent çizgisi + sağ üst ambient ışık
 const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
   <div style={{
     flex: 1,
@@ -182,7 +179,10 @@ export default function DashboardScreen() {
   };
 
   const isToday = (dateStr) => {
-    const today = new Date().toISOString().split('T')[0];
+    // Türkiye saatiyle bugünü kontrol et
+    const now = new Date();
+    const turkeyNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    const today = turkeyNow.toISOString().split('T')[0];
     return dateStr === today;
   };
 
@@ -360,7 +360,6 @@ export default function DashboardScreen() {
                       border: today ? "1px solid rgba(99,102,241,0.25)" : "1px solid rgba(255,255,255,0.04)",
                     }}
                   >
-                    {/* Üst satır: tarih + genel başarı */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: total > 0 ? 6 : 0 }}>
                       <span style={{ fontSize: 12, fontWeight: today ? 700 : 600, color: today ? "#818cf8" : "#e2e8f0" }}>
                         {formatDate(day.stat_date)}
@@ -374,7 +373,6 @@ export default function DashboardScreen() {
                       </span>
                     </div>
 
-                    {/* Alt satır: kelime ve cümle yan yana, tek satır */}
                     {total > 0 && (
                       <div style={{ display: "flex", gap: 8 }}>
                         <div style={{
@@ -455,7 +453,7 @@ export default function DashboardScreen() {
                     (d.sentence_correct || 0) + (d.sentence_wrong || 0)
                   ), 1);
                   const total = wordTotal + sentenceTotal;
-                  const isTodayDate = isToday(day.stat_date);
+                  const today = isToday(day.stat_date);
 
                   return (
                     <div key={index} style={{
@@ -477,28 +475,28 @@ export default function DashboardScreen() {
                         {sentenceTotal > 0 && (
                           <div style={{
                             height: `${(sentenceTotal / maxTotal) * 100}%`,
-                            background: isTodayDate ? "#60a5fa" : "#3b82f6",
+                            background: today ? "#60a5fa" : "#3b82f6",
                             transition: "height 0.3s ease",
                             minHeight: 2,
-                            boxShadow: isTodayDate ? "0 0 6px rgba(96,165,250,0.5)" : "none"
+                            boxShadow: today ? "0 0 6px rgba(96,165,250,0.5)" : "none"
                           }} />
                         )}
                         {wordTotal > 0 && (
                           <div style={{
                             height: `${(wordTotal / maxTotal) * 100}%`,
-                            background: isTodayDate ? "#a78bfa" : "#6366f1",
+                            background: today ? "#a78bfa" : "#6366f1",
                             borderRadius: "3px 3px 0 0",
                             transition: "height 0.3s ease",
                             minHeight: 2,
-                            boxShadow: isTodayDate ? "0 0 6px rgba(167,139,250,0.5)" : "none"
+                            boxShadow: today ? "0 0 6px rgba(167,139,250,0.5)" : "none"
                           }} />
                         )}
                       </div>
                       <div style={{
                         fontSize: 7,
-                        color: isTodayDate ? "#818cf8" : "#334155",
+                        color: today ? "#818cf8" : "#334155",
                         marginTop: 4,
-                        fontWeight: isTodayDate ? 700 : 400
+                        fontWeight: today ? 700 : 400
                       }}>
                         {new Date(day.stat_date).getDate()}
                       </div>
