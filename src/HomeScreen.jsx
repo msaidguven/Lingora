@@ -199,9 +199,12 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoT
       }
 
       await supabase
-        .from("en_user_daily_limit")
-        .update({ remaining_today: 0 })
-        .eq("user_id", FIXED_USER_ID);
+  .from("en_user_daily_limit")
+  .update({ 
+    remaining_today: 0,
+    last_reset_date: new Date().toISOString().split('T')[0] // Bugünün tarihi
+  })
+  .eq("user_id", FIXED_USER_ID);
 
       await fetchData();
       alert(`${newWords.length} yeni kelime eklendi!`);

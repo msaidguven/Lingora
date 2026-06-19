@@ -450,9 +450,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
         {showFeedback && isCorrect && remainingCount > 0 && (
           <div className="progress-info">✅ Doğru cevap! Kalan {remainingCount} soru var.</div>
         )}
-        {showFeedback && isCorrect && remainingCount === 0 && (
-          <div className="progress-info success">🎉 Tüm sorular tamamlandı! Devam edebilirsiniz.</div>
-        )}
+       
       </div>
     </div>
   );
