@@ -1,7 +1,7 @@
 // Admin.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import WordManagement from "./admin/WordManagement.jsx";
 import LessonManagement from "./admin/LessonManagement.jsx";
 import { styles, colors, PageHeader, Card, Message } from "./admin/adminStyles.jsx";

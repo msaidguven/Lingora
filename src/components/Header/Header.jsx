@@ -1,8 +1,6 @@
 // src/components/Header/Header.jsx
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../config.js";
-
-
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import './Header.css';
@@ -20,29 +18,41 @@ const NAV_ITEMS = [
   { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
 ];
 
+// Admin yetkisi kontrolü
+const hasAdminAccess = (role) => {
+  return role === 'admin' || role === 'editor' || role === 'moderator';
+};
+
 export default function Header({ 
   currentScreen, 
   onNavigate, 
   userLevel, 
   quizType = null,
-  onLogout 
+  onLogout,
+  onNavigateToAdmin // Admin sayfasına gitmek için prop
 }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [userData, setUserData] = useState(null);
+  const [userRole, setUserRole] = useState('user');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const menuRef = useRef(null);
 
   const accent = LEVEL_COLOR[userLevel] || { from: "#8b7cff", to: "#5b8cff" };
 
+  // Kullanıcı verilerini ve rolünü çek
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const fetchUserData = async () => {
       try {
         const { data, error } = await supabase
           .from("en_users")
-          .select("username, streak_days")
+          .select("username, streak_days, role")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -52,21 +62,29 @@ export default function Header({
         }
 
         if (data) {
-          setUserData(data);
+          setUserData({
+            username: data.username || user.email?.split('@')[0] || 'Öğrenci',
+            streak_days: data.streak_days || 0
+          });
+          setUserRole(data.role || 'user');
         } else {
           setUserData({ 
             username: user.email?.split('@')[0] || 'Öğrenci', 
             streak_days: 0 
           });
+          setUserRole('user');
         }
       } catch (error) {
         console.error("Kullanıcı verisi işlemleri hatası:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchUserData();
   }, [user]);
 
+  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -96,6 +114,16 @@ export default function Header({
     setMenuOpen(false);
   };
 
+  const goToAdmin = () => {
+    setMenuOpen(false);
+    if (onNavigateToAdmin) {
+      onNavigateToAdmin();
+    } else {
+      // Fallback: window.location ile yönlendir
+      window.location.href = '/admin';
+    }
+  };
+
   const handleLogout = async () => {
     setMenuOpen(false);
     if (window.confirm('Çıkış yapmak istediğinize emin misiniz?')) {
@@ -112,6 +140,12 @@ export default function Header({
                       user?.user_metadata?.full_name || 
                       user?.email?.split('@')[0] || 
                       'Öğrenci';
+
+  // Admin yetkisi kontrolü
+  const isAdmin = hasAdminAccess(userRole);
+  const roleDisplayName = userRole === 'admin' ? '👑 Admin' : 
+                          userRole === 'editor' ? '✏️ Editör' : 
+                          userRole === 'moderator' ? '🛡️ Moderatör' : '';
 
   return (
     <header className="header-wrapper" data-theme={theme}>
@@ -182,6 +216,20 @@ export default function Header({
                     <div className="dropdown-user-level">
                       Seviye: <span style={{ color: accent.from, fontWeight: 700 }}>{userLevel || "A1"}</span>
                     </div>
+                    {roleDisplayName && (
+                      <div className="dropdown-user-role" style={{ 
+                        fontSize: 10, 
+                        color: accent.from, 
+                        fontWeight: 600,
+                        background: 'rgba(99,102,241,0.1)',
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                        display: 'inline-block',
+                        marginTop: 2
+                      }}>
+                        {roleDisplayName}
+                      </div>
+                    )}
                     <div className="dropdown-user-email">
                       {user?.email}
                     </div>
@@ -190,19 +238,29 @@ export default function Header({
 
                 <div className="dropdown-divider" />
 
-                {/* Admin Linki */}
-                <a 
-                  href="https://lingora-phi.vercel.app/admin" 
-                  className="dropdown-item"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <i className="ti ti-settings" />
-                  <span>Admin Paneli</span>
-                  <span className="dropdown-badge">Yönetici</span>
-                </a>
-
-                <div className="dropdown-divider" />
+                {/* Admin Linki - SADECE YETKİLİ KULLANICILAR GÖRÜR */}
+                {isAdmin && (
+                  <>
+                    <button 
+                      className="dropdown-item dropdown-item-admin"
+                      onClick={goToAdmin}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))',
+                        border: '1px solid rgba(99,102,241,0.2)'
+                      }}
+                    >
+                      <i className="ti ti-shield" style={{ color: '#8b5cf6' }} />
+                      <span style={{ fontWeight: 700 }}>Admin Paneli</span>
+                      <span className="dropdown-badge" style={{ 
+                        background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                        color: '#fff'
+                      }}>
+                        {userRole === 'admin' ? '👑 Admin' : userRole === 'editor' ? '✏️ Editör' : '🛡️ Moderatör'}
+                      </span>
+                    </button>
+                    <div className="dropdown-divider" />
+                  </>
+                )}
 
                 {/* Tema Değiştir */}
                 <button className="dropdown-item" onClick={toggleTheme}>
