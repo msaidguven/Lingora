@@ -131,6 +131,8 @@ export default function Header({
                 key={key}
                 onClick={() => onNavigate(key, isQuiz ? null : undefined)}
                 className={`nav-btn ${active ? 'nav-btn-active' : ''}`}
+                aria-label={displayLabel}
+                title={displayLabel}
                 style={{
                   background: active
                     ? `linear-gradient(135deg, ${accent.from}, ${accent.to})`
