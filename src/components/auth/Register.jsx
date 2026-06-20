@@ -1,9 +1,7 @@
+// src/components/auth/Register.jsx
 import React, { useState } from 'react';
 import { AuthLayout } from './AuthLayout';
-
 import { useAuth } from '../../contexts/AuthContext';
-
-
 import '../../styles/auth.css';
 
 export const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
@@ -13,7 +11,7 @@ export const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { register } = useAuth();
+  const { register, login } = useAuth(); // login'i de ekleyin
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,13 +29,31 @@ export const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {
     setLoading(true);
     setError('');
 
-    const result = await register(email, password, fullName);
-    
-    if (result.success) {
-      onRegisterSuccess?.();
-    } else {
-      setError(result.error || 'Kayıt başarısız!');
+    try {
+      // 1. Önce kayıt ol
+      const registerResult = await register(email, password, fullName);
+      
+      if (!registerResult.success) {
+        setError(registerResult.error || 'Kayıt başarısız!');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Kayıt başarılı, otomatik giriş yap
+      const loginResult = await login(email, password);
+      
+      if (loginResult.success) {
+        // 3. Giriş başarılı, ana sayfaya yönlendir
+        onRegisterSuccess?.();
+      } else {
+        // Giriş başarısız ama kayıt başarılı
+        setError('Kayıt başarılı! Lütfen giriş yapın.');
+        onSwitchToLogin();
+      }
+    } catch (error) {
+      setError('Bir hata oluştu! Lütfen tekrar deneyin.');
     }
+
     setLoading(false);
   };
 

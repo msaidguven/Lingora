@@ -44,25 +44,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, fullName) => {
-    try {
-      setError(null);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
+  // src/contexts/AuthContext.jsx - register fonksiyonunu güncelleyin
+
+const register = async (email, password, fullName) => {
+  try {
+    setError(null);
+    
+    // 1. Supabase'de kullanıcı oluştur
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
         },
-      });
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
+      },
+    });
+    
+    if (error) throw error;
+    
+    // 2. Kullanıcı oluşturulduysa, en_users tablosuna da ekle
+    if (data.user) {
+      try {
+        const { error: insertError } = await supabase
+          .from("en_users")
+          .insert([{ 
+            id: data.user.id,
+            email: data.user.email,
+            level: "A1",
+            username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
+            streak_days: 0,
+            created_at: new Date().toISOString()
+          }]);
+        
+        if (insertError) {
+          console.error("❌ en_users'a ekleme hatası:", insertError);
+          // RLS hatası varsa ama kullanıcı oluştuysa devam et
+          if (insertError.code === '42501') {
+            console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
+            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
+          }
+        } else {
+          console.log("✅ Kullanıcı en_users tablosuna eklendi!");
+        }
+      } catch (insertError) {
+        console.error("❌ en_users insert hatası:", insertError);
+      }
     }
-  };
+    
+    return { success: true, data, user: data.user };
+  } catch (error) {
+    setError(error.message);
+    return { success: false, error: error.message };
+  }
+};
 
   const logout = async () => {
     try {
