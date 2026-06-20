@@ -153,8 +153,6 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
   const allQuestions = step.questions || [];
 
   useEffect(() => {
-    console.log('🔄 MultipleChoiceStep başlatılıyor...', step.id);
-    
     if (allQuestions.length === 0) {
       setQuestionList([]);
       setIsAllCompleted(true);
@@ -163,11 +161,9 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
     }
 
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
-      console.log('📝 External sorular kullanılıyor:', externalWrongQuestions.length);
       setQuestionList(externalWrongQuestions);
     } else {
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-      console.log('🔀 Yeni sorular karıştırıldı:', shuffled.length);
       setQuestionList(shuffled);
       if (onWrongAnswer) {
         onWrongAnswer(shuffled);
@@ -196,25 +192,6 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
     setSelectedOptions(prev => ({ ...prev, [currentIndex]: optionIndex }));
     setIsCorrect(prev => ({ ...prev, [currentIndex]: correct }));
     setShowFeedback(prev => ({ ...prev, [currentIndex]: true }));
-
-    const newList = [...questionList];
-    newList.splice(currentIndex, 1);
-    
-    if (!correct) {
-      newList.push(currentQuestion);
-    }
-
-    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
-    setQuestionList(newList);
-    
-    if (onWrongAnswer) {
-      onWrongAnswer(newList);
-    }
-
-    // Tüm sorular bitti mi?
-    if (newList.length === 0) {
-      setTimeout(() => setIsAllCompleted(true), 500);
-    }
   };
 
   const handleNext = () => {
@@ -223,13 +200,26 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
       return;
     }
     
-    if (questionList.length > 0) {
+    const newList = [...questionList];
+    newList.splice(currentIndex, 1);
+    
+    if (!isCorrect[currentIndex]) {
+      newList.push(currentQuestion);
+    }
+
+    setQuestionList(newList);
+    
+    if (onWrongAnswer) {
+      onWrongAnswer(newList);
+    }
+
+    if (newList.length === 0) {
+      setIsAllCompleted(true);
+    } else {
       setCurrentIndex(0);
       setSelectedOptions({});
       setShowFeedback({});
       setIsCorrect({});
-    } else {
-      onNext();
     }
   };
 
@@ -240,7 +230,6 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
     onPrevious();
   };
 
-  // Tüm sorular tamamlandı
   if (isAllCompleted) {
     return (
       <div className="step-container">
@@ -352,8 +341,6 @@ function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswe
   const allQuestions = step.questions || [];
 
   useEffect(() => {
-    console.log('🔄 FillBlankStep başlatılıyor...', step.id);
-    
     if (allQuestions.length === 0) {
       setQuestionList([]);
       setIsAllCompleted(true);
@@ -362,11 +349,9 @@ function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswe
     }
 
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
-      console.log('📝 External sorular kullanılıyor:', externalWrongQuestions.length);
       setQuestionList(externalWrongQuestions);
     } else {
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-      console.log('🔀 Yeni sorular karıştırıldı:', shuffled.length);
       setQuestionList(shuffled);
       if (onWrongAnswer) {
         onWrongAnswer(shuffled);
@@ -395,24 +380,6 @@ function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswe
     setSelectedOptions(prev => ({ ...prev, [currentIndex]: optionIndex }));
     setIsCorrect(prev => ({ ...prev, [currentIndex]: correct }));
     setShowFeedback(prev => ({ ...prev, [currentIndex]: true }));
-
-    const newList = [...questionList];
-    newList.splice(currentIndex, 1);
-    
-    if (!correct) {
-      newList.push(currentQuestion);
-    }
-
-    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
-    setQuestionList(newList);
-    
-    if (onWrongAnswer) {
-      onWrongAnswer(newList);
-    }
-
-    if (newList.length === 0) {
-      setTimeout(() => setIsAllCompleted(true), 500);
-    }
   };
 
   const handleNext = () => {
@@ -421,13 +388,26 @@ function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswe
       return;
     }
     
-    if (questionList.length > 0) {
+    const newList = [...questionList];
+    newList.splice(currentIndex, 1);
+    
+    if (!isCorrect[currentIndex]) {
+      newList.push(currentQuestion);
+    }
+
+    setQuestionList(newList);
+    
+    if (onWrongAnswer) {
+      onWrongAnswer(newList);
+    }
+
+    if (newList.length === 0) {
+      setIsAllCompleted(true);
+    } else {
       setCurrentIndex(0);
       setSelectedOptions({});
       setShowFeedback({});
       setIsCorrect({});
-    } else {
-      onNext();
     }
   };
 
@@ -554,11 +534,16 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
 
   const handleLeftClick = (leftValue) => {
     if (showFeedback) return;
+    if (matches[leftValue]) return;
     setSelectedLeft(selectedLeft === leftValue ? null : leftValue);
   };
 
   const handleRightClick = (rightValue) => {
-    if (showFeedback || !selectedLeft) return;
+    if (showFeedback) return;
+    if (!selectedLeft) return;
+    
+    const alreadyMatched = Object.values(matches).some(m => m.right === rightValue);
+    if (alreadyMatched) return;
     
     const pair = pairs.find(p => p.left === selectedLeft);
     if (!pair) return;
@@ -571,18 +556,6 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
     }));
     
     setSelectedLeft(null);
-
-    // Tüm eşleştirmeler yapıldı mı kontrol et
-    const allMatched = Object.keys(matches).length + 1 === pairs.length;
-    if (allMatched) {
-      const allCorrect = Object.values(matches).every(m => m.isMatch) && isMatch;
-      setIsCorrect(allCorrect);
-      setShowFeedback(true);
-    } else if (allMatched && isMatch) {
-      const allCorrect = Object.values(matches).every(m => m.isMatch) && isMatch;
-      setIsCorrect(allCorrect);
-      setShowFeedback(true);
-    }
   };
 
   const handleCheck = () => {
@@ -605,6 +578,8 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
   };
 
   const handlePrevious = () => {
+    const shuffled = [...pairs].sort(() => Math.random() - 0.5);
+    setShuffledLeft(shuffled.map(p => p.left));
     setMatches({});
     setShowFeedback(false);
     setIsCorrect(false);
@@ -613,7 +588,6 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
   };
 
   const matchedLeftItems = Object.keys(matches);
-  const availableLeftItems = shuffledLeft.filter(item => !matchedLeftItems.includes(item));
 
   return (
     <div className="step-container">
@@ -634,21 +608,22 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
               const isSelected = selectedLeft === left;
               const match = matches[left];
               
+              let itemClass = 'matching-item left-item';
+              if (isMatched) itemClass += ' matched';
+              if (isSelected) itemClass += ' selected';
+              if (showFeedback && match) {
+                itemClass += match.isMatch ? ' correct-match' : ' wrong-match';
+              }
+              
               return (
                 <div
                   key={idx}
-                  onClick={() => !isMatched && handleLeftClick(left)}
-                  className={`matching-item left-item 
-                    ${isMatched ? 'matched' : ''} 
-                    ${isSelected ? 'selected' : ''}
-                    ${showFeedback && match ? (match.isMatch ? 'correct-match' : 'wrong-match') : ''}
-                  `}
+                  onClick={() => handleLeftClick(left)}
+                  className={itemClass}
                 >
                   <span>{left}</span>
-                  {isMatched && match && (
-                    <span className="match-indicator">
-                      {match.isMatch ? '✅' : '❌'}
-                    </span>
+                  {isMatched && (
+                    <span className="match-indicator">✓</span>
                   )}
                 </div>
               );
@@ -662,25 +637,23 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
             {pairs.map((pair, idx) => {
               const matchedWith = Object.entries(matches).find(([key, val]) => val.right === pair.right);
               const isMatched = !!matchedWith;
-              const leftValue = matchedWith?.[0];
-              const match = matches[leftValue];
-              const isSelectedRight = selectedLeft && pairs.find(p => p.left === selectedLeft)?.right === pair.right;
+              const match = matches[matchedWith?.[0]];
+              
+              let itemClass = 'matching-item right-item';
+              if (isMatched) itemClass += ' matched';
+              if (showFeedback && match) {
+                itemClass += match.isMatch ? ' correct-match' : ' wrong-match';
+              }
               
               return (
                 <div
                   key={idx}
-                  onClick={() => !isMatched && handleRightClick(pair.right)}
-                  className={`matching-item right-item 
-                    ${isMatched ? 'matched' : ''}
-                    ${isSelectedRight ? 'selected' : ''}
-                    ${showFeedback && match ? (match.isMatch ? 'correct-match' : 'wrong-match') : ''}
-                  `}
+                  onClick={() => handleRightClick(pair.right)}
+                  className={itemClass}
                 >
                   <span>{pair.right}</span>
-                  {isMatched && match && (
-                    <span className="match-indicator">
-                      {match.isMatch ? '✅' : '❌'}
-                    </span>
+                  {isMatched && (
+                    <span className="match-indicator">✓</span>
                   )}
                 </div>
               );
@@ -688,7 +661,7 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
           </div>
         </div>
 
-        {!showFeedback && Object.keys(matches).length > 0 && (
+        {!showFeedback && Object.keys(matches).length === pairs.length && (
           <button onClick={handleCheck} className="check-btn" style={{ marginTop: 16, width: '100%' }}>
             ✅ Kontrol Et
           </button>
@@ -833,140 +806,6 @@ function DragDropStep({ step, onNext, onPrevious, isFirst, isLast }) {
             {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// 🎭 DIALOGUE ADIMI
-function DialogueStep({ step, onNext, onPrevious, isFirst, isLast }) {
-  const [answer, setAnswer] = useState('');
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
-
-  const content = step.content || {};
-  const scenes = content.scenes || [];
-  const practice = step.practice || {};
-  const practiceQuestions = practice.questions || [];
-  const question = practiceQuestions[0];
-
-  useEffect(() => {
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-  }, [step.id]);
-
-  const handleInputChange = (value) => {
-    if (showFeedback) return;
-    setAnswer(value);
-  };
-
-  const handleCheckAnswer = () => {
-    if (!answer) {
-      alert('Lütfen bir cevap yazın!');
-      return;
-    }
-    if (!question) {
-      alert('Soru bulunamadı!');
-      return;
-    }
-    const correct = answer.trim().toLowerCase() === question.correct.toLowerCase();
-    setIsCorrect(correct);
-    setShowFeedback(true);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !showFeedback && answer) {
-      handleCheckAnswer();
-    }
-  };
-
-  const handleNext = () => {
-    if (!showFeedback) {
-      alert('Lütfen önce soruyu cevaplayın!');
-      return;
-    }
-    if (!isCorrect) {
-      alert('Doğru cevabı bulmadan ilerleyemezsiniz!');
-      return;
-    }
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-    onNext();
-  };
-
-  const handlePrevious = () => {
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-    onPrevious();
-  };
-
-  return (
-    <div className="step-container">
-      <div className="step-header">
-        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
-        <h2 className="step-title">{step.title}</h2>
-      </div>
-      <div className="step-content dialogue-content">
-        {content.context && <div className="dialogue-context">📌 {content.context}</div>}
-        <div className="dialogue-container">
-          {scenes.map((scene, idx) => (
-            <div key={idx} className={`dialogue-line ${idx % 2 === 0 ? 'speaker-a' : 'speaker-b'}`}>
-              <div className="dialogue-speaker">
-                <span className="speaker-name">{scene.speaker}:</span>
-                <span className="dialogue-text">{scene.text}</span>
-              </div>
-              <div className="dialogue-translation">🇹🇷 {scene.translation}</div>
-            </div>
-          ))}
-        </div>
-
-        {question && (
-          <div className="dialogue-practice">
-            <h4>{practice.instructions || 'Diyalogdaki boşluğu doldurun:'}</h4>
-            <div className="practice-question">
-              <p className="question-text">{question.question}</p>
-              <div className="fill-blank-group">
-                <input
-                  type="text"
-                  className="fill-blank-input"
-                  value={answer}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  disabled={showFeedback}
-                  placeholder="Cevabınızı yazın..."
-                />
-                {!showFeedback && (
-                  <button className="check-btn" onClick={handleCheckAnswer}>Kontrol Et</button>
-                )}
-              </div>
-              {showFeedback && (
-                <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
-                  {isCorrect ? question.feedback_correct || '✅ Doğru!' : question.feedback_wrong || '❌ Yanlış. Tekrar deneyin.'}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!question && (
-          <div className="dialogue-practice" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
-            <p>Bu adımda pratik sorusu bulunmuyor.</p>
-          </div>
-        )}
-
-        <div className="step-navigation">
-          <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
-          <button onClick={handleNext} disabled={question ? (!showFeedback || !isCorrect) : false} className="nav-btn next-btn">
-            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
-          </button>
-        </div>
-
-        {showFeedback && !isCorrect && (
-          <div className="progress-warning">⚠️ Doğru cevabı bulmadan ilerleyemezsiniz. Tekrar deneyin!</div>
-        )}
       </div>
     </div>
   );
@@ -1276,15 +1115,6 @@ export default function LessonPage({ lessonId, onBack }) {
       });
     }
 
-    if (content.dialogue && content.dialogue.length > 0) {
-      steps.push({
-        id: `step_${stepCounter++}`,
-        type: 'dialogue',
-        title: 'Diyalog',
-        content: { scenes: content.dialogue }
-      });
-    }
-
     if (content.quiz && content.quiz.length > 0) {
       const practiceQuestions = content.quiz.slice(0, 5).map(q => ({
         question: q.question,
@@ -1369,8 +1199,6 @@ export default function LessonPage({ lessonId, onBack }) {
             wrongQuestions={wrongQuestionsMap[step.id] || []}
           />
         );
-      case 'dialogue':
-        return <DialogueStep {...props} />;
       case 'summary':
         return <SummaryStep {...props} />;
       default:

@@ -6,676 +6,7 @@ import {
   Input, TextArea, JsonDisplay, SearchInput, Badge 
 } from "./adminStyles.jsx";
 
-// ============================
-// LESSON STEP RENDERER BİLEŞENİ
-// ============================
-function LessonStepRenderer({ step, stepIndex }) {
-  const [selectedOptions, setSelectedOptions] = useState({});
-  const [matchAnswers, setMatchAnswers] = useState({});
-  const [dragItems, setDragItems] = useState([]);
-  const [showFeedback, setShowFeedback] = useState({});
-  const [isCorrect, setIsCorrect] = useState({});
-
-  const handleOptionSelect = (questionIndex, optionIndex) => {
-    setSelectedOptions(prev => ({ ...prev, [questionIndex]: optionIndex }));
-    setShowFeedback(prev => ({ ...prev, [questionIndex]: true }));
-    
-    const question = step.questions[questionIndex];
-    const correct = optionIndex === question.correct;
-    setIsCorrect(prev => ({ ...prev, [questionIndex]: correct }));
-  };
-
-  const handleMatchSelect = (pairIndex, value) => {
-    setMatchAnswers(prev => ({ ...prev, [pairIndex]: value }));
-  };
-
-  const checkMatching = () => {
-    let allCorrect = true;
-    step.pairs.forEach((pair, index) => {
-      if (matchAnswers[index] !== pair.right) {
-        allCorrect = false;
-      }
-    });
-    setIsCorrect({ matching: allCorrect });
-    setShowFeedback({ matching: true });
-  };
-
-  const handleDragStart = (e, index) => {
-    e.dataTransfer.setData('text/plain', index);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e, targetIndex) => {
-    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    const newItems = [...dragItems];
-    const [removed] = newItems.splice(sourceIndex, 1);
-    newItems.splice(targetIndex, 0, removed);
-    setDragItems(newItems);
-  };
-
-  const checkDragDrop = () => {
-    const isCorrectOrder = dragItems.every((item, index) => 
-      item === step.words[step.correct_order[index]]
-    );
-    setIsCorrect({ drag_drop: isCorrectOrder });
-    setShowFeedback({ drag_drop: true });
-  };
-
-  // Render Info tipi
-  if (step.type === 'info') {
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 12 }}>{step.title}</h3>
-        {step.content.explanation && (
-          <p style={{ color: colors.textSecondary, lineHeight: 1.6 }}>
-            {step.content.explanation}
-          </p>
-        )}
-        {step.content.rule && (
-          <div style={{ 
-            background: '#2a1f3d', 
-            padding: 12, 
-            borderRadius: 8, 
-            margin: '12px 0',
-            borderLeft: `3px solid ${colors.primary}`
-          }}>
-            <span style={{ color: colors.primary }}>{step.content.rule}</span>
-          </div>
-        )}
-        {step.content.tip && (
-          <div style={{ 
-            background: '#1a2a3d', 
-            padding: 12, 
-            borderRadius: 8, 
-            margin: '8px 0',
-            borderLeft: `3px solid #f59e0b`
-          }}>
-            <span style={{ color: '#f59e0b' }}>{step.content.tip}</span>
-          </div>
-        )}
-        {step.content.items && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-            {step.content.items.map((item, idx) => (
-              <div key={idx} style={{ 
-                background: colors.surface, 
-                padding: 8, 
-                borderRadius: 6,
-                display: 'flex',
-                justifyContent: 'space-between'
-              }}>
-                <span>{item.meaning}</span>
-                <span style={{ color: colors.primary, fontWeight: 'bold' }}>{item.pronoun || item.key}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {step.content.examples && (
-          <div style={{ marginTop: 12 }}>
-            {step.content.examples.map((example, idx) => (
-              <div key={idx} style={{ 
-                background: colors.surface, 
-                padding: 10, 
-                borderRadius: 6, 
-                marginBottom: 6 
-              }}>
-                <div style={{ color: '#4ade80' }}>✅ {example.correct}</div>
-                {example.wrong && <div style={{ color: '#f87171' }}>❌ {example.wrong}</div>}
-                {example.note && <div style={{ color: colors.textSecondary, fontSize: 12 }}>📌 {example.note}</div>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render Multiple Choice tipi
-  if (step.type === 'multiple_choice') {
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 8 }}>{step.title}</h3>
-        {step.rule && (
-          <div style={{ 
-            background: '#2a1f3d', 
-            padding: 10, 
-            borderRadius: 6, 
-            marginBottom: 12,
-            borderLeft: `3px solid ${colors.primary}`
-          }}>
-            <span style={{ color: colors.primary, fontSize: 14 }}>{step.rule}</span>
-          </div>
-        )}
-        <p style={{ color: colors.textSecondary, marginBottom: 16 }}>{step.instructions}</p>
-        
-        {step.questions.map((q, qIdx) => (
-          <div key={qIdx} style={{ 
-            background: colors.surface, 
-            padding: 16, 
-            borderRadius: 8, 
-            marginBottom: 12 
-          }}>
-            <p style={{ color: colors.text, marginBottom: 12 }}>{q.question}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {q.options.map((opt, oIdx) => (
-                <button
-                  key={oIdx}
-                  onClick={() => handleOptionSelect(qIdx, oIdx)}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 8,
-                    border: `2px solid ${
-                      selectedOptions[qIdx] === oIdx 
-                        ? showFeedback[qIdx] 
-                          ? isCorrect[qIdx] 
-                            ? colors.success 
-                            : colors.error
-                        : colors.primary
-                      : colors.border
-                    }`,
-                    background: selectedOptions[qIdx] === oIdx ? colors.surfaceLight : 'transparent',
-                    color: colors.text,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {String.fromCharCode(65 + oIdx)}. {opt}
-                </button>
-              ))}
-            </div>
-            {showFeedback[qIdx] && (
-              <div style={{ 
-                marginTop: 12, 
-                padding: 10, 
-                borderRadius: 6,
-                background: isCorrect[qIdx] ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-                borderLeft: `3px solid ${isCorrect[qIdx] ? colors.success : colors.error}`
-              }}>
-                <span style={{ color: isCorrect[qIdx] ? colors.success : colors.error }}>
-                  {isCorrect[qIdx] ? q.feedback_correct : q.feedback_wrong}
-                </span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Render Fill Blank tipi
-  if (step.type === 'fill_blank') {
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 8 }}>{step.title}</h3>
-        {step.rule && (
-          <div style={{ 
-            background: '#2a1f3d', 
-            padding: 10, 
-            borderRadius: 6, 
-            marginBottom: 12,
-            borderLeft: `3px solid ${colors.primary}`
-          }}>
-            <span style={{ color: colors.primary, fontSize: 14 }}>{step.rule}</span>
-          </div>
-        )}
-        <p style={{ color: colors.textSecondary, marginBottom: 16 }}>{step.instructions}</p>
-        
-        {step.questions.map((q, qIdx) => (
-          <div key={qIdx} style={{ 
-            background: colors.surface, 
-            padding: 16, 
-            borderRadius: 8, 
-            marginBottom: 12 
-          }}>
-            <p style={{ color: colors.text, marginBottom: 12 }}>{q.question}</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {q.options.map((opt, oIdx) => (
-                <button
-                  key={oIdx}
-                  onClick={() => handleOptionSelect(qIdx, oIdx)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: 20,
-                    border: `2px solid ${
-                      selectedOptions[qIdx] === oIdx 
-                        ? showFeedback[qIdx] 
-                          ? isCorrect[qIdx] 
-                            ? colors.success 
-                            : colors.error
-                        : colors.primary
-                      : colors.border
-                    }`,
-                    background: selectedOptions[qIdx] === oIdx ? colors.surfaceLight : 'transparent',
-                    color: colors.text,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-            {showFeedback[qIdx] && (
-              <div style={{ 
-                marginTop: 12, 
-                padding: 10, 
-                borderRadius: 6,
-                background: isCorrect[qIdx] ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-                borderLeft: `3px solid ${isCorrect[qIdx] ? colors.success : colors.error}`
-              }}>
-                <span style={{ color: isCorrect[qIdx] ? colors.success : colors.error }}>
-                  {isCorrect[qIdx] ? q.feedback_correct : q.feedback_wrong}
-                </span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Render Matching tipi
-  if (step.type === 'matching') {
-    // Başlangıçta dragItems'i pairs'ten oluştur
-    if (dragItems.length === 0) {
-      const shuffled = [...step.pairs].sort(() => Math.random() - 0.5);
-      setDragItems(shuffled.map(p => p.left));
-    }
-
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 8 }}>{step.title}</h3>
-        <p style={{ color: colors.textSecondary, marginBottom: 16 }}>{step.instructions}</p>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          {/* Sol taraf - Sürüklenebilir öğeler */}
-          <div>
-            <h4 style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 8 }}>📌 Eşleştir</h4>
-            {dragItems.map((item, idx) => (
-              <div
-                key={idx}
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
-                style={{
-                  padding: '10px 16px',
-                  background: colors.surface,
-                  borderRadius: 6,
-                  marginBottom: 6,
-                  cursor: 'grab',
-                  border: `1px solid ${colors.border}`
-                }}
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-          
-          {/* Sağ taraf - Hedef alanlar */}
-          <div>
-            <h4 style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 8 }}>🎯 Anlamları</h4>
-            {step.pairs.map((pair, idx) => (
-              <div
-                key={idx}
-                onDragOver={handleDragOver}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                  const newItems = [...dragItems];
-                  const [removed] = newItems.splice(sourceIndex, 1);
-                  // Eşleştirme kontrolü
-                  if (removed === pair.left) {
-                    setMatchAnswers(prev => ({ ...prev, [idx]: pair.right }));
-                    // Doğru eşleştiğinde öğeyi kaldır
-                    setDragItems(newItems);
-                  }
-                }}
-                style={{
-                  padding: '10px 16px',
-                  background: matchAnswers[idx] ? 'rgba(74, 222, 128, 0.1)' : colors.surface,
-                  borderRadius: 6,
-                  marginBottom: 6,
-                  border: `2px solid ${matchAnswers[idx] ? colors.success : colors.border}`,
-                  minHeight: 45,
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                {matchAnswers[idx] || '📥 Buraya bırak'}
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {showFeedback.matching && (
-          <div style={{ 
-            marginTop: 16, 
-            padding: 12, 
-            borderRadius: 8,
-            background: isCorrect.matching ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-            borderLeft: `3px solid ${isCorrect.matching ? colors.success : colors.error}`
-          }}>
-            <span style={{ color: isCorrect.matching ? colors.success : colors.error }}>
-              {isCorrect.matching ? step.feedback_correct : step.feedback_wrong}
-            </span>
-          </div>
-        )}
-        
-        {Object.keys(matchAnswers).length === step.pairs.length && !showFeedback.matching && (
-          <button
-            onClick={checkMatching}
-            style={{
-              marginTop: 16,
-              padding: '10px 24px',
-              borderRadius: 8,
-              border: 'none',
-              background: colors.primary,
-              color: '#fff',
-              fontWeight: 700,
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            ✅ Kontrol Et
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  // Render Drag & Drop tipi
-  if (step.type === 'drag_drop') {
-    if (dragItems.length === 0) {
-      setDragItems(step.words);
-    }
-
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 8 }}>{step.title}</h3>
-        <p style={{ color: colors.textSecondary, marginBottom: 16 }}>{step.instructions}</p>
-        
-        <div style={{ 
-          display: 'flex', 
-          flexWrap: 'wrap', 
-          gap: 8, 
-          padding: 16,
-          background: colors.surface,
-          borderRadius: 8,
-          minHeight: 60
-        }}>
-          {dragItems.map((word, idx) => (
-            <div
-              key={idx}
-              draggable
-              onDragStart={(e) => handleDragStart(e, idx)}
-              style={{
-                padding: '10px 16px',
-                background: colors.surfaceLight,
-                borderRadius: 6,
-                cursor: 'grab',
-                border: `1px solid ${colors.border}`,
-                userSelect: 'none'
-              }}
-            >
-              {word}
-            </div>
-          ))}
-        </div>
-        
-        <div style={{ 
-          marginTop: 16,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          padding: 16,
-          background: '#1a1a2e',
-          borderRadius: 8,
-          minHeight: 60,
-          border: `2px dashed ${colors.border}`
-        }}>
-          {dragItems.map((word, idx) => (
-            <div
-              key={idx}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, idx)}
-              style={{
-                padding: '10px 16px',
-                background: colors.surface,
-                borderRadius: 6,
-                border: `1px solid ${colors.border}`,
-                minWidth: 50,
-                textAlign: 'center'
-              }}
-            >
-              {word}
-            </div>
-          ))}
-        </div>
-        
-        {showFeedback.drag_drop && (
-          <div style={{ 
-            marginTop: 16, 
-            padding: 12, 
-            borderRadius: 8,
-            background: isCorrect.drag_drop ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-            borderLeft: `3px solid ${isCorrect.drag_drop ? colors.success : colors.error}`
-          }}>
-            <span style={{ color: isCorrect.drag_drop ? colors.success : colors.error }}>
-              {isCorrect.drag_drop ? step.feedback_correct : step.feedback_wrong}
-            </span>
-            {!isCorrect.drag_drop && (
-              <div style={{ marginTop: 8, color: colors.textSecondary, fontSize: 13 }}>
-                💡 İpucu: Doğru sıralama: {step.words.join(' ')}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {!showFeedback.drag_drop && (
-          <button
-            onClick={checkDragDrop}
-            style={{
-              marginTop: 16,
-              padding: '10px 24px',
-              borderRadius: 8,
-              border: 'none',
-              background: colors.primary,
-              color: '#fff',
-              fontWeight: 700,
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            ✅ Kontrol Et
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  // Render Dialogue tipi
-  if (step.type === 'dialogue') {
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16 
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 8 }}>{step.title}</h3>
-        <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
-          💬 {step.content.context}
-        </p>
-        
-        <div style={{ 
-          background: colors.surface, 
-          borderRadius: 8, 
-          padding: 16,
-          marginBottom: 16
-        }}>
-          {step.content.scenes.map((scene, idx) => (
-            <div key={idx} style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              marginBottom: idx < step.content.scenes.length - 1 ? 12 : 0,
-              padding: 8,
-              borderRadius: 6,
-              background: idx % 2 === 0 ? 'rgba(99, 102, 241, 0.05)' : 'transparent'
-            }}>
-              <span style={{ color: colors.primary, fontWeight: 600, fontSize: 13 }}>
-                {scene.speaker}:
-              </span>
-              <span style={{ color: colors.text, fontSize: 15 }}>
-                {scene.text}
-              </span>
-              <span style={{ color: colors.textSecondary, fontSize: 12 }}>
-                {scene.translation}
-              </span>
-            </div>
-          ))}
-        </div>
-        
-        {step.practice && (
-          <div style={{ marginTop: 12 }}>
-            <p style={{ color: colors.textSecondary, marginBottom: 12 }}>{step.practice.instructions}</p>
-            {step.practice.questions.map((q, qIdx) => (
-              <div key={qIdx} style={{ 
-                background: colors.surface, 
-                padding: 16, 
-                borderRadius: 8, 
-                marginBottom: 12 
-              }}>
-                <p style={{ color: colors.text, marginBottom: 12 }}>{q.question}</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {q.options.map((opt, oIdx) => (
-                    <button
-                      key={oIdx}
-                      onClick={() => handleOptionSelect(`practice_${qIdx}`, oIdx)}
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: 20,
-                        border: `2px solid ${
-                          selectedOptions[`practice_${qIdx}`] === oIdx 
-                            ? showFeedback[`practice_${qIdx}`] 
-                              ? isCorrect[`practice_${qIdx}`] 
-                                ? colors.success 
-                                : colors.error
-                            : colors.primary
-                          : colors.border
-                        }`,
-                        background: selectedOptions[`practice_${qIdx}`] === oIdx ? colors.surfaceLight : 'transparent',
-                        color: colors.text,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-                {showFeedback[`practice_${qIdx}`] && (
-                  <div style={{ 
-                    marginTop: 12, 
-                    padding: 10, 
-                    borderRadius: 6,
-                    background: isCorrect[`practice_${qIdx}`] ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-                    borderLeft: `3px solid ${isCorrect[`practice_${qIdx}`] ? colors.success : colors.error}`
-                  }}>
-                    <span style={{ color: isCorrect[`practice_${qIdx}`] ? colors.success : colors.error }}>
-                      {isCorrect[`practice_${qIdx}`] ? q.feedback_correct : q.feedback_wrong}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render Summary tipi
-  if (step.type === 'summary') {
-    return (
-      <div style={{ 
-        background: colors.surfaceDark, 
-        borderRadius: 12, 
-        padding: 20, 
-        marginBottom: 16,
-        border: `2px solid ${colors.primary}`
-      }}>
-        <h3 style={{ color: colors.text, marginBottom: 12 }}>{step.title}</h3>
-        
-        {step.content.key_points && (
-          <div style={{ marginBottom: 12 }}>
-            <h4 style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 8 }}>📌 Önemli Noktalar</h4>
-            <ul style={{ color: colors.textSecondary, lineHeight: 1.8, paddingLeft: 20 }}>
-              {step.content.key_points.map((point, idx) => (
-                <li key={idx}>{point}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {step.content.practice_tasks && (
-          <div>
-            <h4 style={{ color: colors.textSecondary, fontSize: 14, marginBottom: 8 }}>✏️ Pratik Görevleri</h4>
-            <ul style={{ color: colors.textSecondary, lineHeight: 1.8, paddingLeft: 20 }}>
-              {step.content.practice_tasks.map((task, idx) => (
-                <li key={idx}>{task}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Bilinmeyen tip
-  return (
-    <div style={{ 
-      background: '#2a1a1a', 
-      borderRadius: 12, 
-      padding: 20, 
-      marginBottom: 16,
-      border: `1px solid ${colors.error}`
-    }}>
-      <h3 style={{ color: colors.error }}>⚠️ Bilinmeyen Adım Tipi: {step.type}</h3>
-      <p style={{ color: colors.textSecondary }}>Bu adım tipi henüz desteklenmiyor.</p>
-    </div>
-  );
-}
-
-// ============================
-// ANA BİLEŞEN
-// ============================
+// Yeni JSON formatı - SADECE DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching, drag_drop, summary
 const NEW_JSON_EXAMPLE = `{
   "steps": [
     {
@@ -735,6 +66,13 @@ const NEW_JSON_EXAMPLE = `{
           "correct": 0,
           "feedback_correct": "✅ Doğru! 'I am not a student.'",
           "feedback_wrong": "❌ İpucu: 'I' ile 'am not' kullanılır."
+        },
+        {
+          "question": "He ___ (am not / isn't / aren't) a doctor.",
+          "options": ["am not", "isn't", "aren't"],
+          "correct": 1,
+          "feedback_correct": "✅ Doğru! 'He isn't a doctor.'",
+          "feedback_wrong": "❌ İpucu: 'He' ile 'isn't' kullanılır."
         }
       ]
     },
@@ -750,55 +88,32 @@ const NEW_JSON_EXAMPLE = `{
         {"left": "We are", "right": "We aren't"}
       ],
       "feedback_correct": "🎉 Harika! Tüm eşleştirmeler doğru!",
-      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış."
+      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış. Tekrar dene!"
     },
     {
       "id": "step_5",
       "type": "drag_drop",
       "title": "Sürükle-Bırak: Cümle Kurma",
-      "instructions": "Kelimeleri doğru sıraya dizin:",
+      "instructions": "Kelimeleri doğru sıraya dizerek cümle oluşturun:",
       "sentence": "I am not a student.",
       "words": ["I", "am", "not", "a", "student", "."],
       "correct_order": [0, 1, 2, 3, 4, 5],
-      "feedback_correct": "✅ Mükemmel!",
-      "feedback_wrong": "❌ Sıralama yanlış."
+      "feedback_correct": "✅ Mükemmel! Doğru cümle: 'I am not a student.'",
+      "feedback_wrong": "❌ Sıralama yanlış. İpucu: Özne + am/is/are + not + tamlayıcı"
     },
     {
       "id": "step_6",
-      "type": "dialogue",
-      "title": "Diyalog",
-      "content": {
-        "context": "Ali ve Emma meslekleri hakkında konuşuyorlar.",
-        "scenes": [
-          {"speaker": "Ali", "text": "Are you a doctor?", "translation": "Sen doktor musun?"},
-          {"speaker": "Emma", "text": "No, I am not a doctor.", "translation": "Hayır, ben doktor değilim."}
-        ]
-      },
-      "practice": {
-        "instructions": "Diyaloga göre doğru cevabı seçin:",
-        "questions": [
-          {
-            "question": "Emma: 'No, I ___ a doctor.'",
-            "options": ["am not", "isn't", "aren't"],
-            "correct": 0,
-            "feedback_correct": "✅ Doğru! 'I am not a doctor.'",
-            "feedback_wrong": "❌ İpucu: 'I' ile 'am not' kullanılır."
-          }
-        ]
-      }
-    },
-    {
-      "id": "step_7",
       "type": "summary",
       "title": "🎉 Ders Özeti",
       "content": {
         "key_points": [
           "Olumsuz cümleler: Özne + am/is/are + NOT + tamlayıcı",
-          "Kısaltmalar: I'm not, He isn't, She isn't, You aren't, We aren't, They aren't"
+          "Kısaltmalar: I'm not, He isn't, She isn't, You aren't, We aren't, They aren't",
+          "'am not'ın kısaltması yoktur (amn't kullanılmaz)"
         ],
         "practice_tasks": [
           "3 olumsuz cümle yazın (I am not ...)",
-          "Bir arkadaşınız hakkında 3 olumsuz cümle yazın"
+          "Bir arkadaşınız hakkında 3 olumsuz cümle yazın (He/She isn't ...)"
         ]
       }
     }
@@ -809,16 +124,17 @@ const NEW_JSON_EXAMPLE = `{
     "duration": 45,
     "lesson_number": 1,
     "learning_objectives": [
-      "'To be' fiilini olumsuz yapmayı öğrenmek",
-      "'not' kelimesinin doğru yerini kavramak"
+      "'To be' fiilini (am/is/are) olumsuz yapmayı öğrenmek",
+      "'not' kelimesinin doğru yerini kavramak",
+      "Kısaltılmış formları (isn't, aren't) kullanmak"
     ]
   }
 }`;
 
-// Prompt Template
+// Güncellenmiş Prompt - SADECE DESTEKLENEN TİPLER
 const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
 
-JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary):
+JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching, drag_drop, summary):
 
 {
   "steps": [
@@ -830,6 +146,9 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
         "explanation": "Açıklama metni",
         "rule": "📌 KURAL: Kural metni",
         "tip": "💡 İpucu metni",
+        "items": [
+          {"pronoun": "kelime", "meaning": "anlam"}
+        ],
         "examples": [
           {
             "correct": "Doğru örnek cümle",
@@ -897,30 +216,6 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
     },
     {
       "id": "step_6",
-      "type": "dialogue",
-      "title": "Diyalog",
-      "content": {
-        "context": "Diyalog bağlamı (kim, nerede, ne hakkında konuşuyor)",
-        "scenes": [
-          {"speaker": "Ali", "text": "Hello! I am Ali.", "translation": "Merhaba! Ben Ali."},
-          {"speaker": "Emma", "text": "Hi Ali! I am Emma.", "translation": "Merhaba Ali! Ben Emma."}
-        ]
-      },
-      "practice": {
-        "instructions": "Diyaloga göre boşluğu doldurun:",
-        "questions": [
-          {
-            "question": "Ali: Hello! I ___ Ali.",
-            "options": ["am", "is", "are"],
-            "correct": 0,
-            "feedback_correct": "✅ Doğru! 'I am Ali'",
-            "feedback_wrong": "❌ İpucu: 'I' ile 'am' kullanılır."
-          }
-        ]
-      }
-    },
-    {
-      "id": "step_7",
       "type": "summary",
       "title": "🎉 Ders Özeti",
       "content": {
@@ -952,18 +247,17 @@ KONU: [BURAYA KONUYU YAZIN]
 
 KURALLAR:
 1. Her step için benzersiz id kullan (step_1, step_2, ...)
-2. type alanları SADECE: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary
+2. type alanları SADECE: info, multiple_choice, fill_blank, matching, drag_drop, summary
 3. multiple_choice: 4-5 seçenek, correct index 0'dan başlar
 4. fill_blank: 3-4 seçenek, correct index 0'dan başlar
 5. matching: pairs array'inde left/right eşleştirmeleri
 6. drag_drop: words array'i ve correct_order array'i (index'ler 0'dan başlar)
-7. dialogue: scenes array'i (speaker, text, translation) + practice questions
-8. summary: key_points ve practice_tasks array'leri
-9. Tüm metinler Türkçe açıklamalar içermeli
-10. Öğrenici seviyesine uygun kelimeler kullan (A1/A2/B1/B2)
-11. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌, 🎉)
-12. JSON geçerli olmalı (son virgül yok, tüm tırnaklar kapalı)
-13. metadata kısmını mutlaka doldur
+7. summary: key_points ve practice_tasks array'leri
+8. Tüm metinler Türkçe açıklamalar içermeli
+9. Öğrenici seviyesine uygun kelimeler kullan (A1/A2/B1/B2)
+10. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌, 🎉)
+11. JSON geçerli olmalı (son virgül yok, tüm tırnaklar kapalı)
+12. metadata kısmını mutlaka doldur
 
 Bu formata TAM OLARAK uygun bir ders içeriği hazırla.`;
 
@@ -1002,7 +296,6 @@ function LessonAdder() {
   const [message, setMessage] = useState(null);
   const [showExample, setShowExample] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [previewStep, setPreviewStep] = useState(null);
 
   const handleAddLesson = async () => {
     if (!lessonNumber || !title) {
@@ -1087,22 +380,6 @@ function LessonAdder() {
     setTimeout(() => setMessage(null), 2000);
   };
 
-  // JSON'u parse et ve preview göster
-  const handlePreview = () => {
-    try {
-      const parsed = JSON.parse(jsonInput);
-      if (parsed.steps && parsed.steps.length > 0) {
-        setPreviewStep(parsed.steps[0]);
-        setMessage({ type: "success", text: "✅ Önizleme yükleniyor..." });
-        setTimeout(() => setMessage(null), 2000);
-      } else {
-        setMessage({ type: "error", text: "⚠️ Hiç step bulunamadı!" });
-      }
-    } catch (e) {
-      setMessage({ type: "error", text: "⚠️ Geçersiz JSON formatı!" });
-    }
-  };
-
   return (
     <div>
       <Message type={message?.type} text={message?.text} />
@@ -1169,20 +446,6 @@ function LessonAdder() {
                 }}
               >
                 {showExample ? "Gizle" : "Örnek JSON"}
-              </button>
-              <button
-                onClick={handlePreview}
-                style={{
-                  background: colors.primary,
-                  border: "none",
-                  borderRadius: 6,
-                  color: "#fff",
-                  fontSize: 11,
-                  padding: "4px 10px",
-                  cursor: "pointer"
-                }}
-              >
-                👁️ Önizle
               </button>
             </div>
           </div>
@@ -1255,37 +518,19 @@ function LessonAdder() {
                 </button>
               </div>
               <JsonDisplay data={NEW_JSON_EXAMPLE} />
-            </div>
-          )}
-
-          {/* PREVIEW */}
-          {previewStep && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                marginBottom: 8
-              }}>
-                <div style={{ fontSize: 11, color: colors.textSecondary }}>
-                  👁️ Adım Önizleme
+              
+              <div style={{ marginTop: 12, padding: 12, background: colors.surfaceDark, borderRadius: 8, border: `1px solid ${colors.border}` }}>
+                <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 6 }}>
+                  💡 Kullanım Adımları:
                 </div>
-                <button
-                  onClick={() => setPreviewStep(null)}
-                  style={{
-                    background: "none",
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 6,
-                    color: colors.textSecondary,
-                    fontSize: 11,
-                    padding: "2px 10px",
-                    cursor: "pointer"
-                  }}
-                >
-                  ✕ Kapat
-                </button>
+                <ol style={{ fontSize: 12, color: colors.textSecondary, margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
+                  <li>📋 Prompt'u kopyalayın (yukarıdaki "Prompt" butonuna tıklayın)</li>
+                  <li>🤖 ChatGPT/Claude'a gönderin ve konuyu belirtin</li>
+                  <li>📥 AI size JSON formatında ders içeriği üretecek</li>
+                  <li>📋 Üretilen JSON'u bu alana yapıştırın</li>
+                  <li>📚 Dersi kaydedin</li>
+                </ol>
               </div>
-              <LessonStepRenderer step={previewStep} stepIndex={0} />
             </div>
           )}
         </div>
