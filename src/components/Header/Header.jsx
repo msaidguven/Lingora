@@ -54,26 +54,22 @@ export default function Header({
           .from("en_users")
           .select("username, streak_days")
           .eq("id", user.id)
-          .maybeSingle();
+          .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error("Kullanıcı verisi çekme hatası:", error);
-          return;
-        }
-
-        if (data) {
-          setUserData({
-            username: data.username || user.email?.split('@')[0] || 'Öğrenci',
-            streak_days: data.streak_days || 0
-          });
-        } else {
+        if (error) {
+          console.error("Header - Kullanıcı verisi hatası:", error);
           setUserData({ 
             username: user.email?.split('@')[0] || 'Öğrenci', 
             streak_days: 0 
           });
+        } else if (data) {
+          setUserData({
+            username: data.username || user.email?.split('@')[0] || 'Öğrenci',
+            streak_days: data.streak_days || 0
+          });
         }
       } catch (error) {
-        console.error("Kullanıcı verisi işlemleri hatası:", error);
+        console.error("Header - Catch hatası:", error);
       } finally {
         setLoading(false);
       }
@@ -92,13 +88,6 @@ export default function Header({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Debug: Role değiştiğinde log et
-  useEffect(() => {
-    console.log("🔍 Header Debug - userRole prop received:", userRole);
-    const isAdminCheck = hasAdminAccess(userRole);
-    console.log("🔍 Header Debug - isAdmin check result:", isAdminCheck);
-  }, [userRole]);
 
   const isActive = (key) => currentScreen === key;
 

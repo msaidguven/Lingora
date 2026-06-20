@@ -27,7 +27,7 @@ function AppContent() {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
 
-  // ============ KULLANICI SEVİYE VE ROLÜ ÇEK ============
+  // ============ KULLANICI SEVİYESİNİ ÇEK ============
   useEffect(() => {
     if (!user) {
       setShowLogin(true);
@@ -37,59 +37,28 @@ function AppContent() {
     
     const fetchUserLevel = async () => {
       try {
-        // Önce kullanıcı var mı kontrol et - maybeSingle() ile
         const { data, error } = await supabase
           .from("en_users")
           .select("level, role")
           .eq("id", user.id)
-          .maybeSingle();
+          .single();
 
-        // Eğer gerçek bir hata varsa (kayıt bulunamadı hatası değilse)
-        if (error && error.code !== 'PGRST116') {
-          console.error("❌ Seviye çekme hatası:", error);
+        if (error) {
+          console.error("❌ Kullanıcı verisi hatası:", error);
+          setUserLevel("A1");
+          setUserRole("user");
           return;
         }
 
         if (data) {
-          // Kullanıcı zaten varsa seviyesini ve rolünü al
-          setUserLevel(data.level);
-          setUserRole(data.role || 'user');
-          console.log("✅ Kullanıcı seviyesi:", data.level, "Rolü:", data.role);
-          console.log("👑 DEBUG Admin Check - Role:", data.role, "Is Admin?", data.role === 'admin');
-          return; // Fonksiyonu bitir
-        }
-
-        // Kullanıcı yoksa oluştur (Bu noktaya sadece yeni kullanıcılar gelir)
-        console.log("📝 Yeni kullanıcı oluşturuluyor...");
-        
-        const { error: insertError } = await supabase
-          .from("en_users")
-          .insert([{ 
-            id: user.id, 
-            email: user.email,
-            level: "A1",
-            role: "user",
-            username: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Öğrenci',
-            streak_days: 0,
-            created_at: new Date().toISOString()
-          }]);
-
-        if (insertError) {
-          // 23505 = Unique violation (kullanıcı zaten var) - yoksay
-          if (insertError.code === '23505') {
-            console.log("📝 Kullanıcı zaten mevcut, seviye varsayılan olarak A1");
-            setUserLevel("A1");
-            setUserRole("user");
-          } else {
-            console.error("❌ Kullanıcı oluşturma hatası:", insertError);
-          }
-        } else {
-          console.log("✅ Yeni kullanıcı oluşturuldu!");
-          setUserLevel("A1");
-          setUserRole("user");
+          setUserLevel(data.level || "A1");
+          setUserRole(data.role || "user");
+          console.log("✅ Kullanıcı yüklendi - Level:", data.level, "Role:", data.role);
         }
       } catch (error) {
-        console.error("❌ Seviye işlemleri hatası:", error);
+        console.error("❌ Catch hatası:", error);
+        setUserLevel("A1");
+        setUserRole("user");
       }
     };
 
