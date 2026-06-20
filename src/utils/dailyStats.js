@@ -59,7 +59,7 @@ export async function updateDailyStats(userId, type, isCorrect) {
 
     console.log('📊 Yeni değerler:', { wordCorrect, wordWrong, sentenceCorrect, sentenceWrong, totalCorrect, totalWrong, totalAttempts, accuracy });
 
-    // 3. Upsert işlemi
+    // 3. Upsert işlemi - ✅ BOŞLUK KALDIRILDI
     const { data, error } = await supabase
       .from('en_user_daily_stats')
       .upsert({
@@ -75,7 +75,7 @@ export async function updateDailyStats(userId, type, isCorrect) {
         accuracy: accuracy,
         updated_at: new Date().toISOString()
       }, {
-        onConflict: 'user_id, stat_date'
+        onConflict: 'user_id,stat_date'  // ✅ BOŞLUK YOK!
       })
       .select();
 
