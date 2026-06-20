@@ -27,6 +27,7 @@ export default function Header({
   currentScreen, 
   onNavigate, 
   userLevel, 
+  userRole = 'user',
   quizType = null,
   onLogout,
   onNavigateToAdmin // Admin sayfasına gitmek için prop
@@ -34,14 +35,13 @@ export default function Header({
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [userData, setUserData] = useState(null);
-  const [userRole, setUserRole] = useState('user');
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const menuRef = useRef(null);
 
   const accent = LEVEL_COLOR[userLevel] || { from: "#8b7cff", to: "#5b8cff" };
 
-  // Kullanıcı verilerini ve rolünü çek
+  // Kullanıcı verilerini çek (username ve streak_days)
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -52,7 +52,7 @@ export default function Header({
       try {
         const { data, error } = await supabase
           .from("en_users")
-          .select("username, streak_days, role")
+          .select("username, streak_days")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -66,13 +66,11 @@ export default function Header({
             username: data.username || user.email?.split('@')[0] || 'Öğrenci',
             streak_days: data.streak_days || 0
           });
-          setUserRole(data.role || 'user');
         } else {
           setUserData({ 
             username: user.email?.split('@')[0] || 'Öğrenci', 
             streak_days: 0 
           });
-          setUserRole('user');
         }
       } catch (error) {
         console.error("Kullanıcı verisi işlemleri hatası:", error);
@@ -94,6 +92,13 @@ export default function Header({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Debug: Role değiştiğinde log et
+  useEffect(() => {
+    console.log("🔍 Header Debug - userRole prop received:", userRole);
+    const isAdminCheck = hasAdminAccess(userRole);
+    console.log("🔍 Header Debug - isAdmin check result:", isAdminCheck);
+  }, [userRole]);
 
   const isActive = (key) => currentScreen === key;
 

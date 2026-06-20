@@ -21,12 +21,13 @@ function AppContent() {
   const { user, loading: authLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
+  const [userRole, setUserRole] = useState("user");
   const [quizType, setQuizType] = useState(null);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
 
-  // ============ KULLANICI SEVİYESİNİ ÇEK ============
+  // ============ KULLANICI SEVİYE VE ROLÜ ÇEK ============
   useEffect(() => {
     if (!user) {
       setShowLogin(true);
@@ -39,7 +40,7 @@ function AppContent() {
         // Önce kullanıcı var mı kontrol et - maybeSingle() ile
         const { data, error } = await supabase
           .from("en_users")
-          .select("level")
+          .select("level, role")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -50,9 +51,11 @@ function AppContent() {
         }
 
         if (data) {
-          // Kullanıcı zaten varsa seviyesini al
+          // Kullanıcı zaten varsa seviyesini ve rolünü al
           setUserLevel(data.level);
-          console.log("✅ Kullanıcı seviyesi:", data.level);
+          setUserRole(data.role || 'user');
+          console.log("✅ Kullanıcı seviyesi:", data.level, "Rolü:", data.role);
+          console.log("👑 DEBUG Admin Check - Role:", data.role, "Is Admin?", data.role === 'admin');
           return; // Fonksiyonu bitir
         }
 
@@ -65,6 +68,7 @@ function AppContent() {
             id: user.id, 
             email: user.email,
             level: "A1",
+            role: "user",
             username: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Öğrenci',
             streak_days: 0,
             created_at: new Date().toISOString()
@@ -75,12 +79,14 @@ function AppContent() {
           if (insertError.code === '23505') {
             console.log("📝 Kullanıcı zaten mevcut, seviye varsayılan olarak A1");
             setUserLevel("A1");
+            setUserRole("user");
           } else {
             console.error("❌ Kullanıcı oluşturma hatası:", insertError);
           }
         } else {
           console.log("✅ Yeni kullanıcı oluşturuldu!");
           setUserLevel("A1");
+          setUserRole("user");
         }
       } catch (error) {
         console.error("❌ Seviye işlemleri hatası:", error);
@@ -239,6 +245,7 @@ function AppContent() {
         currentScreen={currentScreen} 
         onNavigate={handleNavigate} 
         userLevel={userLevel}
+        userRole={userRole}
         quizType={quizType}
         onLogout={handleLogout}
         onNavigateToAdmin={handleNavigateToAdmin}
