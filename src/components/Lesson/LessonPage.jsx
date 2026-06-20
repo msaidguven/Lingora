@@ -1,4 +1,4 @@
-// LessonPage.jsx - KARARLI SON VERSİYON
+// LessonPage.jsx - TÜM STEP TİPLERİNİ DESTEKLEYEN SON VERSİYON
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../config.js";
 import "./LessonPage.css";
@@ -140,23 +140,20 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
   );
 }
 
-// ❓ PRACTICE ADIMI - DÜZELTİLMİŞ KARARLI VERSİYON
-// ❓ PRACTICE ADIMI - SON KARARLI VERSİYON
-function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
-  const [answer, setAnswer] = useState('');
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
+// ❓ MULTIPLE CHOICE ADIMI
+function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
+  const [selectedOptions, setSelectedOptions] = useState({});
+  const [showFeedback, setShowFeedback] = useState({});
+  const [isCorrect, setIsCorrect] = useState({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionList, setQuestionList] = useState([]);
-  const [answeredQuestion, setAnsweredQuestion] = useState(null);
   const [isAllCompleted, setIsAllCompleted] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const allQuestions = step.questions || [];
 
-  // BAŞLATMA: Sadece step.id değiştiğinde çalışır
   useEffect(() => {
-    console.log('🔄 PracticeStep başlatılıyor...', step.id);
+    console.log('🔄 MultipleChoiceStep başlatılıyor...', step.id);
     
     if (allQuestions.length === 0) {
       setQuestionList([]);
@@ -165,12 +162,10 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       return;
     }
 
-    // External'dan gelen yanlış soruları kontrol et
     if (externalWrongQuestions && externalWrongQuestions.length > 0) {
       console.log('📝 External sorular kullanılıyor:', externalWrongQuestions.length);
       setQuestionList(externalWrongQuestions);
     } else {
-      // Tüm soruları karıştır
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
       console.log('🔀 Yeni sorular karıştırıldı:', shuffled.length);
       setQuestionList(shuffled);
@@ -182,71 +177,76 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     setCurrentIndex(0);
     setIsAllCompleted(false);
     setIsInitialized(true);
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setAnsweredQuestion(null);
-  }, [step.id]); // Sadece step.id değiştiğinde
+    setSelectedOptions({});
+    setShowFeedback({});
+    setIsCorrect({});
+  }, [step.id]);
 
-  // Mevcut soruyu al - SADECE burada kontrol et
   const currentQuestion = (() => {
-    if (answeredQuestion) return answeredQuestion;
     if (!isInitialized) return null;
     if (questionList.length === 0) return null;
     if (currentIndex >= questionList.length) return null;
     return questionList[currentIndex];
   })();
 
-  // Soru değiştiğinde state'leri sıfırla
-  useEffect(() => {
-    if (questionList.length > 0 && !answeredQuestion) {
-      setAnswer('');
-      setShowFeedback(false);
-      setIsCorrect(false);
+  const handleOptionSelect = (optionIndex) => {
+    if (showFeedback[currentIndex]) return;
+    
+    const correct = optionIndex === currentQuestion.correct;
+    setSelectedOptions(prev => ({ ...prev, [currentIndex]: optionIndex }));
+    setIsCorrect(prev => ({ ...prev, [currentIndex]: correct }));
+    setShowFeedback(prev => ({ ...prev, [currentIndex]: true }));
+
+    const newList = [...questionList];
+    newList.splice(currentIndex, 1);
+    
+    if (!correct) {
+      newList.push(currentQuestion);
     }
-  }, [currentIndex, questionList.length, answeredQuestion]);
 
-  // ============================
-  // RENDER DURUMLARI
-  // ============================
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
+    setQuestionList(newList);
+    
+    if (onWrongAnswer) {
+      onWrongAnswer(newList);
+    }
 
-  // 1. Henüz başlatılmadı
-  if (!isInitialized) {
-    return (
-      <div className="step-container">
-        <div className="step-content">
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div className="loading-spinner">⏳</div>
-            <p style={{ color: '#94a3b8' }}>Yükleniyor...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    // Tüm sorular bitti mi?
+    if (newList.length === 0) {
+      setTimeout(() => setIsAllCompleted(true), 500);
+    }
+  };
 
-  // 2. Hiç soru yok
-  if (allQuestions.length === 0) {
-    return (
-      <div className="step-container">
-        <div className="step-content">
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>❓</div>
-            <h3 style={{ color: '#f1f5f9', marginBottom: 8 }}>Soru Bulunamadı</h3>
-            <button onClick={onNext} className="nav-btn next-btn" style={{ marginTop: 16 }}>İlerle →</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleNext = () => {
+    if (!showFeedback[currentIndex]) {
+      alert('Lütfen önce soruyu cevaplayın!');
+      return;
+    }
+    
+    if (questionList.length > 0) {
+      setCurrentIndex(0);
+      setSelectedOptions({});
+      setShowFeedback({});
+      setIsCorrect({});
+    } else {
+      onNext();
+    }
+  };
 
-  // 3. Tüm sorular tamamlandı - SADECE isAllCompleted true ise
+  const handlePrevious = () => {
+    setSelectedOptions({});
+    setShowFeedback({});
+    setIsCorrect({});
+    onPrevious();
+  };
+
+  // Tüm sorular tamamlandı
   if (isAllCompleted) {
     return (
       <div className="step-container">
         <div className="step-header">
           <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
           <h2 className="step-title">{step.title}</h2>
-          <span className="completed-count">✅ Tüm sorular tamamlandı!</span>
         </div>
         <div className="step-content">
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -260,111 +260,18 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
     );
   }
 
-  // 4. Soru yok ama tamamlanmadı (arada bir durum)
-  if (!currentQuestion) {
+  if (!isInitialized || !currentQuestion) {
     return (
       <div className="step-container">
         <div className="step-content">
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div className="loading-spinner">⏳</div>
-            <p style={{ color: '#94a3b8' }}>Soru hazırlanıyor...</p>
+            <p style={{ color: '#94a3b8' }}>Yükleniyor...</p>
           </div>
         </div>
       </div>
     );
   }
-
-  // ============================
-  // SORU GÖSTERİMİ
-  // ============================
-
-  const handleOptionSelect = (value) => {
-    if (showFeedback) return;
-    setAnswer(value);
-    const correct = value === currentQuestion.correct;
-    setIsCorrect(correct);
-    setShowFeedback(true);
-    setAnsweredQuestion(currentQuestion);
-
-    // Soruyu listeden çıkar
-    const newList = [...questionList];
-    newList.splice(currentIndex, 1);
-    
-    // Yanlışsa sona ekle
-    if (!correct) {
-      newList.push(currentQuestion);
-    }
-
-    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
-    setQuestionList(newList);
-    
-    if (onWrongAnswer) {
-      onWrongAnswer(newList);
-    }
-  };
-
-  const handleInputChange = (value) => {
-    if (showFeedback) return;
-    setAnswer(value);
-  };
-
-  const handleInputCheck = () => {
-    if (!answer) {
-      alert('Lütfen bir cevap yazın!');
-      return;
-    }
-    const correct = answer.trim().toLowerCase() === currentQuestion.correct.toLowerCase();
-    setIsCorrect(correct);
-    setShowFeedback(true);
-    setAnsweredQuestion(currentQuestion);
-
-    const newList = [...questionList];
-    newList.splice(currentIndex, 1);
-    
-    if (!correct) {
-      newList.push(currentQuestion);
-    }
-
-    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
-    setQuestionList(newList);
-    
-    if (onWrongAnswer) {
-      onWrongAnswer(newList);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !showFeedback && answer) {
-      handleInputCheck();
-    }
-  };
-
-  const handleNext = () => {
-    if (!showFeedback) {
-      alert('Lütfen önce soruyu cevaplayın!');
-      return;
-    }
-    
-    // Eğer hala soru varsa, sıradakine geç
-    if (questionList.length > 0) {
-      setCurrentIndex(0);
-      setAnswer('');
-      setShowFeedback(false);
-      setIsCorrect(false);
-      setAnsweredQuestion(null);
-    } else {
-      // Tüm sorular bitti
-      onNext();
-    }
-  };
-
-  const handlePrevious = () => {
-    setAnswer('');
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setAnsweredQuestion(null);
-    onPrevious();
-  };
 
   const remainingCount = questionList.length;
 
@@ -373,6 +280,7 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
       <div className="step-header">
         <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
+        <span className="completed-count">Kalan: {remainingCount} soru</span>
       </div>
 
       <div className="step-content practice-content">
@@ -384,73 +292,547 @@ function PracticeStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer
         <div className="practice-question">
           <p className="question-text">{currentQuestion.question}</p>
 
-          {currentQuestion.options && currentQuestion.options.length > 0 ? (
-            <div className="options-group">
-              {currentQuestion.options.map((option, idx) => {
-                const isSelected = answer === option;
-                const isCorrectOption = showFeedback && option === currentQuestion.correct;
-                const isWrongOption = showFeedback && isSelected && option !== currentQuestion.correct;
-                
-                return (
-                  <label key={idx} className={`option-label 
-                    ${showFeedback ? (isCorrectOption ? 'correct-option' : isWrongOption ? 'wrong-option' : '') : ''}
-                    ${isSelected && !showFeedback ? 'selected-option' : ''}
-                  `}>
-                    <input
-                      type="radio"
-                      name="question"
-                      value={option}
-                      checked={isSelected}
-                      onChange={() => handleOptionSelect(option)}
-                      disabled={showFeedback}
-                    />
-                    <span>{option}</span>
-                    {showFeedback && isCorrectOption && <span className="check-icon">✅</span>}
-                    {showFeedback && isWrongOption && <span className="check-icon">❌</span>}
-                  </label>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="fill-blank-group">
-              <input
-                type="text"
-                className="fill-blank-input"
-                value={answer}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={showFeedback}
-                placeholder="Cevabınızı yazın..."
-              />
-              {!showFeedback && (
-                <button className="check-btn" onClick={handleInputCheck}>Kontrol Et</button>
-              )}
-            </div>
-          )}
+          <div className="options-group">
+            {currentQuestion.options.map((option, idx) => {
+              const isSelected = selectedOptions[currentIndex] === idx;
+              const isCorrectOption = showFeedback[currentIndex] && idx === currentQuestion.correct;
+              const isWrongOption = showFeedback[currentIndex] && isSelected && idx !== currentQuestion.correct;
+              
+              return (
+                <label key={idx} className={`option-label 
+                  ${showFeedback[currentIndex] ? (isCorrectOption ? 'correct-option' : isWrongOption ? 'wrong-option' : '') : ''}
+                  ${isSelected && !showFeedback[currentIndex] ? 'selected-option' : ''}
+                `}>
+                  <input
+                    type="radio"
+                    name="question"
+                    value={idx}
+                    checked={isSelected}
+                    onChange={() => handleOptionSelect(idx)}
+                    disabled={showFeedback[currentIndex]}
+                  />
+                  <span>{String.fromCharCode(65 + idx)}. {option}</span>
+                  {showFeedback[currentIndex] && isCorrectOption && <span className="check-icon">✅</span>}
+                  {showFeedback[currentIndex] && isWrongOption && <span className="check-icon">❌</span>}
+                </label>
+              );
+            })}
+          </div>
 
-          {showFeedback && (
-            <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
-              {isCorrect 
+          {showFeedback[currentIndex] && (
+            <div className={`feedback ${isCorrect[currentIndex] ? 'correct' : 'incorrect'}`}>
+              {isCorrect[currentIndex] 
                 ? currentQuestion.feedback_correct || '✅ Doğru!'
-                : currentQuestion.feedback_wrong || '❌ Yanlış. Tekrar deneyeceksiniz.'}
+                : currentQuestion.feedback_wrong || '❌ Yanlış. Tekrar dene.'}
             </div>
           )}
         </div>
 
         <div className="step-navigation">
           <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
-          <button onClick={handleNext} disabled={!showFeedback} className="nav-btn next-btn">
+          <button onClick={handleNext} disabled={!showFeedback[currentIndex]} className="nav-btn next-btn">
             {isLast && questionList.length === 0 ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {showFeedback && !isCorrect && (
-          <div className="progress-warning">⚠️ Bu soruyu yanlış cevapladınız. Tekrar karşınıza çıkacak.</div>
+// ❓ FILL BLANK ADIMI
+function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
+  const [selectedOptions, setSelectedOptions] = useState({});
+  const [showFeedback, setShowFeedback] = useState({});
+  const [isCorrect, setIsCorrect] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [questionList, setQuestionList] = useState([]);
+  const [isAllCompleted, setIsAllCompleted] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const allQuestions = step.questions || [];
+
+  useEffect(() => {
+    console.log('🔄 FillBlankStep başlatılıyor...', step.id);
+    
+    if (allQuestions.length === 0) {
+      setQuestionList([]);
+      setIsAllCompleted(true);
+      setIsInitialized(true);
+      return;
+    }
+
+    if (externalWrongQuestions && externalWrongQuestions.length > 0) {
+      console.log('📝 External sorular kullanılıyor:', externalWrongQuestions.length);
+      setQuestionList(externalWrongQuestions);
+    } else {
+      const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+      console.log('🔀 Yeni sorular karıştırıldı:', shuffled.length);
+      setQuestionList(shuffled);
+      if (onWrongAnswer) {
+        onWrongAnswer(shuffled);
+      }
+    }
+    
+    setCurrentIndex(0);
+    setIsAllCompleted(false);
+    setIsInitialized(true);
+    setSelectedOptions({});
+    setShowFeedback({});
+    setIsCorrect({});
+  }, [step.id]);
+
+  const currentQuestion = (() => {
+    if (!isInitialized) return null;
+    if (questionList.length === 0) return null;
+    if (currentIndex >= questionList.length) return null;
+    return questionList[currentIndex];
+  })();
+
+  const handleOptionSelect = (optionIndex) => {
+    if (showFeedback[currentIndex]) return;
+    
+    const correct = optionIndex === currentQuestion.correct;
+    setSelectedOptions(prev => ({ ...prev, [currentIndex]: optionIndex }));
+    setIsCorrect(prev => ({ ...prev, [currentIndex]: correct }));
+    setShowFeedback(prev => ({ ...prev, [currentIndex]: true }));
+
+    const newList = [...questionList];
+    newList.splice(currentIndex, 1);
+    
+    if (!correct) {
+      newList.push(currentQuestion);
+    }
+
+    console.log(`📝 ${correct ? '✅ Doğru' : '❌ Yanlış'} - Kalan soru: ${newList.length}`);
+    setQuestionList(newList);
+    
+    if (onWrongAnswer) {
+      onWrongAnswer(newList);
+    }
+
+    if (newList.length === 0) {
+      setTimeout(() => setIsAllCompleted(true), 500);
+    }
+  };
+
+  const handleNext = () => {
+    if (!showFeedback[currentIndex]) {
+      alert('Lütfen önce soruyu cevaplayın!');
+      return;
+    }
+    
+    if (questionList.length > 0) {
+      setCurrentIndex(0);
+      setSelectedOptions({});
+      setShowFeedback({});
+      setIsCorrect({});
+    } else {
+      onNext();
+    }
+  };
+
+  const handlePrevious = () => {
+    setSelectedOptions({});
+    setShowFeedback({});
+    setIsCorrect({});
+    onPrevious();
+  };
+
+  if (isAllCompleted) {
+    return (
+      <div className="step-container">
+        <div className="step-header">
+          <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+          <h2 className="step-title">{step.title}</h2>
+        </div>
+        <div className="step-content">
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <h3 style={{ color: '#10b981', marginBottom: 8 }}>Tüm Sorular Tamamlandı!</h3>
+            <p style={{ color: '#94a3b8' }}>Tüm soruları başarıyla cevapladınız.</p>
+            <button onClick={onNext} className="nav-btn next-btn" style={{ marginTop: 16 }}>Devam Et →</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isInitialized || !currentQuestion) {
+    return (
+      <div className="step-container">
+        <div className="step-content">
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div className="loading-spinner">⏳</div>
+            <p style={{ color: '#94a3b8' }}>Yükleniyor...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const remainingCount = questionList.length;
+
+  return (
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+        <h2 className="step-title">{step.title}</h2>
+        <span className="completed-count">Kalan: {remainingCount} soru</span>
+      </div>
+
+      <div className="step-content practice-content">
+        {step.rule && (
+          <div className="rule-box"><span className="rule-icon">📌</span><span>{step.rule}</span></div>
         )}
-        {showFeedback && isCorrect && remainingCount > 0 && (
-          <div className="progress-info">✅ Doğru cevap! Kalan {remainingCount} soru var.</div>
+        {step.instructions && <p className="instructions-text">{step.instructions}</p>}
+
+        <div className="practice-question">
+          <p className="question-text">{currentQuestion.question}</p>
+
+          <div className="options-group fill-blank-options">
+            {currentQuestion.options.map((option, idx) => {
+              const isSelected = selectedOptions[currentIndex] === idx;
+              const isCorrectOption = showFeedback[currentIndex] && idx === currentQuestion.correct;
+              const isWrongOption = showFeedback[currentIndex] && isSelected && idx !== currentQuestion.correct;
+              
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleOptionSelect(idx)}
+                  className={`fill-blank-btn 
+                    ${showFeedback[currentIndex] ? (isCorrectOption ? 'correct-option' : isWrongOption ? 'wrong-option' : '') : ''}
+                    ${isSelected && !showFeedback[currentIndex] ? 'selected-option' : ''}
+                  `}
+                  disabled={showFeedback[currentIndex]}
+                >
+                  {option}
+                  {showFeedback[currentIndex] && isCorrectOption && ' ✅'}
+                  {showFeedback[currentIndex] && isWrongOption && ' ❌'}
+                </button>
+              );
+            })}
+          </div>
+
+          {showFeedback[currentIndex] && (
+            <div className={`feedback ${isCorrect[currentIndex] ? 'correct' : 'incorrect'}`}>
+              {isCorrect[currentIndex] 
+                ? currentQuestion.feedback_correct || '✅ Doğru!'
+                : currentQuestion.feedback_wrong || '❌ Yanlış. Tekrar dene.'}
+            </div>
+          )}
+        </div>
+
+        <div className="step-navigation">
+          <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
+          <button onClick={handleNext} disabled={!showFeedback[currentIndex]} className="nav-btn next-btn">
+            {isLast && questionList.length === 0 ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 🔗 MATCHING ADIMI
+function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const [matches, setMatches] = useState({});
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [shuffledLeft, setShuffledLeft] = useState([]);
+  const [selectedLeft, setSelectedLeft] = useState(null);
+
+  const pairs = step.pairs || [];
+
+  useEffect(() => {
+    const shuffled = [...pairs].sort(() => Math.random() - 0.5);
+    setShuffledLeft(shuffled.map(p => p.left));
+    setMatches({});
+    setShowFeedback(false);
+    setIsCorrect(false);
+    setSelectedLeft(null);
+  }, [step.id]);
+
+  const handleLeftClick = (leftValue) => {
+    if (showFeedback) return;
+    setSelectedLeft(selectedLeft === leftValue ? null : leftValue);
+  };
+
+  const handleRightClick = (rightValue) => {
+    if (showFeedback || !selectedLeft) return;
+    
+    const pair = pairs.find(p => p.left === selectedLeft);
+    if (!pair) return;
+
+    const isMatch = pair.right === rightValue;
+    
+    setMatches(prev => ({
+      ...prev,
+      [selectedLeft]: { right: rightValue, isMatch }
+    }));
+    
+    setSelectedLeft(null);
+
+    // Tüm eşleştirmeler yapıldı mı kontrol et
+    const allMatched = Object.keys(matches).length + 1 === pairs.length;
+    if (allMatched) {
+      const allCorrect = Object.values(matches).every(m => m.isMatch) && isMatch;
+      setIsCorrect(allCorrect);
+      setShowFeedback(true);
+    } else if (allMatched && isMatch) {
+      const allCorrect = Object.values(matches).every(m => m.isMatch) && isMatch;
+      setIsCorrect(allCorrect);
+      setShowFeedback(true);
+    }
+  };
+
+  const handleCheck = () => {
+    const allMatched = Object.keys(matches).length === pairs.length;
+    if (!allMatched) {
+      alert('Lütfen tüm eşleştirmeleri yapın!');
+      return;
+    }
+    const allCorrect = Object.values(matches).every(m => m.isMatch);
+    setIsCorrect(allCorrect);
+    setShowFeedback(true);
+  };
+
+  const handleNext = () => {
+    if (!showFeedback || !isCorrect) {
+      alert('Doğru cevapları bulmadan ilerleyemezsiniz!');
+      return;
+    }
+    onNext();
+  };
+
+  const handlePrevious = () => {
+    setMatches({});
+    setShowFeedback(false);
+    setIsCorrect(false);
+    setSelectedLeft(null);
+    onPrevious();
+  };
+
+  const matchedLeftItems = Object.keys(matches);
+  const availableLeftItems = shuffledLeft.filter(item => !matchedLeftItems.includes(item));
+
+  return (
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+        <h2 className="step-title">{step.title}</h2>
+        <span className="completed-count">{Object.keys(matches).length} / {pairs.length} eşleştirildi</span>
+      </div>
+
+      <div className="step-content matching-content">
+        {step.instructions && <p className="instructions-text">{step.instructions}</p>}
+
+        <div className="matching-container">
+          <div className="matching-left">
+            <h4>📌 Kelimeler</h4>
+            {shuffledLeft.map((left, idx) => {
+              const isMatched = matchedLeftItems.includes(left);
+              const isSelected = selectedLeft === left;
+              const match = matches[left];
+              
+              return (
+                <div
+                  key={idx}
+                  onClick={() => !isMatched && handleLeftClick(left)}
+                  className={`matching-item left-item 
+                    ${isMatched ? 'matched' : ''} 
+                    ${isSelected ? 'selected' : ''}
+                    ${showFeedback && match ? (match.isMatch ? 'correct-match' : 'wrong-match') : ''}
+                  `}
+                >
+                  <span>{left}</span>
+                  {isMatched && match && (
+                    <span className="match-indicator">
+                      {match.isMatch ? '✅' : '❌'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="matching-arrow">⟷</div>
+
+          <div className="matching-right">
+            <h4>🎯 Anlamları</h4>
+            {pairs.map((pair, idx) => {
+              const matchedWith = Object.entries(matches).find(([key, val]) => val.right === pair.right);
+              const isMatched = !!matchedWith;
+              const leftValue = matchedWith?.[0];
+              const match = matches[leftValue];
+              const isSelectedRight = selectedLeft && pairs.find(p => p.left === selectedLeft)?.right === pair.right;
+              
+              return (
+                <div
+                  key={idx}
+                  onClick={() => !isMatched && handleRightClick(pair.right)}
+                  className={`matching-item right-item 
+                    ${isMatched ? 'matched' : ''}
+                    ${isSelectedRight ? 'selected' : ''}
+                    ${showFeedback && match ? (match.isMatch ? 'correct-match' : 'wrong-match') : ''}
+                  `}
+                >
+                  <span>{pair.right}</span>
+                  {isMatched && match && (
+                    <span className="match-indicator">
+                      {match.isMatch ? '✅' : '❌'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {!showFeedback && Object.keys(matches).length > 0 && (
+          <button onClick={handleCheck} className="check-btn" style={{ marginTop: 16, width: '100%' }}>
+            ✅ Kontrol Et
+          </button>
         )}
-       
+
+        {showFeedback && (
+          <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
+            {isCorrect ? step.feedback_correct || '🎉 Harika! Tüm eşleştirmeler doğru!' : step.feedback_wrong || '😅 Bazı eşleştirmeler yanlış. Tekrar dene!'}
+          </div>
+        )}
+
+        <div className="step-navigation">
+          <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
+          <button onClick={handleNext} disabled={!showFeedback || !isCorrect} className="nav-btn next-btn">
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 🎯 DRAG & DROP ADIMI
+function DragDropStep({ step, onNext, onPrevious, isFirst, isLast }) {
+  const [items, setItems] = useState([]);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+
+  const words = step.words || [];
+  const correctOrder = step.correct_order || [];
+
+  useEffect(() => {
+    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    setItems(shuffled);
+    setShowFeedback(false);
+    setIsCorrect(false);
+  }, [step.id]);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null) return;
+
+    const newItems = [...items];
+    const [draggedItem] = newItems.splice(draggedIndex, 1);
+    newItems.splice(targetIndex, 0, draggedItem);
+    setItems(newItems);
+    setDraggedIndex(null);
+  };
+
+  const handleCheck = () => {
+    const isCorrectOrder = items.every((item, index) => {
+      const originalIndex = words.indexOf(item);
+      return originalIndex === correctOrder[index];
+    });
+    setIsCorrect(isCorrectOrder);
+    setShowFeedback(true);
+  };
+
+  const handleNext = () => {
+    if (!showFeedback || !isCorrect) {
+      alert('Doğru sıralamayı bulmadan ilerleyemezsiniz!');
+      return;
+    }
+    onNext();
+  };
+
+  const handlePrevious = () => {
+    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    setItems(shuffled);
+    setShowFeedback(false);
+    setIsCorrect(false);
+    onPrevious();
+  };
+
+  return (
+    <div className="step-container">
+      <div className="step-header">
+        <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
+        <h2 className="step-title">{step.title}</h2>
+      </div>
+
+      <div className="step-content dragdrop-content">
+        {step.instructions && <p className="instructions-text">{step.instructions}</p>}
+        {step.sentence && (
+          <div className="target-sentence">
+            <span style={{ color: '#94a3b8', fontSize: 14 }}>🎯 Hedef Cümle:</span>
+            <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 18 }}>{step.sentence}</span>
+          </div>
+        )}
+
+        <div className="dragdrop-container">
+          <div className="dragdrop-items">
+            {items.map((item, index) => (
+              <div
+                key={index}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`dragdrop-item 
+                  ${draggedIndex === index ? 'dragging' : ''}
+                  ${showFeedback ? (items[index] === words[correctOrder[index]] ? 'correct-position' : 'wrong-position') : ''}
+                `}
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {!showFeedback && (
+          <button onClick={handleCheck} className="check-btn" style={{ marginTop: 16, width: '100%' }}>
+            ✅ Kontrol Et
+          </button>
+        )}
+
+        {showFeedback && (
+          <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
+            {isCorrect ? step.feedback_correct || '✅ Mükemmel! Doğru sıralama!' : step.feedback_wrong || '❌ Sıralama yanlış. Tekrar dene!'}
+            {!isCorrect && (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#94a3b8' }}>
+                💡 İpucu: Doğru sıralama: {words.map(w => `"${w}"`).join(' → ')}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="step-navigation">
+          <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
+          <button onClick={handleNext} disabled={!showFeedback || !isCorrect} className="nav-btn next-btn">
+            {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -923,7 +1305,7 @@ export default function LessonPage({ lessonId, onBack }) {
     if (content.summary) {
       steps.push({
         id: `step_${stepCounter}`,
-        type: 'info',
+        type: 'summary',
         title: 'Ders Özeti',
         content: {
           key_points: typeof content.summary === 'string' ? [content.summary] : content.summary.key_points || [],
@@ -959,9 +1341,29 @@ export default function LessonPage({ lessonId, onBack }) {
     switch(step.type) {
       case 'info':
         return <InfoStep {...props} />;
+      case 'multiple_choice':
+        return (
+          <MultipleChoiceStep 
+            {...props}
+            onWrongAnswer={(wrongQuestions) => handleWrongAnswer(step.id, wrongQuestions)}
+            wrongQuestions={wrongQuestionsMap[step.id] || []}
+          />
+        );
+      case 'fill_blank':
+        return (
+          <FillBlankStep 
+            {...props}
+            onWrongAnswer={(wrongQuestions) => handleWrongAnswer(step.id, wrongQuestions)}
+            wrongQuestions={wrongQuestionsMap[step.id] || []}
+          />
+        );
+      case 'matching':
+        return <MatchingStep {...props} />;
+      case 'drag_drop':
+        return <DragDropStep {...props} />;
       case 'practice':
         return (
-          <PracticeStep 
+          <FillBlankStep 
             {...props}
             onWrongAnswer={(wrongQuestions) => handleWrongAnswer(step.id, wrongQuestions)}
             wrongQuestions={wrongQuestionsMap[step.id] || []}
@@ -1016,7 +1418,9 @@ export default function LessonPage({ lessonId, onBack }) {
           saveTimeoutRef.current = null;
         }
         const completedWrongQuestionsMap = steps.reduce((acc, step) => {
-          if (step.type === 'practice') acc[step.id] = [];
+          if (step.type === 'practice' || step.type === 'multiple_choice' || step.type === 'fill_blank') {
+            acc[step.id] = [];
+          }
           return acc;
         }, {});
         setWrongQuestionsMap(completedWrongQuestionsMap);
