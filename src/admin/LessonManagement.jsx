@@ -6,33 +6,6 @@ import {
   Input, TextArea, JsonDisplay, SearchInput, Badge 
 } from "./adminStyles.jsx";
 
-const LESSON_EXAMPLE_JSON = `{
-  "sections": [
-    {
-      "type": "theory",
-      "title": "📖 Teori",
-      "content": "1. ZAMİRLER (Subject Pronouns)\\nI = ben\\nyou = sen / siz\\nhe = o (erkek)\\nshe = o (kadın)\\nit = o (eşya, hayvan, kavram)\\nwe = biz\\nthey = onlar\\n\\nKURAL: I -> am, He/She/It -> is, You/We/They -> are"
-    },
-    {
-      "type": "vocabulary",
-      "title": "📚 Kelimeler",
-      "vocabulary": [
-        {"word": "teacher", "meaning": "öğretmen"},
-        {"word": "doctor", "meaning": "doktor"},
-        {"word": "engineer", "meaning": "mühendis"}
-      ]
-    },
-    {
-      "type": "example_sentences",
-      "title": "💬 Örnek Cümleler",
-      "example_sentences": [
-        {"en": "I am a teacher.", "tr": "Ben öğretmenim."},
-        {"en": "She is happy.", "tr": "O mutlu."}
-      ]
-    }
-  ]
-}`;
-
 // Yeni JSON formatı - Çoktan seçmeli, boşluk doldurma, eşleştirme, sürükle-bırak
 const NEW_JSON_EXAMPLE = `{
   "steps": [
@@ -169,7 +142,7 @@ const NEW_JSON_EXAMPLE = `{
   }
 }`;
 
-// Güncellenmiş Prompt
+// Prompt Template
 const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
 
 JSON Formatı:
@@ -352,7 +325,7 @@ function LessonAdder() {
       if (jsonInput.trim()) {
         contentJson = JSON.parse(jsonInput.trim());
       } else {
-        contentJson = { sections: [] };
+        contentJson = { steps: [] };
       }
     } catch (e) {
       setMessage({ type: "error", text: "⚠️ Geçersiz JSON formatı!" });
@@ -544,7 +517,7 @@ function LessonAdder() {
             <div style={{ marginTop: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ fontSize: 11, color: colors.textSecondary }}>
-                  📄 Yeni JSON Formatı Örneği
+                  📄 JSON Formatı Örneği
                 </div>
                 <button
                   onClick={copyNewJsonExample}
@@ -845,7 +818,7 @@ function LessonEditor() {
                   padding: "2px 10px", 
                   borderRadius: 4
                 }}>
-                  📝 {typeof lesson.content_json === 'object' && lesson.content_json.sections ? lesson.content_json.sections.length : Object.keys(lesson.content_json).length} bölüm
+                  📝 {lesson.content_json?.steps?.length || 0} adım
                 </span>
               </div>
             ))}
