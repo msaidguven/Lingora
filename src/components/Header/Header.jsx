@@ -1,0 +1,269 @@
+// src/components/Header/Header.jsx
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "../../config.js";
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
+import './Header.css';
+
+const LEVEL_COLOR = {
+  A1: { from: "#10b981", to: "#059669" },
+  A2: { from: "#3b82f6", to: "#2563eb" },
+  B1: { from: "#a855f7", to: "#7c3aed" },
+  B2: { from: "#f97316", to: "#ea580c" },
+};
+
+const NAV_ITEMS = [
+  { key: "home",      icon: "ti-home",             label: "ANASAYFA"   },
+  { key: "dashboard", icon: "ti-layout-dashboard",  label: "İSTATİSTİK" },
+  { key: "quiz",      icon: "ti-tournament",        label: "QUIZ"  },
+];
+
+export default function Header({ 
+  currentScreen, 
+  onNavigate, 
+  userLevel, 
+  quizType = null,
+  onLogout 
+}) {
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [userData, setUserData] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  const accent = LEVEL_COLOR[userLevel] || { from: "#8b7cff", to: "#5b8cff" };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("en_users")
+          .select("username, streak_days")
+          .eq("id", user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("Kullanıcı verisi çekme hatası:", error);
+          return;
+        }
+
+        if (data) {
+          setUserData(data);
+        } else {
+          setUserData({ 
+            username: user.email?.split('@')[0] || 'Öğrenci', 
+            streak_days: 0 
+          });
+        }
+      } catch (error) {
+        console.error("Kullanıcı verisi işlemleri hatası:", error);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isActive = (key) => currentScreen === key;
+
+  const getQuizLabel = () => {
+    if (quizType === "word") return "KELİME";
+    if (quizType === "sentence") return "CÜMLE";
+    return "QUIZ";
+  };
+
+  const getQuizIcon = () => {
+    if (quizType === "word") return "ti-book";
+    if (quizType === "sentence") return "ti-message";
+    return "ti-tournament";
+  };
+
+  const goToStats = () => {
+    onNavigate("stats");
+    setMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    if (window.confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+      const result = await logout();
+      if (result.success) {
+        onLogout?.();
+      } else {
+        alert('Çıkış yapılırken bir hata oluştu!');
+      }
+    }
+  };
+
+  const displayName = userData?.username || 
+                      user?.user_metadata?.full_name || 
+                      user?.email?.split('@')[0] || 
+                      'Öğrenci';
+
+  return (
+    <header className="header-wrapper" data-theme={theme}>
+      <div className="header-glow" />
+      
+      <div className="header-bar">
+        {/* Navigasyon */}
+        <nav className="nav-container">
+          {NAV_ITEMS.map(({ key, icon, label }) => {
+            const active = isActive(key);
+            const isQuiz = key === "quiz";
+            const displayIcon = isQuiz && active ? getQuizIcon() : icon;
+            const displayLabel = isQuiz && active ? getQuizLabel() : label;
+
+            return (
+              <button
+                key={key}
+                onClick={() => onNavigate(key, isQuiz ? null : undefined)}
+                className={`nav-btn ${active ? 'nav-btn-active' : ''}`}
+                style={{
+                  background: active
+                    ? `linear-gradient(135deg, ${accent.from}, ${accent.to})`
+                    : "transparent",
+                  color: active ? "#ffffff" : "var(--text-muted)",
+                  boxShadow: active ? `0 4px 14px -4px ${accent.from}88` : "none",
+                }}
+              >
+                <i className={`ti ${displayIcon}`} aria-hidden="true" />
+                <span>{displayLabel}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Sağ Bölüm */}
+        <div className="header-right">
+          {/* Streak */}
+          <div className="streak-pill">
+            <i className="ti ti-flame" aria-hidden="true" />
+            <span>{userData?.streak_days || 0}</span>
+          </div>
+
+          {/* Profil Menüsü */}
+          <div className="menu-container" ref={menuRef}>
+            <button 
+              className="menu-toggle-btn"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Ayarları Aç"
+            >
+              <div className="avatar-wrapper">
+                <i className="ti ti-user-circle" />
+                <span className="menu-label">{displayName}</span>
+                <i className={`ti ${menuOpen ? "ti-chevron-up" : "ti-chevron-down"}`} />
+              </div>
+            </button>
+
+            {menuOpen && (
+              <div className="dropdown-menu">
+                {/* Kullanıcı Bilgisi */}
+                <div className="dropdown-user">
+                  <div className="dropdown-avatar">
+                    <i className="ti ti-user-circle" />
+                  </div>
+                  <div className="dropdown-user-info">
+                    <div className="dropdown-username">{displayName}</div>
+                    <div className="dropdown-user-level">
+                      Seviye: <span style={{ color: accent.from, fontWeight: 700 }}>{userLevel || "A1"}</span>
+                    </div>
+                    <div className="dropdown-user-email">
+                      {user?.email}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dropdown-divider" />
+
+                {/* Admin Linki */}
+                <a 
+                  href="https://lingora-phi.vercel.app/admin" 
+                  className="dropdown-item"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <i className="ti ti-settings" />
+                  <span>Admin Paneli</span>
+                  <span className="dropdown-badge">Yönetici</span>
+                </a>
+
+                <div className="dropdown-divider" />
+
+                {/* Tema Değiştir */}
+                <button className="dropdown-item" onClick={toggleTheme}>
+                  <i className={`ti ${theme === "dark" ? "ti-sun" : "ti-moon"}`} />
+                  <span>{theme === "dark" ? "Açık Tema" : "Koyu Tema"}</span>
+                  <span className="dropdown-badge">
+                    {theme === "dark" ? "🌙" : "☀️"}
+                  </span>
+                </button>
+
+                <div className="dropdown-divider" />
+
+                {/* İstatistikler */}
+                <button 
+                  className={`dropdown-item ${isActive("stats") ? 'dropdown-item-active' : ''}`}
+                  onClick={goToStats}
+                  style={{
+                    background: isActive("stats") 
+                      ? `linear-gradient(135deg, ${accent.from}, ${accent.to})` 
+                      : "none",
+                    color: isActive("stats") ? "#ffffff" : "var(--text-main)",
+                  }}
+                >
+                  <i className="ti ti-chart-line" />
+                  <span>Öğrendiğim Kelimeler</span>
+                  {isActive("stats") && (
+                    <span className="dropdown-badge">Aktif</span>
+                  )}
+                </button>
+
+                {/* Profil */}
+                <button className="dropdown-item">
+                  <i className="ti ti-user" />
+                  <span>Profil</span>
+                  <i className="ti ti-chevron-right dropdown-item-arrow" />
+                </button>
+
+                {/* Ayarlar */}
+                <button className="dropdown-item">
+                  <i className="ti ti-settings" />
+                  <span>Ayarlar</span>
+                  <i className="ti ti-chevron-right dropdown-item-arrow" />
+                </button>
+
+                <div className="dropdown-divider" />
+
+                {/* Çıkış Yap */}
+                <button 
+                  className="dropdown-item dropdown-item-logout"
+                  onClick={handleLogout}
+                >
+                  <i className="ti ti-logout" />
+                  <span>Çıkış Yap</span>
+                </button>
+
+                <div className="dropdown-footer">
+                  <span>v2.1.0</span>
+                  <span>•</span>
+                  <span>Lingora</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
