@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config';
 
@@ -29,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ============ LOGIN ============
   const login = async (email, password) => {
     try {
       setError(null);
@@ -44,42 +46,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // src/contexts/AuthContext.jsx - register fonksiyonunu güncelleyin
-
-const register = async (email, password, fullName) => {
-  try {
-    setError(null);
-    
-    // 1. Supabase'de kullanıcı oluştur
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+  // ============ REGISTER ============
+  const register = async (email, password, fullName) => {
+    try {
+      setError(null);
+      
+      // 1. Supabase'de kullanıcı oluştur
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
-    
-    if (error) throw error;
-    
-    // 2. Kullanıcı oluşturulduysa, en_users tablosuna da ekle
-    if (data.user) {
-      try {
+      });
+      
+      if (error) throw error;
+      
+      // 2. Kullanıcı oluşturulduysa, en_users tablosuna ekle
+      if (data.user) {
+        // en_users'a ekle
         const { error: insertError } = await supabase
           .from("en_users")
-          .insert([{ 
+          .upsert([{ 
             id: data.user.id,
             email: data.user.email,
             level: "A1",
             username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
             streak_days: 0,
             created_at: new Date().toISOString()
-          }]);
+          }], { onConflict: 'id' });  // upsert ile çakışma durumunda güncelle
         
         if (insertError) {
           console.error("❌ en_users'a ekleme hatası:", insertError);
-          // RLS hatası varsa ama kullanıcı oluştuysa devam et
           if (insertError.code === '42501') {
             console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
             console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
@@ -87,18 +87,45 @@ const register = async (email, password, fullName) => {
         } else {
           console.log("✅ Kullanıcı en_users tablosuna eklendi!");
         }
-      } catch (insertError) {
-        console.error("❌ en_users insert hatası:", insertError);
-      }
-    }
-    
-    return { success: true, data, user: data.user };
-  } catch (error) {
-    setError(error.message);
-    return { success: false, error: error.message };
-  }
-};
 
+        // 3. Günlük limit oluştur (eğer yoksa)
+        const { error: dailyError } = await supabase
+          .from("en_user_daily_limit")
+          .upsert([{
+            user_id: data.user.id,
+            remaining_today: 5,
+            last_reset_at: new Date().toISOString()
+          }], { onConflict: 'user_id' });  // upsert ile çakışma durumunda güncelle
+        
+        if (dailyError) {
+          console.error("❌ Günlük limit oluşturma hatası:", dailyError);
+        } else {
+          console.log("✅ Günlük limit oluşturuldu!");
+        }
+
+        // 4. Otomatik giriş yap (email confirmation kapalıysa)
+        // Eğer email confirmation açık ise bu kısım çalışmaz
+        try {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (!signInError) {
+            console.log("✅ Otomatik giriş başarılı!");
+          }
+        } catch (signInError) {
+          console.log("📝 Otomatik giriş yapılamadı, kullanıcı manuel giriş yapmalı.");
+        }
+      }
+      
+      return { success: true, data, user: data.user };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ============ LOGOUT ============
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -110,7 +137,7 @@ const register = async (email, password, fullName) => {
     }
   };
 
-  // Google ile giriş
+  // ============ GOOGLE LOGIN ============
   const loginWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -127,7 +154,7 @@ const register = async (email, password, fullName) => {
     }
   };
 
-  // Facebook ile giriş
+  // ============ FACEBOOK LOGIN ============
   const loginWithFacebook = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -144,6 +171,43 @@ const register = async (email, password, fullName) => {
     }
   };
 
+  // ============ KULLANICI VERİLERİNİ GETİR ============
+  const fetchUserData = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_users")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();  // maybeSingle() kullan
+
+      if (error) {
+        console.error("❌ Kullanıcı verisi çekme hatası:", error);
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error("❌ Kullanıcı verisi hatası:", error);
+      return null;
+    }
+  };
+
+  // ============ KULLANICI SEVİYESİNİ GÜNCELLE ============
+  const updateUserLevel = async (userId, level) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_users")
+        .update({ level })
+        .eq("id", userId);
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error("❌ Seviye güncelleme hatası:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ============ VALUE ============
   const value = {
     user,
     session,
@@ -154,11 +218,14 @@ const register = async (email, password, fullName) => {
     logout,
     loginWithGoogle,
     loginWithFacebook,
+    fetchUserData,
+    updateUserLevel,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// ============ USE AUTH HOOK ============
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
