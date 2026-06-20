@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
 import { updateDailyStats } from "../utils/dailyStats.js";
+import { useAuth } from "../contexts/AuthContext";
 
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 const SESSION_WORD_LIMIT = 20;
 
 export function useWordQuiz(userLevel) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [allCards, setAllCards] = useState([]);
   const [examplesMap, setExamplesMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,11 @@ export function useWordQuiz(userLevel) {
   // Verileri yükle
   useEffect(() => {
     async function fetchData() {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       setExamplesMap({});
@@ -32,7 +40,7 @@ export function useWordQuiz(userLevel) {
         const { data: userWords, error: uwError } = await supabase
           .from("en_user_words")
           .select("word_id, next_review_at")
-          .eq("user_id", FIXED_USER_ID)
+          .eq("user_id", userId)
           .lt("next_review_at", new Date().toISOString());
         
         if (uwError) throw uwError;
@@ -89,7 +97,7 @@ export function useWordQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-  }, [userLevel, sessionKey]);
+  }, [userLevel, sessionKey, userId]);
 
   // Şıkları oluştur - HER SEFERİNDE FARKLI!
   useEffect(() => {
@@ -99,58 +107,63 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allCards, choiceCount]);
 
-  // Kelime sonucunu kaydet - SADECE en_user_words GÜNCELLENİR
-  // useWordQuiz.js - saveWordResult
-const saveWordResult = async (wordId, isCorrect) => {
-  const now = new Date();
-  let nextReviewDate = new Date();
-  
-  const { data: existing } = await supabase
-    .from("en_user_words")
-    .select("id, review_count, total_correct, total_wrong")
-    .eq("user_id", FIXED_USER_ID)
-    .eq("word_id", wordId)
-    .maybeSingle();
-  
-  if (isCorrect) {
-    const newReviewCount = (existing?.review_count || 0) + 1;
-    const newTotalCorrect = (existing?.total_correct || 0) + 1;
+  // Kelime sonucunu kaydet
+  const saveWordResult = async (wordId, isCorrect) => {
+    if (!userId) {
+      console.error("❌ saveWordResult: userId gereklidir!");
+      return;
+    }
+
+    const now = new Date();
+    let nextReviewDate = new Date();
     
-    // Tekrar aralığını hesapla...
-    if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-    else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-    // ... devamı
-    
-    await supabase
+    const { data: existing } = await supabase
       .from("en_user_words")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: newReviewCount,
-        total_correct: newTotalCorrect,     // ⬅️ YENİ
-        last_score: 100,
-        last_reviewed_at: now.toISOString(),
-        mastery_level: Math.min(newReviewCount, 9),
-        is_mastered: newReviewCount >= 9
-      })
-      .eq("id", existing.id);
-  } else {
-    const newTotalWrong = (existing?.total_wrong || 0) + 1;
-    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      .select("id, review_count, total_correct, total_wrong")
+      .eq("user_id", userId)
+      .eq("word_id", wordId)
+      .maybeSingle();
     
-    await supabase
-      .from("en_user_words")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: 0,
-        total_wrong: newTotalWrong,        // ⬅️ YENİ
-        last_score: 0,
-        last_reviewed_at: now.toISOString(),
-        mastery_level: 0,
-        is_mastered: false
-      })
-      .eq("id", existing.id);
-  }
-};
+    if (isCorrect) {
+      const newReviewCount = (existing?.review_count || 0) + 1;
+      const newTotalCorrect = (existing?.total_correct || 0) + 1;
+      
+      // Tekrar aralığını hesapla
+      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+      else nextReviewDate.setDate(now.getDate() + 14);
+      
+      await supabase
+        .from("en_user_words")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: newReviewCount,
+          total_correct: newTotalCorrect,
+          last_score: 100,
+          last_reviewed_at: now.toISOString(),
+          mastery_level: Math.min(newReviewCount, 9),
+          is_mastered: newReviewCount >= 9
+        })
+        .eq("id", existing.id);
+    } else {
+      const newTotalWrong = (existing?.total_wrong || 0) + 1;
+      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      
+      await supabase
+        .from("en_user_words")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: 0,
+          total_wrong: newTotalWrong,
+          last_score: 0,
+          last_reviewed_at: now.toISOString(),
+          mastery_level: 0,
+          is_mastered: false
+        })
+        .eq("id", existing.id);
+    }
+  };
 
   // Cevap seçildiğinde
   const handleSelect = async (opt, onComplete) => {
@@ -165,8 +178,8 @@ const saveWordResult = async (wordId, isCorrect) => {
     // Kelime sonucunu kaydet
     await saveWordResult(currentQuestion.id, isCorrect);
 
-    // 🆕 Günlük istatistiği güncelle
-    await updateDailyStats('word', isCorrect);
+    // Günlük istatistiği güncelle
+    await updateDailyStats(userId, 'word', isCorrect);
     
     setSaving(false);
     onComplete(isCorrect);

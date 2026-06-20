@@ -1,7 +1,5 @@
 import { supabase } from "../config.js";
 
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
-
 // ✅ Türkiye saatiyle bugünün tarihini döndürür (YYYY-MM-DD)
 const getTurkeyToday = () => {
   const now = new Date();
@@ -12,10 +10,16 @@ const getTurkeyToday = () => {
 
 /**
  * Günlük istatistikleri güncelle
+ * @param {string} userId - Kullanıcı ID'si
  * @param {string} type - 'word' veya 'sentence'
  * @param {boolean} isCorrect - Doğru mu?
  */
-export async function updateDailyStats(type, isCorrect) {
+export async function updateDailyStats(userId, type, isCorrect) {
+  if (!userId) {
+    console.error('❌ updateDailyStats: userId gereklidir!');
+    return;
+  }
+
   // ✅ Türkiye saatiyle bugün
   const todayStr = getTurkeyToday();
   
@@ -24,7 +28,7 @@ export async function updateDailyStats(type, isCorrect) {
     const { data: existing } = await supabase
       .from('en_user_daily_stats')
       .select('*')
-      .eq('user_id', FIXED_USER_ID)
+      .eq('user_id', userId)
       .eq('stat_date', todayStr)
       .maybeSingle();
     
@@ -60,7 +64,7 @@ export async function updateDailyStats(type, isCorrect) {
     const { error } = await supabase
       .from('en_user_daily_stats')
       .upsert({
-        user_id: FIXED_USER_ID,
+        user_id: userId,
         stat_date: todayStr,
         ...updates,
         total_correct: totalCorrect,
@@ -83,8 +87,15 @@ export async function updateDailyStats(type, isCorrect) {
 
 /**
  * Son X günün istatistiklerini getir
+ * @param {string} userId - Kullanıcı ID'si
+ * @param {number} days - Kaç gün (varsayılan: 30)
  */
-export async function getDailyStats(days = 30) {
+export async function getDailyStats(userId, days = 30) {
+  if (!userId) {
+    console.error('❌ getDailyStats: userId gereklidir!');
+    return [];
+  }
+
   // ✅ Türkiye saatiyle bugün
   const todayStr = getTurkeyToday();
   
@@ -95,7 +106,7 @@ export async function getDailyStats(days = 30) {
   const { data, error } = await supabase
     .from('en_user_daily_stats')
     .select('*')
-    .eq('user_id', FIXED_USER_ID)
+    .eq('user_id', userId)
     .gte('stat_date', startDateStr)
     .lte('stat_date', todayStr)
     .order('stat_date', { ascending: true });
@@ -136,15 +147,21 @@ export async function getDailyStats(days = 30) {
 
 /**
  * Bugünün istatistiklerini getir
+ * @param {string} userId - Kullanıcı ID'si
  */
-export async function getTodayStats() {
+export async function getTodayStats(userId) {
+  if (!userId) {
+    console.error('❌ getTodayStats: userId gereklidir!');
+    return null;
+  }
+
   // ✅ Türkiye saatiyle bugün
   const todayStr = getTurkeyToday();
   
   const { data, error } = await supabase
     .from('en_user_daily_stats')
     .select('*')
-    .eq('user_id', FIXED_USER_ID)
+    .eq('user_id', userId)
     .eq('stat_date', todayStr)
     .maybeSingle();
   

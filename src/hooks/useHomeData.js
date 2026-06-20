@@ -1,9 +1,12 @@
 // hooks/useHomeData.js
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
-import { FIXED_USER_ID } from "../components/home/constants.js";
+import { useAuth } from "../contexts/AuthContext";
 
 export function useHomeData() {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id;
+
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
@@ -15,12 +18,18 @@ export function useHomeData() {
   const [lessonsLoading, setLessonsLoading] = useState(true);
 
   const fetchData = async () => {
+    if (!userId) {
+      console.error("❌ fetchData: userId gereklidir!");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     const { data: user } = await supabase
       .from("en_users")
       .select("level")
-      .eq("id", FIXED_USER_ID)
+      .eq("id", userId)
       .maybeSingle();
 
     const level = user?.level || "A1";
@@ -35,24 +44,24 @@ export function useHomeData() {
     const { count: myWords } = await supabase
       .from("en_user_words")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", FIXED_USER_ID);
+      .eq("user_id", userId);
 
     const { data: daily } = await supabase
       .from("en_user_daily_limit")
       .select("remaining_today")
-      .eq("user_id", FIXED_USER_ID)
+      .eq("user_id", userId)
       .maybeSingle();
 
     const { count: due } = await supabase
       .from("en_user_words")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", FIXED_USER_ID)
+      .eq("user_id", userId)
       .lt("next_review_at", new Date().toISOString());
 
     const { count: dueSentences } = await supabase
       .from("en_user_sentences")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", FIXED_USER_ID)
+      .eq("user_id", userId)
       .lt("next_review_at", new Date().toISOString());
 
     setTotalWords(total || 0);
@@ -83,6 +92,11 @@ export function useHomeData() {
   };
 
   const openNewWords = async () => {
+    if (!userId) {
+      console.error("❌ openNewWords: userId gereklidir!");
+      return { success: false };
+    }
+
     if (dailyRemaining === 0) {
       alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
       return { success: false };
@@ -92,7 +106,7 @@ export function useHomeData() {
       const { data: userWords } = await supabase
         .from("en_user_words")
         .select("word_id")
-        .eq("user_id", FIXED_USER_ID);
+        .eq("user_id", userId);
 
       const learnedIds = userWords?.map((w) => w.word_id) || [];
 
@@ -118,7 +132,7 @@ export function useHomeData() {
       const newWordIds = newWords.map((w) => w.id);
 
       const wordInserts = newWords.map((word) => ({
-        user_id: FIXED_USER_ID,
+        user_id: userId,
         word_id: word.id,
         added_at: now.toISOString(),
         next_review_at: today.toISOString(),
@@ -144,7 +158,7 @@ export function useHomeData() {
 
       if (sentences && sentences.length > 0) {
         const sentenceInserts = sentences.map((sentence) => ({
-          user_id: FIXED_USER_ID,
+          user_id: userId,
           sentence_id: sentence.id,
           added_at: now.toISOString(),
           next_review_at: today.toISOString(),
@@ -166,7 +180,7 @@ export function useHomeData() {
       await supabase
         .from("en_user_daily_limit")
         .update({ remaining_today: 0 })
-        .eq("user_id", FIXED_USER_ID);
+        .eq("user_id", userId);
 
       await fetchData();
       alert(`${newWords.length} yeni kelime eklendi!`);
@@ -179,9 +193,11 @@ export function useHomeData() {
   };
 
   useEffect(() => {
-    fetchData();
-    fetchRecentLessons();
-  }, []);
+    if (!authLoading && userId) {
+      fetchData();
+      fetchRecentLessons();
+    }
+  }, [userId, authLoading]);
 
   return {
     loading,

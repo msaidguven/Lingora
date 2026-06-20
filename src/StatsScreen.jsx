@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
-
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+import { useAuth } from "./contexts/AuthContext";
 
 const ITEMS_PER_PAGE = 25;
 
@@ -18,6 +17,9 @@ const getMasteryBadge = (level, isMastered) => {
 };
 
 export default function StatsScreen({ userLevel }) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("words"); // "words" veya "sentences"
   const [allWords, setAllWords] = useState([]);
@@ -29,8 +31,10 @@ export default function StatsScreen({ userLevel }) {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (userId) {
+      fetchStats();
+    }
+  }, [userId]);
 
   useEffect(() => {
     // Filtrele ve sırala
@@ -38,6 +42,11 @@ export default function StatsScreen({ userLevel }) {
   }, [allWords, allSentences, searchTerm, sortBy]);
 
   const fetchStats = async () => {
+    if (!userId) {
+      console.error("❌ fetchStats: userId gereklidir!");
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -53,7 +62,7 @@ export default function StatsScreen({ userLevel }) {
           total_wrong,
           en_words (word, meaning, part_of_speech)
         `)
-        .eq("user_id", FIXED_USER_ID);
+        .eq("user_id", userId);
       
       // 2. Cümle istatistikleri
       const { data: userSentences } = await supabase
@@ -65,7 +74,7 @@ export default function StatsScreen({ userLevel }) {
           total_wrong,
           en_example_sentences (sentence_en, sentence_tr, word_id)
         `)
-        .eq("user_id", FIXED_USER_ID);
+        .eq("user_id", userId);
       
       // 3. Kelimeleri düzenle
       const words = (userWords || [])
@@ -148,6 +157,24 @@ export default function StatsScreen({ userLevel }) {
     // Cümleleri filtrele
     let filteredS = [...allSentences];
     if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filteredS = filteredS.filter(s => 
+        s.sentence.toLowerCase().includes(term) || 
+        s.meaning.toLowerCase().includes(term)
+      );
+    }
+    
+    // Cümleleri sırala
+    filteredS.sort((a, b) => {
+      if (sortBy === "accuracy") return b.accuracy - a.accuracy;
+      if (sortBy === "reviews") return b.totalReviews - a.totalReviews;
+      return 0;
+    });
+    setFilteredSentences(filteredS);
+    
+    // Sayfayı sıfırla
+    setCurrentPage(1);
+  };
       const term = searchTerm.toLowerCase().trim();
       filteredS = filteredS.filter(s => 
         s.sentence.toLowerCase().includes(term) || 

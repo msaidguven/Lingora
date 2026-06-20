@@ -1,12 +1,8 @@
 // LessonPage.jsx - TÜM STEP TİPLERİNİ DESTEKLEYEN SON VERSİYON
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../config.js";
+import { useAuth } from "../../contexts/AuthContext";
 import "./LessonPage.css";
-
-// ============================
-// SABİT KULLANICI ID
-// ============================
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 
 // ============================
 // YARDIMCI FONKSİYONLAR
@@ -998,6 +994,9 @@ function DragDropStep({ step, onNext, onPrevious, isFirst, isLast }) {
 // ANA DERS SAYFASI
 // ============================
 export default function LessonPage({ lessonId, onBack }) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1012,12 +1011,12 @@ export default function LessonPage({ lessonId, onBack }) {
 
   // Supabase işlemleri
   const loadProgressFromSupabase = async (lessonId) => {
-    if (!lessonId) return null;
+    if (!lessonId || !userId) return null;
     try {
       const { data, error } = await supabase
         .from('en_user_lesson_progress')
         .select('*')
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId)
         .eq('lesson_id', lessonId)
         .maybeSingle();
 
@@ -1033,7 +1032,7 @@ export default function LessonPage({ lessonId, onBack }) {
   };
 
   const saveProgressToSupabase = async (lessonId, stepIndex, totalSteps, wrongQuestions = {}) => {
-    if (!lessonId) return;
+    if (!lessonId || !userId) return;
 
     setSavingProgress(true);
     setSaveError(null);
@@ -1046,7 +1045,7 @@ export default function LessonPage({ lessonId, onBack }) {
       const { data: existing } = await supabase
         .from('en_user_lesson_progress')
         .select('id, completed, score, completed_at')
-        .eq('user_id', FIXED_USER_ID)
+        .eq('user_id', userId)
         .eq('lesson_id', lessonId)
         .maybeSingle();
 
@@ -1068,7 +1067,7 @@ export default function LessonPage({ lessonId, onBack }) {
         const { error } = await supabase
           .from('en_user_lesson_progress')
           .insert({
-            user_id: FIXED_USER_ID,
+            user_id: userId,
             lesson_id: lessonId,
             completed: isCompleted,
             score: score,

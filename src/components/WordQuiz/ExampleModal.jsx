@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../../config.js";
-
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function ExampleModal({ 
   word, 
@@ -10,6 +9,9 @@ export default function ExampleModal({
   examplesMap,
   setExamplesMap 
 }) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [exampleJsonInput, setExampleJsonInput] = useState("");
   const [exampleParseError, setExampleParseError] = useState(null);
   const [exampleStatus, setExampleStatus] = useState(null);
@@ -33,7 +35,11 @@ Kelime: ${word}`;
   };
 
   const handleParseAndSaveExamples = async () => {
-    if (!exampleJsonInput.trim() || !word) return;
+    if (!exampleJsonInput.trim() || !word || !userId) {
+      setExampleParseError("Kullanıcı bilgisi yüklenemedi.");
+      return;
+    }
+
     setExampleParseError(null);
     setExampleStatus("loading");
 
@@ -67,7 +73,7 @@ Kelime: ${word}`;
         const today = new Date();
         
         const inserts = newSentenceIds.map(sentence_id => ({
-          user_id: FIXED_USER_ID,
+          user_id: userId,
           sentence_id: sentence_id,
           added_at: now.toISOString(),
           next_review_at: today.toISOString(),

@@ -1,59 +1,41 @@
 // Admin.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
+import { useAuth } from '../contexts/AuthContext';
 import WordManagement from "./admin/WordManagement.jsx";
 import LessonManagement from "./admin/LessonManagement.jsx";
 import { styles, colors, PageHeader, Card, Message } from "./admin/adminStyles.jsx";
-const ADMIN_PASSWORD = "123456";
 
 // ============================
-// GİRİŞ EKRANI
+// YETKİ KONTROL FONKSİYONU
 // ============================
-function LoginScreen({ onLogin }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(false);
+const hasAdminAccess = (user) => {
+  if (!user) return false;
+  
+  // Kullanıcının rolünü kontrol et
+  const userRole = user?.user_metadata?.role || user?.role || 'user';
+  return userRole === 'admin' || userRole === 'editor' || userRole === 'moderator';
+};
 
-  const handleSubmit = () => {
-    if (password === ADMIN_PASSWORD) {
-      onLogin();
-    } else {
-      setError(true);
-      setPassword("");
-    }
-  };
-
+// ============================
+// YETKİSİZ EKRAN
+// ============================
+function UnauthorizedScreen({ onBack }) {
   return (
     <div style={styles.pageContainer}>
       <div style={styles.smallContainer}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🔒</div>
-          <div style={styles.headerTitle}>WordFlow</div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>Admin Girişi</div>
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <input
-            type="password"
-            value={password}
-            onChange={e => { setPassword(e.target.value); setError(false); }}
-            onKeyDown={e => e.key === "Enter" && handleSubmit()}
-            placeholder="Şifre"
-            autoFocus
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: colors.surface, 
-              border: `1.5px solid ${error ? colors.error : colors.border}`,
-              borderRadius: 12, 
-              padding: "14px 16px", 
-              color: colors.text,
-              fontSize: 15, 
-              outline: "none", 
-              fontFamily: "inherit",
-            }}
-          />
-          {error && <div style={{ fontSize: 12, color: colors.error, marginTop: 6 }}>⚠️ Şifre yanlış</div>}
+          <div style={{ fontSize: 48, marginBottom: 10 }}>🚫</div>
+          <div style={styles.headerTitle}>Erişim Engellendi</div>
+          <div style={{ fontSize: 14, color: colors.textSecondary, marginTop: 8 }}>
+            Bu sayfaya erişim yetkiniz yok.
+          </div>
+          <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+            Yalnızca Admin, Editör ve Moderatör yetkisi olan kullanıcılar erişebilir.
+          </div>
         </div>
         <button 
-          onClick={handleSubmit} 
+          onClick={onBack} 
           style={{
             width: "100%", 
             padding: 14, 
@@ -66,7 +48,7 @@ function LoginScreen({ onLogin }) {
             cursor: "pointer" 
           }}
         >
-          Giriş Yap →
+          Ana Sayfaya Dön
         </button>
       </div>
     </div>
@@ -76,10 +58,39 @@ function LoginScreen({ onLogin }) {
 // ============================
 // ANA ADMIN PANELİ
 // ============================
-function AdminPanel({ onLogout }) {
+function AdminPanel({ onBack, user }) {
   const [currentPage, setCurrentPage] = useState("main");
   const [recentLessons, setRecentLessons] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [userRole, setUserRole] = useState('user');
+
+  // Kullanıcı rolünü al
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("en_users")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Rol çekme hatası:", error);
+          return;
+        }
+
+        if (data) {
+          setUserRole(data.role || 'user');
+        }
+      } catch (error) {
+        console.error("Rol işlemleri hatası:", error);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   const fetchRecentLessons = async () => {
     setLoadingRecent(true);
@@ -114,6 +125,7 @@ function AdminPanel({ onLogout }) {
     }
   };
 
+  // Alt sayfalarda (kelime/ders yönetimi) header'ı gizle
   if (currentPage !== "main") {
     return (
       <div style={styles.pageContainer}>
@@ -122,16 +134,25 @@ function AdminPanel({ onLogout }) {
     );
   }
 
+  // Admin paneli ana sayfası
+  const isAdmin = userRole === 'admin';
+  const isEditor = userRole === 'editor';
+  const isModerator = userRole === 'moderator';
+
   return (
     <div style={{ ...styles.pageContainer, maxWidth: 560, margin: "0 auto" }}>
       <div style={styles.header}>
         <div>
           <div style={styles.headerTitle}>WordFlow</div>
           <div style={styles.headerMainTitle}>Admin Paneli</div>
-          <div style={styles.headerSubtitle}>Kelime ve Ders Yönetimi</div>
+          <div style={styles.headerSubtitle}>
+            {isAdmin && '👑 Admin'}
+            {isEditor && '✏️ Editör'}
+            {isModerator && '🛡️ Moderatör'}
+          </div>
         </div>
-        <button onClick={onLogout} style={styles.logoutButton}>
-          Çıkış
+        <button onClick={onBack} style={styles.logoutButton}>
+          Ana Sayfaya Dön
         </button>
       </div>
 
@@ -180,46 +201,114 @@ function AdminPanel({ onLogout }) {
       </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <button
-          onClick={() => setCurrentPage("words")}
-          style={styles.menuButton}
-          onMouseEnter={(e) => { 
-            e.currentTarget.style.borderColor = colors.primary; 
-            e.currentTarget.style.transform = "translateY(-2px)"; 
-          }}
-          onMouseLeave={(e) => { 
-            e.currentTarget.style.borderColor = colors.border; 
-            e.currentTarget.style.transform = "translateY(0)"; 
-          }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Yönetimi</div>
-          <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>Ekle, düzenle, sil</div>
-        </button>
+        {/* Kelime Yönetimi - Admin ve Editör görebilir */}
+        {(isAdmin || isEditor || isModerator) && (
+          <button
+            onClick={() => setCurrentPage("words")}
+            style={styles.menuButton}
+            onMouseEnter={(e) => { 
+              e.currentTarget.style.borderColor = colors.primary; 
+              e.currentTarget.style.transform = "translateY(-2px)"; 
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.borderColor = colors.border; 
+              e.currentTarget.style.transform = "translateY(0)"; 
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Kelime Yönetimi</div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>Ekle, düzenle, sil</div>
+            {!isAdmin && isEditor && (
+              <span style={{ 
+                fontSize: 9, 
+                background: colors.warning, 
+                color: '#fff', 
+                padding: '2px 8px', 
+                borderRadius: 4, 
+                marginTop: 4 
+              }}>
+                Editör
+              </span>
+            )}
+          </button>
+        )}
 
-        <button
-          onClick={() => setCurrentPage("lessons")}
-          style={styles.menuButton}
-          onMouseEnter={(e) => { 
-            e.currentTarget.style.borderColor = colors.primary; 
-            e.currentTarget.style.transform = "translateY(-2px)"; 
-          }}
-          onMouseLeave={(e) => { 
-            e.currentTarget.style.borderColor = colors.border; 
-            e.currentTarget.style.transform = "translateY(0)"; 
-          }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Yönetimi</div>
-          <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>Ekle, düzenle, sil</div>
-        </button>
+        {/* Ders Yönetimi - Sadece Admin ve Editör görebilir */}
+        {(isAdmin || isEditor) && (
+          <button
+            onClick={() => setCurrentPage("lessons")}
+            style={styles.menuButton}
+            onMouseEnter={(e) => { 
+              e.currentTarget.style.borderColor = colors.primary; 
+              e.currentTarget.style.transform = "translateY(-2px)"; 
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.borderColor = colors.border; 
+              e.currentTarget.style.transform = "translateY(0)"; 
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Ders Yönetimi</div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>Ekle, düzenle, sil</div>
+            {!isAdmin && isEditor && (
+              <span style={{ 
+                fontSize: 9, 
+                background: colors.warning, 
+                color: '#fff', 
+                padding: '2px 8px', 
+                borderRadius: 4, 
+                marginTop: 4 
+              }}>
+                Editör
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Moderatör için sadece kelime yönetimi gösteriliyor */}
+        {isModerator && !isAdmin && !isEditor && (
+          <div style={{ 
+            gridColumn: 'span 2', 
+            textAlign: 'center', 
+            fontSize: 12, 
+            color: colors.textSecondary,
+            padding: 12,
+            background: colors.surfaceDark,
+            borderRadius: 12
+          }}>
+            🛡️ Moderatör olarak sadece Kelime Yönetimi bölümüne erişiminiz var.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default function Admin() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)} />;
-  return <AdminPanel onLogout={() => setLoggedIn(false)} />;
+// ============================
+// ANA ADMIN BİLEŞENİ
+// ============================
+export default function Admin({ onBack }) {
+  const { user, loading } = useAuth();
+
+  // Auth yükleniyor
+  if (loading) {
+    return (
+      <div style={styles.pageContainer}>
+        <div style={styles.smallContainer}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 20, marginBottom: 10 }}>⏳</div>
+            <div style={{ fontSize: 14, color: colors.textSecondary }}>Yükleniyor...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Kullanıcı yoksa veya admin yetkisi yoksa
+  if (!user || !hasAdminAccess(user)) {
+    return <UnauthorizedScreen onBack={onBack} />;
+  }
+
+  // Admin panelini göster
+  return <AdminPanel onBack={onBack} user={user} />;
 }

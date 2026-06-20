@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { updateDailyStats } from "../utils/dailyStats.js";
 import { supabase } from "../config.js";
 import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
+import { useAuth } from "../contexts/AuthContext";
 
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
 const SESSION_SENTENCE_LIMIT = 20;
 
 export function useSentenceQuiz(userLevel) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [allSentences, setAllSentences] = useState([]);
   const [allCards, setAllCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,13 +28,18 @@ export function useSentenceQuiz(userLevel) {
   // Verileri yükle
   useEffect(() => {
     async function fetchData() {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
         const { data: userSentences, error: usError } = await supabase
           .from("en_user_sentences")
           .select("sentence_id, next_review_at")
-          .eq("user_id", FIXED_USER_ID)
+          .eq("user_id", userId)
           .lt("next_review_at", new Date().toISOString())
           .order("next_review_at", { ascending: true })
           .limit(SESSION_SENTENCE_LIMIT);
@@ -83,7 +91,7 @@ export function useSentenceQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-  }, [userLevel, sessionKey]);
+  }, [userLevel, sessionKey, userId]);
 
   // Şıkları oluştur
   useEffect(() => {
@@ -93,54 +101,59 @@ export function useSentenceQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allSentences, choiceCount]);
 
-  // useSentenceQuiz.js - saveSentenceResult
-const saveSentenceResult = async (sentenceId, isCorrect) => {
-  const now = new Date();
-  let nextReviewDate = new Date();
-  
-  const { data: existing } = await supabase
-    .from("en_user_sentences")
-    .select("id, review_count, total_correct, total_wrong")
-    .eq("user_id", FIXED_USER_ID)
-    .eq("sentence_id", sentenceId)
-    .maybeSingle();
-  
-  if (isCorrect) {
-    const newReviewCount = (existing?.review_count || 0) + 1;
-    const newTotalCorrect = (existing?.total_correct || 0) + 1;
+  // Cümle sonucunu kaydet
+  const saveSentenceResult = async (sentenceId, isCorrect) => {
+    if (!userId) {
+      console.error("❌ saveSentenceResult: userId gereklidir!");
+      return;
+    }
+
+    const now = new Date();
+    let nextReviewDate = new Date();
     
-    // Tekrar aralığını hesapla (cümleler için daha kısa aralıklar)
-    if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-    else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-    else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-    else nextReviewDate.setDate(now.getDate() + 14);
-    
-    await supabase
+    const { data: existing } = await supabase
       .from("en_user_sentences")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: newReviewCount,
-        total_correct: newTotalCorrect,     // ⬅️ YENİ
-        last_score: 100,
-        last_reviewed_at: now.toISOString()
-      })
-      .eq("id", existing.id);
-  } else {
-    const newTotalWrong = (existing?.total_wrong || 0) + 1;
-    nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      .select("id, review_count, total_correct, total_wrong")
+      .eq("user_id", userId)
+      .eq("sentence_id", sentenceId)
+      .maybeSingle();
     
-    await supabase
-      .from("en_user_sentences")
-      .update({
-        next_review_at: nextReviewDate.toISOString(),
-        review_count: 0,
-        total_wrong: newTotalWrong,        // ⬅️ YENİ
-        last_score: 0,
-        last_reviewed_at: now.toISOString()
-      })
-      .eq("id", existing.id);
-  }
-};
+    if (isCorrect) {
+      const newReviewCount = (existing?.review_count || 0) + 1;
+      const newTotalCorrect = (existing?.total_correct || 0) + 1;
+      
+      // Tekrar aralığını hesapla
+      if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+      else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+      else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+      else nextReviewDate.setDate(now.getDate() + 14);
+      
+      await supabase
+        .from("en_user_sentences")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: newReviewCount,
+          total_correct: newTotalCorrect,
+          last_score: 100,
+          last_reviewed_at: now.toISOString()
+        })
+        .eq("id", existing.id);
+    } else {
+      const newTotalWrong = (existing?.total_wrong || 0) + 1;
+      nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+      
+      await supabase
+        .from("en_user_sentences")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: 0,
+          total_wrong: newTotalWrong,
+          last_score: 0,
+          last_reviewed_at: now.toISOString()
+        })
+        .eq("id", existing.id);
+    }
+  };
 
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
@@ -153,8 +166,8 @@ const saveSentenceResult = async (sentenceId, isCorrect) => {
     
     await saveSentenceResult(currentQuestion.id, isCorrect);
     
-    // 🆕 Günlük istatistiği güncelle
-    await updateDailyStats('sentence', isCorrect);
+    // Günlük istatistiği güncelle
+    await updateDailyStats(userId, 'sentence', isCorrect);
     
     setSaving(false);
     onComplete(isCorrect);
