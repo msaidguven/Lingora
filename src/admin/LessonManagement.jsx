@@ -6,7 +6,9 @@ import {
   Input, TextArea, JsonDisplay, SearchInput, Badge 
 } from "./adminStyles.jsx";
 
-// Yeni JSON formatı - Çoktan seçmeli, boşluk doldurma, eşleştirme, sürükle-bırak
+// Yeni JSON formatı - SADECE DESTEKLENEN TİPLER: info, practice, dialogue, summary
+// NOT: multiple_choice, fill_blank, matching, drag_drop TİPLERİ ŞİMDİLİK DESTEKLENMİYOR!
+// Bunlar frontend'de render edilecek ama şu an için sadece JSON'da tutuluyor.
 const NEW_JSON_EXAMPLE = `{
   "steps": [
     {
@@ -15,7 +17,7 @@ const NEW_JSON_EXAMPLE = `{
       "title": "To Be Fiili - Olumsuz (Negative)",
       "content": {
         "explanation": "İngilizcede 'to be' fiilini (am/is/are) olumsuz yapmak için fiilden hemen sonra 'not' kelimesini ekleriz. Konuşma dilinde genellikle kısaltılmış (contracted) formlar kullanılır.",
-        "rule": "📌 KURAL: Özne + am/is/are + NOT + tamlayıcı (sıfat/isim/yer). 'am not' kısaltması yoktur, sadece 'I'm not' şeklinde kullanılır; 'amn't' diye bir form İngilizcede kullanılmaz.",
+        "rule": "📌 KURAL: Özne + am/is/are + NOT + tamlayıcı (sıfat/isim/yer). 'am not' kısaltması yoktur, sadece 'I'm not' şeklinde kullanılır.",
         "examples": [
           {
             "correct": "I am not a doctor. (I'm not a doctor.)",
@@ -37,94 +39,6 @@ const NEW_JSON_EXAMPLE = `{
     },
     {
       "id": "step_2",
-      "type": "multiple_choice",
-      "title": "Pratik: Olumsuz Cümleler",
-      "rule": "📌 KURAL: Özne + am/is/are + NOT + tamlayıcı",
-      "instructions": "Aşağıdaki cümlelerde doğru olumsuz formu seçin:",
-      "questions": [
-        {
-          "question": "I ___ a teacher.",
-          "options": ["am not", "is not", "are not", "not am"],
-          "correct": 0,
-          "feedback_correct": "✅ Doğru! 'I am not a teacher.' = Ben öğretmen değilim.",
-          "feedback_wrong": "❌ İpucu: 'I' ile 'am not' kullanılır."
-        },
-        {
-          "question": "She ___ from England.",
-          "options": ["am not", "isn't", "aren't", "not is"],
-          "correct": 1,
-          "feedback_correct": "✅ Doğru! 'She isn't from England.' = O İngiltere'den değil.",
-          "feedback_wrong": "❌ İpucu: 'She' ile 'isn't' kullanılır."
-        },
-        {
-          "question": "We ___ ready.",
-          "options": ["am not", "isn't", "aren't", "not are"],
-          "correct": 2,
-          "feedback_correct": "✅ Doğru! 'We aren't ready.' = Biz hazır değiliz.",
-          "feedback_wrong": "❌ İpucu: 'We' ile 'aren't' kullanılır."
-        }
-      ]
-    },
-    {
-      "id": "step_3",
-      "type": "fill_blank",
-      "title": "Boşluk Doldurma: Olumsuz Cümleler",
-      "rule": "📌 KURAL: I → am not, He/She/It → is not (isn't), You/We/They → are not (aren't)",
-      "instructions": "Boşluğa uygun olumsuz 'to be' formunu seçin:",
-      "questions": [
-        {
-          "question": "I ___ (am not / isn't / aren't) a student.",
-          "options": ["am not", "isn't", "aren't"],
-          "correct": 0,
-          "feedback_correct": "✅ Doğru! 'I am not a student.'",
-          "feedback_wrong": "❌ İpucu: 'I' ile 'am not' kullanılır."
-        },
-        {
-          "question": "He ___ (am not / isn't / aren't) a doctor.",
-          "options": ["am not", "isn't", "aren't"],
-          "correct": 1,
-          "feedback_correct": "✅ Doğru! 'He isn't a doctor.'",
-          "feedback_wrong": "❌ İpucu: 'He' ile 'isn't' kullanılır."
-        },
-        {
-          "question": "They ___ (am not / isn't / aren't) Turkish.",
-          "options": ["am not", "isn't", "aren't"],
-          "correct": 2,
-          "feedback_correct": "✅ Doğru! 'They aren't Turkish.'",
-          "feedback_wrong": "❌ İpucu: 'They' ile 'aren't' kullanılır."
-        }
-      ]
-    },
-    {
-      "id": "step_4",
-      "type": "matching",
-      "title": "Eşleştirme: Olumlu ve Olumsuz Formlar",
-      "instructions": "Olumlu formları doğru olumsuz formlarıyla eşleştirin:",
-      "pairs": [
-        {"left": "I am", "right": "I am not (I'm not)"},
-        {"left": "He is", "right": "He is not (He isn't)"},
-        {"left": "She is", "right": "She is not (She isn't)"},
-        {"left": "It is", "right": "It is not (It isn't)"},
-        {"left": "You are", "right": "You are not (You aren't)"},
-        {"left": "We are", "right": "We are not (We aren't)"},
-        {"left": "They are", "right": "They are not (They aren't)"}
-      ],
-      "feedback_correct": "🎉 Harika! Tüm eşleştirmeler doğru!",
-      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış. Tekrar dene!"
-    },
-    {
-      "id": "step_5",
-      "type": "drag_drop",
-      "title": "Sürükle-Bırak: Olumsuz Cümle Kurma",
-      "instructions": "Kelimeleri doğru sıraya dizerek olumsuz cümle oluşturun:",
-      "sentence": "I am not a student.",
-      "words": ["I", "am", "not", "a", "student", "."],
-      "correct_order": [0, 1, 2, 3, 4, 5],
-      "feedback_correct": "✅ Mükemmel! Doğru cümle: 'I am not a student.'",
-      "feedback_wrong": "❌ Sıralama yanlış. İpucu: Özne + am/is/are + not + tamlayıcı"
-    },
-    {
-      "id": "step_6",
       "type": "dialogue",
       "title": "Diyalog: Olumsuz Cümleler",
       "content": {
@@ -135,38 +49,17 @@ const NEW_JSON_EXAMPLE = `{
           {"speaker": "Ali", "text": "Is he a student?", "translation": "O öğrenci mi?"},
           {"speaker": "Emma", "text": "No, he isn't a student. He is an engineer.", "translation": "Hayır, o öğrenci değil. O mühendis."}
         ]
-      },
-      "practice": {
-        "type": "multiple_choice",
-        "instructions": "Diyaloga göre doğru cevabı seçin:",
-        "questions": [
-          {
-            "question": "Emma: 'No, I ___ a doctor.'",
-            "options": ["am not", "isn't", "aren't", "not am"],
-            "correct": 0,
-            "feedback_correct": "✅ Doğru! 'I am not a doctor.'",
-            "feedback_wrong": "❌ İpucu: 'I' ile 'am not' kullanılır."
-          },
-          {
-            "question": "Ali: 'No, he ___ a student.'",
-            "options": ["am not", "isn't", "aren't", "not is"],
-            "correct": 1,
-            "feedback_correct": "✅ Doğru! 'He isn't a student.'",
-            "feedback_wrong": "❌ İpucu: 'He' ile 'isn't' kullanılır."
-          }
-        ]
       }
     },
     {
-      "id": "step_7",
+      "id": "step_3",
       "type": "summary",
       "title": "🎉 Ders Özeti",
       "content": {
         "key_points": [
           "Olumsuz cümleler: Özne + am/is/are + NOT + tamlayıcı",
           "Kısaltmalar: I'm not, He isn't, She isn't, It isn't, You aren't, We aren't, They aren't",
-          "'am not'ın kısaltması yoktur (amn't kullanılmaz)",
-          "Olumsuz cümlelerde 'not' fiilden hemen sonra gelir"
+          "'am not'ın kısaltması yoktur (amn't kullanılmaz)"
         ],
         "practice_tasks": [
           "3 olumsuz cümle yazın (I am not ...)",
@@ -182,16 +75,15 @@ const NEW_JSON_EXAMPLE = `{
     "lesson_number": 1,
     "learning_objectives": [
       "'To be' fiilini (am/is/are) olumsuz yapmayı öğrenmek",
-      "'not' kelimesinin doğru yerini kavramak",
-      "Kısaltılmış formları (isn't, aren't) kullanmak"
+      "'not' kelimesinin doğru yerini kavramak"
     ]
   }
 }`;
 
-// Prompt Template
+// Prompt Template - SADECE DESTEKLENEN TİPLER
 const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
 
-JSON Formatı:
+JSON Formatı (SADECE DESTEKLENEN TİPLER: info, practice, dialogue, summary):
 {
   "steps": [
     {
@@ -216,15 +108,15 @@ JSON Formatı:
     },
     {
       "id": "step_2",
-      "type": "multiple_choice",
-      "title": "Test Başlığı",
+      "type": "practice",
+      "title": "Pratik Başlığı",
       "rule": "📌 KURAL: Kural metni",
       "instructions": "Talimatlar",
       "questions": [
         {
           "question": "Soru metni",
+          "correct": "doğru cevap",
           "options": ["A", "B", "C", "D"],
-          "correct": 0,
           "feedback_correct": "✅ Doğru geri bildirimi",
           "feedback_wrong": "❌ Yanlış geri bildirimi"
         }
@@ -232,44 +124,6 @@ JSON Formatı:
     },
     {
       "id": "step_3",
-      "type": "fill_blank",
-      "title": "Boşluk Doldurma",
-      "rule": "📌 KURAL: Kural metni",
-      "instructions": "Talimatlar",
-      "questions": [
-        {
-          "question": "Soru metni (___ ile göster)",
-          "options": ["A", "B", "C", "D"],
-          "correct": 0,
-          "feedback_correct": "✅ Doğru geri bildirimi",
-          "feedback_wrong": "❌ Yanlış geri bildirimi"
-        }
-      ]
-    },
-    {
-      "id": "step_4",
-      "type": "matching",
-      "title": "Eşleştirme",
-      "instructions": "Eşleştirme talimatı",
-      "pairs": [
-        {"left": "sol taraf", "right": "sağ taraf"}
-      ],
-      "feedback_correct": "🎉 Tüm eşleştirmeler doğru!",
-      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış."
-    },
-    {
-      "id": "step_5",
-      "type": "drag_drop",
-      "title": "Sürükle-Bırak",
-      "instructions": "Kelimeleri doğru sıraya dizin",
-      "sentence": "Tam cümle",
-      "words": ["kelime1", "kelime2", "kelime3"],
-      "correct_order": [0, 1, 2],
-      "feedback_correct": "✅ Doğru sıralama!",
-      "feedback_wrong": "❌ Sıralama yanlış."
-    },
-    {
-      "id": "step_6",
       "type": "dialogue",
       "title": "Diyalog Başlığı",
       "content": {
@@ -277,23 +131,10 @@ JSON Formatı:
         "scenes": [
           {"speaker": "Konuşmacı", "text": "Konuşma metni", "translation": "Türkçe çeviri"}
         ]
-      },
-      "practice": {
-        "type": "multiple_choice",
-        "instructions": "Pratik talimatı",
-        "questions": [
-          {
-            "question": "Soru",
-            "options": ["A", "B", "C", "D"],
-            "correct": 0,
-            "feedback_correct": "✅ Doğru",
-            "feedback_wrong": "❌ Yanlış"
-          }
-        ]
       }
     },
     {
-      "id": "step_7",
+      "id": "step_4",
       "type": "summary",
       "title": "Özet Başlığı",
       "content": {
@@ -315,18 +156,12 @@ Konu: [BURAYA KONUYU YAZIN]
 
 Kurallar:
 1. Her step için benzersiz id kullan (step_1, step_2, ...)
-2. type alanları: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary
-3. multiple_choice: 4-5 seçenekli test soruları, correct index 0'dan başlar
-4. fill_blank: Boşluk doldurma, options array'inden doğru cevabı seçme
-5. matching: Sol-sağ eşleştirme, pairs array'i ile
-6. drag_drop: Kelimeleri doğru sıraya dizme, correct_order array'i ile
-7. dialogue: Diyalog + pratik sorusu (multiple_choice tipinde)
-8. summary: Ders özeti
-9. Türkçe açıklamalar ve örnek cümleler ekle
-10. Öğrenici seviyesine uygun kelimeler kullan
-11. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
-12. JSON geçerli olmalı
-13. metadata kısmını doldur
+2. type alanları SADECE: info, practice, dialogue, summary
+3. Türkçe açıklamalar ve örnek cümleler ekle
+4. Öğrenici seviyesine uygun kelimeler kullan
+5. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
+6. JSON geçerli olmalı
+7. metadata kısmını doldur
 
 Bu formata uygun bir ders içeriği hazırla.`;
 
@@ -449,38 +284,6 @@ function LessonAdder() {
     setTimeout(() => setMessage(null), 2000);
   };
 
-  // JSON'u formatlı gösteren özel bileşen
-  const renderJsonContent = (jsonString) => {
-    try {
-      const parsed = JSON.parse(jsonString);
-      const formatted = JSON.stringify(parsed, null, 2);
-      
-      // Kaçış karakterlerini ve özel karakterleri düzgün göster
-      const escaped = formatted
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t')
-        .replace(/\\r/g, '\r');
-      
-      return (
-        <pre style={{
-          margin: 0,
-          color: colors.textSecondary,
-          fontSize: 12,
-          fontFamily: "monospace",
-          lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          background: "transparent",
-          padding: 0
-        }}>
-          {escaped}
-        </pre>
-      );
-    } catch {
-      return <pre style={{ margin: 0, color: colors.textSecondary, fontSize: 12 }}>{jsonString}</pre>;
-    }
-  };
-
   return (
     <div>
       <Message type={message?.type} text={message?.text} />
@@ -513,7 +316,7 @@ function LessonAdder() {
           label="Ders Başlığı *"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Örn: Greetings and Introductions"
+          placeholder="Örn: To Be Fiili - Olumsuz"
         />
 
         <div>
@@ -618,16 +421,7 @@ function LessonAdder() {
                   📋 Kopyala
                 </button>
               </div>
-              <div style={{
-                background: colors.surfaceDark,
-                borderRadius: 8,
-                padding: "16px",
-                maxHeight: 400,
-                overflowY: "auto",
-                border: `1px solid ${colors.border}`
-              }}>
-                {renderJsonContent(NEW_JSON_EXAMPLE)}
-              </div>
+              <JsonDisplay data={NEW_JSON_EXAMPLE} />
               
               <div style={{ marginTop: 12, padding: 12, background: colors.surfaceDark, borderRadius: 8, border: `1px solid ${colors.border}` }}>
                 <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 6 }}>
@@ -860,35 +654,6 @@ function LessonEditor() {
     }
   };
 
-  // JSON'u formatlı gösteren özel bileşen
-  const renderJsonContent = (json) => {
-    try {
-      const formatted = JSON.stringify(json, null, 2);
-      const escaped = formatted
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t')
-        .replace(/\\r/g, '\r');
-      
-      return (
-        <pre style={{
-          margin: 0,
-          color: colors.textSecondary,
-          fontSize: 12,
-          fontFamily: "monospace",
-          lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          background: "transparent",
-          padding: 0
-        }}>
-          {escaped}
-        </pre>
-      );
-    } catch {
-      return <pre style={{ margin: 0, color: colors.textSecondary, fontSize: 12 }}>{String(json)}</pre>;
-    }
-  };
-
   return (
     <div>
       <Card>
@@ -1081,7 +846,17 @@ function LessonEditor() {
                 overflowY: "auto",
                 border: `1px solid ${colors.border}`
               }}>
-                {renderJsonContent(formData.content_json)}
+                <pre style={{
+                  margin: 0,
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word"
+                }}>
+                  {getPrettyJson(formData.content_json)}
+                </pre>
               </div>
             )}
           </div>
