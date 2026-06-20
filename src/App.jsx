@@ -1,12 +1,9 @@
 // App.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
-
-import { useAuth } from './contexts/AuthContext';
-import { useTheme } from './contexts/ThemeContext';
-
-import Header from './components/Header';
-
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import Header from "./components/Header/Header.jsx";
 import HomeScreen from "./HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
@@ -16,14 +13,11 @@ import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 import LessonPage from "./components/Lesson/LessonPage.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
-import './styles/theme.css';
-import './App.css'; 
+import './App.css';
 
-
-export default function App() {
+// AppContent bileşeni - AuthProvider içinde çalışır
+function AppContent() {
   const { user, loading: authLoading, logout } = useAuth();
-  const { theme } = useTheme();
-  
   const [currentScreen, setCurrentScreen] = useState("home");
   const [userLevel, setUserLevel] = useState("A1");
   const [quizType, setQuizType] = useState(null);
@@ -54,7 +48,6 @@ export default function App() {
         if (data) {
           setUserLevel(data.level);
         } else {
-          // Kullanıcı kaydı yoksa oluştur
           const { error: insertError } = await supabase
             .from("en_users")
             .insert([{ 
@@ -148,7 +141,7 @@ export default function App() {
   // Auth yükleniyor durumu
   if (authLoading) {
     return (
-      <div className={`app-loading ${theme}`}>
+      <div className="app-loading">
         <div className="loading-ring" />
         <div className="loading-text">Uygulama yükleniyor...</div>
       </div>
@@ -158,7 +151,7 @@ export default function App() {
   // Giriş sayfası
   if (showLogin) {
     return (
-      <div className={`app-auth ${theme}`}>
+      <div className="app-auth">
         {showRegister ? (
           <Register 
             onRegisterSuccess={() => {
@@ -185,16 +178,14 @@ export default function App() {
 
   // Ana uygulama
   return (
-    <div className={`app-container ${theme}`}>
- 
-
-<Header 
-  currentScreen={currentScreen} 
-  onNavigate={handleNavigate} 
-  userLevel={userLevel}
-  quizType={quizType}
-  onLogout={handleBackToHome}
-/>
+    <div className="app-container">
+      <Header 
+        currentScreen={currentScreen} 
+        onNavigate={handleNavigate} 
+        userLevel={userLevel}
+        quizType={quizType}
+        onLogout={handleLogout}
+      />
       
       <main className="app-main">
         {currentScreen === "home" && (
@@ -223,5 +214,16 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+// ANA APP - Provider'lar burada sarmalıyor
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
