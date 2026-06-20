@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
       
       if (data.user) {
-        // 2. en_users'a ekle
+        // 2. en_users'a ekle - 23505 hatasını yoksay
         const { error: insertError } = await supabase
           .from("en_users")
           .upsert([{ 
@@ -77,15 +77,19 @@ export const AuthProvider = ({ children }) => {
             username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
             streak_days: 0,
             created_at: new Date().toISOString()
-          }], { onConflict: 'id' });
+          }], { 
+            onConflict: 'id',
+            ignoreDuplicates: true 
+          });
         
-        if (insertError) {
+        // 23505 = Unique violation (kullanıcı zaten var) - yoksay
+        if (insertError && insertError.code !== '23505') {
           console.error("❌ en_users'a ekleme hatası:", insertError);
         } else {
           console.log("✅ Kullanıcı en_users tablosuna eklendi!");
         }
 
-        // 3. Günlük limit oluştur - SÜTUN ADLARI TABLO İLE EŞLEŞTİRİLDİ ✅
+        // 3. Günlük limit oluştur
         console.log("📝 Günlük limit oluşturuluyor...");
         
         const { data: dailyData, error: dailyError } = await supabase
@@ -95,13 +99,14 @@ export const AuthProvider = ({ children }) => {
             remaining_today: 5,
             last_reset_date: new Date().toISOString().split('T')[0],
             updated_at: new Date().toISOString()
-          }], { onConflict: 'user_id' })
+          }], { 
+            onConflict: 'user_id',
+            ignoreDuplicates: true 
+          })
           .select();
         
         if (dailyError) {
           console.error("❌ Günlük limit oluşturma hatası:", dailyError);
-          console.error("❌ Hata kodu:", dailyError.code);
-          console.error("❌ Hata mesajı:", dailyError.message);
         } else {
           console.log("✅ Günlük limit oluşturuldu!", dailyData);
         }

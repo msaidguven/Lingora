@@ -33,41 +33,58 @@ function AppContent() {
       return;
     }
     
-    const fetchUserLevel = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("en_users")
-          .select("level")
-          .eq("id", user.id)
-          .maybeSingle();
+   // src/App.jsx - fetchUserLevel fonksiyonu
+const fetchUserLevel = async () => {
+  try {
+    // Önce kullanıcı var mı kontrol et
+    const { data, error } = await supabase
+      .from("en_users")
+      .select("level")
+      .eq("id", user.id)
+      .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error("Seviye çekme hatası:", error);
-          return;
-        }
+    // Hata varsa ve kayıt bulunamadıysa (PGRST116) yok say
+    if (error && error.code !== 'PGRST116') {
+      console.error("Seviye çekme hatası:", error);
+      return;
+    }
 
-        if (data) {
-          setUserLevel(data.level);
+    if (data) {
+      // Kullanıcı varsa seviyesini al
+      setUserLevel(data.level);
+      console.log("✅ Kullanıcı seviyesi:", data.level);
+    } else {
+      // Kullanıcı yoksa oluştur
+      console.log("📝 Yeni kullanıcı oluşturuluyor...");
+      
+      const { error: insertError } = await supabase
+        .from("en_users")
+        .insert([{ 
+          id: user.id, 
+          email: user.email,
+          level: "A1",
+          username: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Öğrenci',
+          streak_days: 0,
+          created_at: new Date().toISOString()
+        }]);
+
+      if (insertError) {
+        // 23505 = Unique constraint violation (kullanıcı zaten var)
+        if (insertError.code === '23505') {
+          console.log("📝 Kullanıcı zaten mevcut, seviye varsayılan olarak A1");
+          setUserLevel("A1");
         } else {
-          const { error: insertError } = await supabase
-            .from("en_users")
-            .insert([{ 
-              id: user.id, 
-              email: user.email,
-              level: "A1",
-              created_at: new Date().toISOString()
-            }]);
-
-          if (insertError) {
-            console.error("Kullanıcı oluşturma hatası:", insertError);
-          } else {
-            setUserLevel("A1");
-          }
+          console.error("Kullanıcı oluşturma hatası:", insertError);
         }
-      } catch (error) {
-        console.error("Seviye işlemleri hatası:", error);
+      } else {
+        console.log("✅ Yeni kullanıcı oluşturuldu!");
+        setUserLevel("A1");
       }
-    };
+    }
+  } catch (error) {
+    console.error("Seviye işlemleri hatası:", error);
+  }
+};
 
     fetchUserLevel();
     setShowLogin(false);
