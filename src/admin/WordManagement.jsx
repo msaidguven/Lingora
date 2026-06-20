@@ -40,6 +40,7 @@ Her kelime için:
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
 
 kelimenin diğer anlamlarını virgül ile ayır.
+bu verdiğim kelimeler A1 seviyesinde.
 Eğer anlamı verilmişse ve hata varsa bana bildir ve düzeltmesini yap.
 örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
 
