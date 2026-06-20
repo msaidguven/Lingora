@@ -25,7 +25,7 @@ function AppContent() {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
 
-  // Kullanıcı seviyesini çek
+  // ============ KULLANICI SEVİYESİNİ ÇEK ============
   useEffect(() => {
     if (!user) {
       setShowLogin(true);
@@ -33,64 +33,65 @@ function AppContent() {
       return;
     }
     
-   // src/App.jsx - fetchUserLevel fonksiyonu
-const fetchUserLevel = async () => {
-  try {
-    // Önce kullanıcı var mı kontrol et
-    const { data, error } = await supabase
-      .from("en_users")
-      .select("level")
-      .eq("id", user.id)
-      .maybeSingle();
+    const fetchUserLevel = async () => {
+      try {
+        // Önce kullanıcı var mı kontrol et - maybeSingle() ile
+        const { data, error } = await supabase
+          .from("en_users")
+          .select("level")
+          .eq("id", user.id)
+          .maybeSingle();
 
-    // Hata varsa ve kayıt bulunamadıysa (PGRST116) yok say
-    if (error && error.code !== 'PGRST116') {
-      console.error("Seviye çekme hatası:", error);
-      return;
-    }
-
-    if (data) {
-      // Kullanıcı varsa seviyesini al
-      setUserLevel(data.level);
-      console.log("✅ Kullanıcı seviyesi:", data.level);
-    } else {
-      // Kullanıcı yoksa oluştur
-      console.log("📝 Yeni kullanıcı oluşturuluyor...");
-      
-      const { error: insertError } = await supabase
-        .from("en_users")
-        .insert([{ 
-          id: user.id, 
-          email: user.email,
-          level: "A1",
-          username: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Öğrenci',
-          streak_days: 0,
-          created_at: new Date().toISOString()
-        }]);
-
-      if (insertError) {
-        // 23505 = Unique constraint violation (kullanıcı zaten var)
-        if (insertError.code === '23505') {
-          console.log("📝 Kullanıcı zaten mevcut, seviye varsayılan olarak A1");
-          setUserLevel("A1");
-        } else {
-          console.error("Kullanıcı oluşturma hatası:", insertError);
+        // Eğer gerçek bir hata varsa (kayıt bulunamadı hatası değilse)
+        if (error && error.code !== 'PGRST116') {
+          console.error("❌ Seviye çekme hatası:", error);
+          return;
         }
-      } else {
-        console.log("✅ Yeni kullanıcı oluşturuldu!");
-        setUserLevel("A1");
+
+        if (data) {
+          // Kullanıcı zaten varsa seviyesini al
+          setUserLevel(data.level);
+          console.log("✅ Kullanıcı seviyesi:", data.level);
+          return; // Fonksiyonu bitir
+        }
+
+        // Kullanıcı yoksa oluştur (Bu noktaya sadece yeni kullanıcılar gelir)
+        console.log("📝 Yeni kullanıcı oluşturuluyor...");
+        
+        const { error: insertError } = await supabase
+          .from("en_users")
+          .insert([{ 
+            id: user.id, 
+            email: user.email,
+            level: "A1",
+            username: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Öğrenci',
+            streak_days: 0,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (insertError) {
+          // 23505 = Unique violation (kullanıcı zaten var) - yoksay
+          if (insertError.code === '23505') {
+            console.log("📝 Kullanıcı zaten mevcut, seviye varsayılan olarak A1");
+            setUserLevel("A1");
+          } else {
+            console.error("❌ Kullanıcı oluşturma hatası:", insertError);
+          }
+        } else {
+          console.log("✅ Yeni kullanıcı oluşturuldu!");
+          setUserLevel("A1");
+        }
+      } catch (error) {
+        console.error("❌ Seviye işlemleri hatası:", error);
       }
-    }
-  } catch (error) {
-    console.error("Seviye işlemleri hatası:", error);
-  }
-};
+    };
 
     fetchUserLevel();
     setShowLogin(false);
     setShowRegister(false);
   }, [user]);
 
+  // ============ NAVIGASYON ============
   const handleNavigate = (screen, type = null) => {
     console.log("🔄 Navigasyon:", screen, type);
     
@@ -117,6 +118,7 @@ const fetchUserLevel = async () => {
     setSelectedLessonId(null);
   };
 
+  // ============ LOGOUT ============
   const handleLogout = async () => {
     const result = await logout();
     if (result.success) {
@@ -128,6 +130,7 @@ const fetchUserLevel = async () => {
     }
   };
 
+  // ============ AUTH HANDLERS ============
   const handleLoginSuccess = () => {
     console.log("✅ Login başarılı");
     setShowLogin(false);
@@ -152,6 +155,7 @@ const fetchUserLevel = async () => {
     setShowLogin(true);
   };
 
+  // ============ QUIZ RENDER ============
   const renderQuizScreen = () => {
     console.log("📝 Quiz render:", quizType);
     
@@ -176,7 +180,9 @@ const fetchUserLevel = async () => {
     return null;
   };
 
-  // Auth yükleniyor durumu
+  // ============ RENDER DURUMLARI ============
+  
+  // 1. Auth yükleniyor durumu
   if (authLoading) {
     return (
       <div className="app-loading">
@@ -186,7 +192,7 @@ const fetchUserLevel = async () => {
     );
   }
 
-  // Giriş sayfası
+  // 2. Giriş sayfası
   if (showLogin) {
     console.log("📱 Login gösteriliyor, showRegister:", showRegister);
     return (
@@ -206,7 +212,7 @@ const fetchUserLevel = async () => {
     );
   }
 
-  // Kullanıcı yoksa login göster (güvenlik için)
+  // 3. Kullanıcı yoksa login göster (güvenlik için)
   if (!user) {
     console.log("👤 Kullanıcı yok, login gösteriliyor");
     setShowLogin(true);
@@ -220,7 +226,7 @@ const fetchUserLevel = async () => {
     );
   }
 
-  // Ana uygulama
+  // 4. Ana uygulama
   return (
     <div className="app-container">
       <Header 
@@ -261,7 +267,7 @@ const fetchUserLevel = async () => {
   );
 }
 
-// ANA APP - Provider'lar burada sarmalıyor
+// ============ ANA APP - PROVIDER'LAR ============
 export default function App() {
   return (
     <ThemeProvider>
