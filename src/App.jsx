@@ -4,7 +4,7 @@ import { supabase } from "./config.js";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Header from "./components/Header/Header.jsx";
-import HomeScreen from "./HomeScreen.jsx";
+import HomeScreen from "./HomeScreen/HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen.jsx";
