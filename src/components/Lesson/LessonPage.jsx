@@ -141,6 +141,7 @@ function InfoStep({ step, onNext, onPrevious, isFirst, isLast }) {
 }
 
 // ❓ MULTIPLE CHOICE ADIMI
+// ❓ MULTIPLE CHOICE ADIMI - Seçenek harfleri kaldırıldı
 function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [showFeedback, setShowFeedback] = useState({});
@@ -300,7 +301,7 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
                     onChange={() => handleOptionSelect(idx)}
                     disabled={showFeedback[currentIndex]}
                   />
-                  <span>{String.fromCharCode(65 + idx)}. {option}</span>
+                  <span>{option}</span>
                   {showFeedback[currentIndex] && isCorrectOption && <span className="check-icon">✅</span>}
                   {showFeedback[currentIndex] && isWrongOption && <span className="check-icon">❌</span>}
                 </label>
@@ -329,6 +330,7 @@ function MultipleChoiceStep({ step, onNext, onPrevious, isFirst, isLast, onWrong
 }
 
 // ❓ FILL BLANK ADIMI
+// ❓ FILL BLANK ADIMI - Seçenek harfleri kaldırıldı
 function FillBlankStep({ step, onNext, onPrevious, isFirst, isLast, onWrongAnswer, wrongQuestions: externalWrongQuestions }) {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [showFeedback, setShowFeedback] = useState({});
