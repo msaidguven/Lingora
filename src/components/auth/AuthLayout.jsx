@@ -1,8 +1,6 @@
+// src/components/auth/AuthLayout.jsx
 import React from 'react';
-
-import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-
 import '../../styles/auth.css';
 
 export const AuthLayout = ({ children, title, subtitle }) => {

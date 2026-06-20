@@ -1,12 +1,17 @@
-/* Auth Pages */
+/* src/styles/auth.css */
+
+/* ============ TEMA DEĞİŞKENLERİ ============ */
 .auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: var(--auth-bg);
-  transition: background 0.3s ease;
+  --auth-bg: #0a0915;
+  --auth-card-bg: #130f24;
+  --auth-border: #201c3a;
+  --auth-text: #e9e6f7;
+  --auth-text-secondary: #807bab;
+  --auth-input-bg: #1a1730;
+  --auth-input-border: #2a2648;
+  --auth-input-focus: #8b7cff;
+  --auth-error: #f87171;
+  --auth-divider: #2a2648;
 }
 
 .auth-page.light {
@@ -22,23 +27,21 @@
   --auth-divider: #d0d0dd;
 }
 
-.auth-page.dark {
-  --auth-bg: #0a0915;
-  --auth-card-bg: #130f24;
-  --auth-border: #201c3a;
-  --auth-text: #e9e6f7;
-  --auth-text-secondary: #807bab;
-  --auth-input-bg: #1a1730;
-  --auth-input-border: #2a2648;
-  --auth-input-focus: #8b7cff;
-  --auth-error: #f87171;
-  --auth-divider: #2a2648;
+/* ============ AUTH PAGE ============ */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--auth-bg);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .auth-container {
   width: 100%;
   max-width: 420px;
-  animation: fadeUp 0.6s ease;
+  animation: authFadeUp 0.6s ease;
 }
 
 .auth-card {
@@ -47,8 +50,10 @@
   border-radius: 24px;
   padding: 40px 32px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
+/* ============ AUTH HEADER ============ */
 .auth-header {
   text-align: center;
   margin-bottom: 32px;
@@ -86,7 +91,7 @@
   font-size: 14px;
 }
 
-/* Form */
+/* ============ FORM ============ */
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -131,6 +136,7 @@
   color: var(--auth-text-secondary);
 }
 
+/* ============ ERROR ============ */
 .auth-error {
   padding: 10px 14px;
   background: rgba(239, 68, 68, 0.1);
@@ -140,6 +146,7 @@
   font-size: 13px;
 }
 
+/* ============ BUTTONS ============ */
 .auth-button {
   padding: 14px;
   border: none;
@@ -147,7 +154,7 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -170,25 +177,22 @@
   box-shadow: 0 12px 32px -8px rgba(99, 102, 241, 0.5);
 }
 
-.auth-button.google {
-  background: white;
-  color: #333;
-  border: 2px solid #ddd;
+/* ============ SOCIAL BUTTONS ============ */
+.social-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.auth-page.dark .auth-button.google {
-  background: #1a1730;
-  color: #e9e6f7;
-  border-color: #2a2648;
+.auth-button.google {
+  background: var(--auth-card-bg);
+  color: var(--auth-text);
+  border: 2px solid var(--auth-border);
 }
 
 .auth-button.google:hover:not(:disabled) {
-  background: #f8f8fc;
+  background: var(--auth-input-bg);
   transform: translateY(-2px);
-}
-
-.auth-page.dark .auth-button.google:hover:not(:disabled) {
-  background: #2a2648;
 }
 
 .auth-button.facebook {
@@ -206,6 +210,7 @@
   height: 20px;
 }
 
+/* ============ DIVIDER ============ */
 .auth-divider {
   display: flex;
   align-items: center;
@@ -222,12 +227,7 @@
   background: var(--auth-divider);
 }
 
-.social-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+/* ============ FOOTER ============ */
 .auth-footer {
   text-align: center;
   font-size: 14px;
@@ -235,6 +235,7 @@
   display: flex;
   justify-content: center;
   gap: 6px;
+  margin-top: 8px;
 }
 
 .auth-switch {
@@ -252,8 +253,8 @@
   text-decoration: underline;
 }
 
-/* Animations */
-@keyframes fadeUp {
+/* ============ ANIMATIONS ============ */
+@keyframes authFadeUp {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -264,7 +265,7 @@
   }
 }
 
-/* Responsive */
+/* ============ RESPONSIVE ============ */
 @media (max-width: 480px) {
   .auth-card {
     padding: 28px 20px;
