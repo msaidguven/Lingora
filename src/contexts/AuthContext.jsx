@@ -11,14 +11,12 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Mevcut oturumu kontrol et
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Auth state değişikliklerini dinle
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
@@ -68,9 +66,8 @@ export const AuthProvider = ({ children }) => {
       
       console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
       
-      // 2. Kullanıcı oluşturulduysa, en_users tablosuna ekle
       if (data.user) {
-        // en_users'a ekle (upsert ile)
+        // 2. en_users'a ekle
         const { error: insertError } = await supabase
           .from("en_users")
           .upsert([{ 
@@ -84,14 +81,11 @@ export const AuthProvider = ({ children }) => {
         
         if (insertError) {
           console.error("❌ en_users'a ekleme hatası:", insertError);
-          if (insertError.code === '42501') {
-            console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
-          }
         } else {
           console.log("✅ Kullanıcı en_users tablosuna eklendi!");
         }
 
-        // 3. Günlük limit oluştur (upsert ile)
+        // 3. Günlük limit oluştur - SÜTUN ADLARI TABLO İLE EŞLEŞTİRİLDİ ✅
         console.log("📝 Günlük limit oluşturuluyor...");
         
         const { data: dailyData, error: dailyError } = await supabase
@@ -108,29 +102,21 @@ export const AuthProvider = ({ children }) => {
           console.error("❌ Günlük limit oluşturma hatası:", dailyError);
           console.error("❌ Hata kodu:", dailyError.code);
           console.error("❌ Hata mesajı:", dailyError.message);
-          
-          if (dailyError.code === '42501') {
-            console.warn("⚠️ RLS politikası nedeniyle günlük limit oluşturulamadı!");
-            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
-          }
         } else {
           console.log("✅ Günlük limit oluşturuldu!", dailyData);
         }
 
         // 4. Otomatik giriş dene
         try {
-          console.log("📝 Otomatik giriş deneniyor...");
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
           if (!signInError) {
             console.log("✅ Otomatik giriş başarılı!");
-          } else {
-            console.log("📝 Otomatik giriş başarısız:", signInError.message);
           }
         } catch (signInError) {
-          console.log("📝 Otomatik giriş yapılamadı:", signInError.message);
+          console.log("📝 Otomatik giriş yapılamadı");
         }
       }
       
