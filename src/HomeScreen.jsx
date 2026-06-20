@@ -202,7 +202,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoT
         .from("en_user_daily_limit")
         .update({ remaining_today: 0 })
         .eq("user_id", FIXED_USER_ID);
-
       await fetchData();
       alert(`${newWords.length} yeni kelime eklendi!`);
     } catch (error) {

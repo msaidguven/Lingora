@@ -522,17 +522,53 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
   const [isCorrect, setIsCorrect] = useState(false);
   const [shuffledLeft, setShuffledLeft] = useState([]);
   const [selectedLeft, setSelectedLeft] = useState(null);
+  const [wrongPairs, setWrongPairs] = useState([]);
+  const [retryMode, setRetryMode] = useState(false);
 
   const pairs = step.pairs || [];
 
-  useEffect(() => {
+  // Başlangıç: Karıştır ve sıfırla
+  const initializeGame = useCallback(() => {
     const shuffled = [...pairs].sort(() => Math.random() - 0.5);
     setShuffledLeft(shuffled.map(p => p.left));
     setMatches({});
     setShowFeedback(false);
     setIsCorrect(false);
     setSelectedLeft(null);
-  }, [step.id]);
+    setWrongPairs([]);
+    setRetryMode(false);
+  }, [pairs]);
+
+  useEffect(() => {
+    initializeGame();
+  }, [step.id, initializeGame]);
+
+  // Sadece yanlışları sıfırla (doğru olanlar sabit kalsın)
+  const resetWrongOnes = useCallback(() => {
+    // Yanlış olan eşleştirmeleri bul
+    const wrongMatchKeys = wrongPairs.map(wp => wp.left);
+    
+    // Yanlış olanları matches'ten kaldır
+    const newMatches = { ...matches };
+    wrongMatchKeys.forEach(key => {
+      delete newMatches[key];
+    });
+    
+    // Yanlış olan left'leri tekrar karıştır ve listeye ekle
+    const wrongLeftItems = wrongPairs.map(wp => wp.left);
+    const shuffledWrong = [...wrongLeftItems].sort(() => Math.random() - 0.5);
+    
+    // Mevcut left listesini güncelle (doğru olanlar sabit, yanlış olanlar karıştırıldı)
+    const currentLeftItems = shuffledLeft.filter(item => !wrongLeftItems.includes(item));
+    const newShuffledLeft = [...currentLeftItems, ...shuffledWrong];
+    
+    setShuffledLeft(newShuffledLeft);
+    setMatches(newMatches);
+    setShowFeedback(false);
+    setIsCorrect(false);
+    setSelectedLeft(null);
+    setRetryMode(true);
+  }, [matches, shuffledLeft, wrongPairs]);
 
   const handleLeftClick = (leftValue) => {
     if (showFeedback) return;
@@ -544,6 +580,7 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
     if (showFeedback) return;
     if (!selectedLeft) return;
     
+    // Bu right zaten eşleşmiş mi kontrol et
     const alreadyMatched = Object.values(matches).some(m => m.right === rightValue);
     if (alreadyMatched) return;
     
@@ -566,41 +603,81 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
       alert('Lütfen tüm eşleştirmeleri yapın!');
       return;
     }
-    const allCorrect = Object.values(matches).every(m => m.isMatch);
+    
+    // Yanlış olanları bul
+    const wrongs = Object.entries(matches)
+      .filter(([key, value]) => !value.isMatch)
+      .map(([key, value]) => ({ left: key, right: value.right }));
+    
+    setWrongPairs(wrongs);
+    
+    const allCorrect = wrongs.length === 0;
     setIsCorrect(allCorrect);
     setShowFeedback(true);
+    
+    if (!allCorrect) {
+      setRetryMode(true);
+    }
   };
 
   const handleNext = () => {
     if (!showFeedback || !isCorrect) {
-      alert('Doğru cevapları bulmadan ilerleyemezsiniz!');
+      alert('Önce tüm eşleştirmeleri doğru yapmalısınız!');
       return;
     }
     onNext();
   };
 
   const handlePrevious = () => {
-    const shuffled = [...pairs].sort(() => Math.random() - 0.5);
-    setShuffledLeft(shuffled.map(p => p.left));
-    setMatches({});
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setSelectedLeft(null);
+    initializeGame();
     onPrevious();
   };
 
   const matchedLeftItems = Object.keys(matches);
+  const allMatched = matchedLeftItems.length === pairs.length;
+
+  // Doğru olan eşleştirmeler (kontrol sonrası)
+  const correctMatches = Object.entries(matches)
+    .filter(([key, value]) => value.isMatch)
+    .map(([key]) => key);
 
   return (
     <div className="step-container">
       <div className="step-header">
         <span className="step-number">Adım {step.id?.split('_')[1] || '?'}</span>
         <h2 className="step-title">{step.title}</h2>
-        <span className="completed-count">{Object.keys(matches).length} / {pairs.length} eşleştirildi</span>
+        <span className="completed-count">
+          {Object.keys(matches).length} / {pairs.length} eşleştirildi
+          {showFeedback && !isCorrect && (
+            <span style={{ color: '#ef4444', marginLeft: 12 }}>
+              ❌ {wrongPairs.length} yanlış
+            </span>
+          )}
+          {showFeedback && isCorrect && (
+            <span style={{ color: '#10b981', marginLeft: 12 }}>✅ Tamamı doğru!</span>
+          )}
+        </span>
       </div>
 
       <div className="step-content matching-content">
         {step.instructions && <p className="instructions-text">{step.instructions}</p>}
+
+        {/* Doğru olanlar sabit, yanlış olanlar tekrar çözülüyor */}
+        {retryMode && !isCorrect && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid #ef4444',
+            borderRadius: 8,
+            padding: '12px 16px',
+            marginBottom: 16,
+            color: '#f87171'
+          }}>
+            <span style={{ fontWeight: 600 }}>⚠️ {wrongPairs.length} yanlış eşleştirme var!</span>
+            <span style={{ marginLeft: 8, fontSize: 14 }}>
+              Doğru olanlar sabitlendi, sadece yanlış olanları tekrar eşleştirin.
+            </span>
+          </div>
+        )}
 
         <div className="matching-container">
           <div className="matching-left">
@@ -609,12 +686,25 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
               const isMatched = matchedLeftItems.includes(left);
               const isSelected = selectedLeft === left;
               const match = matches[left];
+              const isWrong = wrongPairs.some(wp => wp.left === left);
+              const isCorrectMatch = match && match.isMatch;
               
               let itemClass = 'matching-item left-item';
               if (isMatched) itemClass += ' matched';
               if (isSelected) itemClass += ' selected';
+              
+              // Feedback gösteriliyorsa renkleri göster
               if (showFeedback && match) {
-                itemClass += match.isMatch ? ' correct-match' : ' wrong-match';
+                if (isCorrectMatch) {
+                  itemClass += ' correct-match';
+                } else if (isWrong) {
+                  itemClass += ' wrong-match';
+                }
+              }
+              
+              // Eğer retry modundaysa ve doğruysa sabit göster
+              if (retryMode && isCorrectMatch) {
+                itemClass += ' correct-match';
               }
               
               return (
@@ -622,10 +712,16 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
                   key={idx}
                   onClick={() => handleLeftClick(left)}
                   className={itemClass}
+                  style={{
+                    opacity: (retryMode && isCorrectMatch) ? 0.7 : 1,
+                    cursor: (retryMode && isCorrectMatch) ? 'default' : 'pointer'
+                  }}
                 >
                   <span>{left}</span>
                   {isMatched && (
-                    <span className="match-indicator">✓</span>
+                    <span className="match-indicator">
+                      {showFeedback && match ? (isCorrectMatch ? '✅' : '❌') : '✓'}
+                    </span>
                   )}
                 </div>
               );
@@ -639,12 +735,24 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
             {pairs.map((pair, idx) => {
               const matchedWith = Object.entries(matches).find(([key, val]) => val.right === pair.right);
               const isMatched = !!matchedWith;
-              const match = matches[matchedWith?.[0]];
+              const leftKey = matchedWith?.[0];
+              const match = matches[leftKey];
+              const isWrong = wrongPairs.some(wp => wp.left === leftKey);
+              const isCorrectMatch = match && match.isMatch;
               
               let itemClass = 'matching-item right-item';
               if (isMatched) itemClass += ' matched';
+              
               if (showFeedback && match) {
-                itemClass += match.isMatch ? ' correct-match' : ' wrong-match';
+                if (isCorrectMatch) {
+                  itemClass += ' correct-match';
+                } else if (isWrong) {
+                  itemClass += ' wrong-match';
+                }
+              }
+              
+              if (retryMode && isCorrectMatch) {
+                itemClass += ' correct-match';
               }
               
               return (
@@ -652,10 +760,16 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
                   key={idx}
                   onClick={() => handleRightClick(pair.right)}
                   className={itemClass}
+                  style={{
+                    opacity: (retryMode && isCorrectMatch) ? 0.7 : 1,
+                    cursor: (retryMode && isCorrectMatch) ? 'default' : 'pointer'
+                  }}
                 >
                   <span>{pair.right}</span>
                   {isMatched && (
-                    <span className="match-indicator">✓</span>
+                    <span className="match-indicator">
+                      {showFeedback && match ? (isCorrectMatch ? '✅' : '❌') : '✓'}
+                    </span>
                   )}
                 </div>
               );
@@ -663,21 +777,88 @@ function MatchingStep({ step, onNext, onPrevious, isFirst, isLast }) {
           </div>
         </div>
 
-        {!showFeedback && Object.keys(matches).length === pairs.length && (
-          <button onClick={handleCheck} className="check-btn" style={{ marginTop: 16, width: '100%' }}>
-            ✅ Kontrol Et
-          </button>
-        )}
+        {/* Butonlar */}
+        <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+          {!showFeedback && allMatched && (
+            <button onClick={handleCheck} className="check-btn" style={{ flex: 1 }}>
+              ✅ Kontrol Et
+            </button>
+          )}
+
+          {showFeedback && !isCorrect && (
+            <>
+              <button 
+                onClick={resetWrongOnes} 
+                className="retry-btn"
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#f59e0b',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#d97706'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#f59e0b'}
+              >
+                🔄 Sadece Yanlışları Tekrar Çöz
+              </button>
+              <button 
+                onClick={initializeGame} 
+                className="reset-btn"
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#6b7280',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#4b5563'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#6b7280'}
+              >
+                🔄 Tamamen Sıfırla
+              </button>
+            </>
+          )}
+
+          {showFeedback && isCorrect && (
+            <div style={{ 
+              flex: 1, 
+              padding: '12px 20px',
+              borderRadius: 8,
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid #10b981',
+              color: '#10b981',
+              textAlign: 'center',
+              fontWeight: 600
+            }}>
+              🎉 Tüm eşleştirmeler doğru! Devam edebilirsiniz.
+            </div>
+          )}
+        </div>
 
         {showFeedback && (
-          <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
-            {isCorrect ? step.feedback_correct || '🎉 Harika! Tüm eşleştirmeler doğru!' : step.feedback_wrong || '😅 Bazı eşleştirmeler yanlış. Tekrar dene!'}
+          <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`} style={{ marginTop: 12 }}>
+            {isCorrect 
+              ? step.feedback_correct || '🎉 Harika! Tüm eşleştirmeler doğru!'
+              : step.feedback_wrong || `😅 ${wrongPairs.length} eşleştirme yanlış. Yanlış olanları tekrar eşleştirin veya tamamen sıfırlayın.`}
           </div>
         )}
 
         <div className="step-navigation">
           <button onClick={handlePrevious} disabled={isFirst} className="nav-btn prev-btn">← Geri</button>
-          <button onClick={handleNext} disabled={!showFeedback || !isCorrect} className="nav-btn next-btn">
+          <button 
+            onClick={handleNext} 
+            disabled={!showFeedback || !isCorrect} 
+            className="nav-btn next-btn"
+          >
             {isLast ? '✅ Dersi Tamamla' : 'İlerle →'}
           </button>
         </div>
