@@ -29,6 +29,7 @@ function AppContent() {
   useEffect(() => {
     if (!user) {
       setShowLogin(true);
+      setShowRegister(false);
       return;
     }
     
@@ -103,6 +104,7 @@ function AppContent() {
     const result = await logout();
     if (result.success) {
       setShowLogin(true);
+      setShowRegister(false);
       setCurrentScreen("home");
     } else {
       alert("Çıkış yapılırken bir hata oluştu!");
@@ -110,8 +112,27 @@ function AppContent() {
   };
 
   const handleLoginSuccess = () => {
+    console.log("✅ Login başarılı");
     setShowLogin(false);
     setShowRegister(false);
+  };
+
+  const handleSwitchToRegister = () => {
+    console.log("🔄 Login -> Register");
+    setShowLogin(false);
+    setShowRegister(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    console.log("🔄 Register -> Login");
+    setShowLogin(true);
+    setShowRegister(false);
+  };
+
+  const handleRegisterSuccess = () => {
+    console.log("✅ Kayıt başarılı");
+    setShowRegister(false);
+    setShowLogin(true);
   };
 
   const renderQuizScreen = () => {
@@ -150,28 +171,34 @@ function AppContent() {
 
   // Giriş sayfası
   if (showLogin) {
+    console.log("📱 Login gösteriliyor, showRegister:", showRegister);
     return (
       <div className="app-auth">
         {showRegister ? (
           <Register 
-            onRegisterSuccess={() => {
-              setShowRegister(false);
-              setShowLogin(true);
-            }}
-            onSwitchToLogin={() => {
-              setShowRegister(false);
-              setShowLogin(true);
-            }}
+            onRegisterSuccess={handleRegisterSuccess}
+            onSwitchToLogin={handleSwitchToLogin}
           />
         ) : (
           <Login 
             onLoginSuccess={handleLoginSuccess}
-            onSwitchToRegister={() => {
-              setShowLogin(false);
-              setShowRegister(true);
-            }}
+            onSwitchToRegister={handleSwitchToRegister}
           />
         )}
+      </div>
+    );
+  }
+
+  // Kullanıcı yoksa login göster (güvenlik için)
+  if (!user) {
+    console.log("👤 Kullanıcı yok, login gösteriliyor");
+    setShowLogin(true);
+    return (
+      <div className="app-auth">
+        <Login 
+          onLoginSuccess={handleLoginSuccess}
+          onSwitchToRegister={handleSwitchToRegister}
+        />
       </div>
     );
   }
