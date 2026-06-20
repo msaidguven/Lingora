@@ -110,7 +110,7 @@ const saveWordResult = async (wordId, isCorrect) => {
     .select("id, review_count, total_correct, total_wrong")
     .eq("user_id", FIXED_USER_ID)
     .eq("word_id", wordId)
-    .single();
+    .maybeSingle();
   
   if (isCorrect) {
     const newReviewCount = (existing?.review_count || 0) + 1;

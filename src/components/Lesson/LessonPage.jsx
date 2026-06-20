@@ -1019,7 +1019,7 @@ export default function LessonPage({ lessonId, onBack }) {
         .select('*')
         .eq('user_id', FIXED_USER_ID)
         .eq('lesson_id', lessonId)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Progress yükleme hatası:', error);
@@ -1048,7 +1048,7 @@ export default function LessonPage({ lessonId, onBack }) {
         .select('id, completed, score, completed_at')
         .eq('user_id', FIXED_USER_ID)
         .eq('lesson_id', lessonId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         const nextCompleted = existing.completed || isCompleted;

@@ -1,192 +1,293 @@
--- TABLOLARI SİL (doğru sıra - foreign key'ler önce silinir)
-DROP TABLE IF EXISTS en_user_quiz_attempts CASCADE;
-DROP TABLE IF EXISTS en_user_lesson_progress CASCADE;
-DROP TABLE IF EXISTS en_user_word_progress CASCADE;
-DROP TABLE IF EXISTS en_user_words CASCADE;
-DROP TABLE IF EXISTS en_user_daily_limit CASCADE;
-DROP TABLE IF EXISTS en_lesson_words CASCADE;
-DROP TABLE IF EXISTS en_quiz_questions CASCADE;
-DROP TABLE IF EXISTS en_example_sentences CASCADE;
-DROP TABLE IF EXISTS en_lessons CASCADE;
-DROP TABLE IF EXISTS en_users CASCADE;
-DROP TABLE IF EXISTS en_words CASCADE;
+// src/contexts/AuthContext.jsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../config';
 
--- TABLOLARI YENİDEN OLUŞTUR
+const AuthContext = createContext();
 
--- 1. Kelimeler
-CREATE TABLE en_words (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  word text NOT NULL,
-  meaning text NOT NULL,
-  level text CHECK (level IN ('A1', 'A2', 'B1', 'B2')),
-  type text DEFAULT 'word' CHECK (type IN ('word', 'phrase')),
-  part_of_speech text[],
-  category text[],
-  difficulty int CHECK (difficulty BETWEEN 1 AND 5),
-  synonyms text[],
-  antonyms text[],
-  created_at timestamp DEFAULT now()
-);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
--- 2. Kullanıcılar
-CREATE TABLE en_users (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email text UNIQUE NOT NULL,
-  username text UNIQUE,
-  avatar_url text,
-  level text DEFAULT 'A1',
-  total_points int DEFAULT 0,
-  streak_days int DEFAULT 0,
-  last_active_at timestamp DEFAULT now(),
-  created_at timestamp DEFAULT now(),
-  updated_at timestamp DEFAULT now()
-);
+  useEffect(() => {
+    // Mevcut oturumu kontrol et
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
--- 3. Örnek Cümleler
-CREATE TABLE en_example_sentences (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  sentence_en text NOT NULL,
-  sentence_tr text,
-  difficulty int CHECK (difficulty BETWEEN 1 AND 5),
-  order_index smallint DEFAULT 0,
-  source text DEFAULT 'manual',
-  is_approved boolean DEFAULT true,
-  created_at timestamp DEFAULT now(),
-  updated_at timestamp DEFAULT now()
-);
+    // Auth state değişikliklerini dinle
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
 
--- 4. Dersler
-CREATE TABLE en_lessons (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  lesson_number int UNIQUE,
-  title text,
-  level text,
-  content_json jsonb,
-  created_at timestamp DEFAULT now()
-);
+    return () => subscription.unsubscribe();
+  }, []);
 
--- 5. Ders-Kelime İlişkisi
-CREATE TABLE en_lesson_words (
-  lesson_id uuid REFERENCES en_lessons(id) ON DELETE CASCADE,
-  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  PRIMARY KEY (lesson_id, word_id)
-);
+  // ============ LOGIN ============
+  const login = async (email, password) => {
+    try {
+      setError(null);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
 
--- 6. Quiz Soruları
-CREATE TABLE en_quiz_questions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  question_text text NOT NULL,
-  options text[] NOT NULL,
-  correct_answer text NOT NULL,
-  difficulty int CHECK (difficulty BETWEEN 1 AND 5),
-  created_at timestamp DEFAULT now()
-);
+  // ============ REGISTER ============
+  const register = async (email, password, fullName) => {
+    try {
+      setError(null);
+      
+      console.log("📝 Kayıt başlatılıyor...", { email, fullName });
+      
+      // 1. Supabase'de kullanıcı oluştur
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+      
+      if (error) throw error;
+      
+      console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
+      
+      // 2. Kullanıcı oluşturulduysa, en_users tablosuna ekle
+      if (data.user) {
+        // en_users'a ekle (upsert ile)
+        const { error: insertError } = await supabase
+          .from("en_users")
+          .upsert([{ 
+            id: data.user.id,
+            email: data.user.email,
+            level: "A1",
+            username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
+            streak_days: 0,
+            created_at: new Date().toISOString()
+          }], { onConflict: 'id' });
+        
+        if (insertError) {
+          console.error("❌ en_users'a ekleme hatası:", insertError);
+          if (insertError.code === '42501') {
+            console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
+          }
+        } else {
+          console.log("✅ Kullanıcı en_users tablosuna eklendi!");
+        }
 
--- 7. Kullanıcı Kelime Havuzu (SRS)
-CREATE TABLE en_user_words (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
-  word_id uuid REFERENCES en_words(id) ON DELETE CASCADE,
-  added_at timestamp DEFAULT now(),
-  next_review_at timestamp DEFAULT now(),
-  ease_factor float DEFAULT 2.5,
-  review_count int DEFAULT 0,
-  last_score int CHECK (last_score BETWEEN 0 AND 100),
-  last_reviewed_at timestamp,
-  UNIQUE(user_id, word_id)
-);
+        // 3. Günlük limit oluştur (upsert ile)
+        console.log("📝 Günlük limit oluşturuluyor...");
+        
+        const { data: dailyData, error: dailyError } = await supabase
+          .from("en_user_daily_limit")
+          .upsert([{
+            user_id: data.user.id,
+            remaining_today: 5,
+            last_reset_date: new Date().toISOString().split('T')[0],
+            updated_at: new Date().toISOString()
+          }], { onConflict: 'user_id' })
+          .select();
+        
+        if (dailyError) {
+          console.error("❌ Günlük limit oluşturma hatası:", dailyError);
+          console.error("❌ Hata kodu:", dailyError.code);
+          console.error("❌ Hata mesajı:", dailyError.message);
+          
+          if (dailyError.code === '42501') {
+            console.warn("⚠️ RLS politikası nedeniyle günlük limit oluşturulamadı!");
+            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
+          }
+        } else {
+          console.log("✅ Günlük limit oluşturuldu!", dailyData);
+        }
 
--- 8. Günlük Kelime Limiti
-CREATE TABLE en_user_daily_limit (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE UNIQUE,
-  remaining_today int DEFAULT 5,
-  last_reset_date date DEFAULT CURRENT_DATE,
-  updated_at timestamp DEFAULT now()
-);
+        // 4. Otomatik giriş dene
+        try {
+          console.log("📝 Otomatik giriş deneniyor...");
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (!signInError) {
+            console.log("✅ Otomatik giriş başarılı!");
+          } else {
+            console.log("📝 Otomatik giriş başarısız:", signInError.message);
+          }
+        } catch (signInError) {
+          console.log("📝 Otomatik giriş yapılamadı:", signInError.message);
+        }
+      }
+      
+      return { success: true, data, user: data.user };
+    } catch (error) {
+      console.error("❌ Register hatası:", error);
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
 
--- 9. Kullanıcı Quiz Denemeleri
-CREATE TABLE en_user_quiz_attempts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
-  question_id uuid REFERENCES en_quiz_questions(id) ON DELETE CASCADE,
-  user_answer text NOT NULL,
-  is_correct boolean NOT NULL,
-  attempted_at timestamp DEFAULT now()
-);
+  // ============ LOGOUT ============
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
 
--- 10. Kullanıcı Ders İlerlemesi
-CREATE TABLE en_user_lesson_progress (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
-  lesson_id uuid REFERENCES en_lessons(id) ON DELETE CASCADE,
-  completed boolean DEFAULT false,
-  score int,
-  completed_at timestamp,
-  UNIQUE(user_id, lesson_id)
-);
+  // ============ GOOGLE LOGIN ============
+  const loginWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
 
--- İNDEXLER
-CREATE INDEX idx_en_example_sentences_word_id ON en_example_sentences(word_id, order_index);
-CREATE INDEX idx_en_user_words_user_id ON en_user_words(user_id);
-CREATE INDEX idx_en_user_words_next_review ON en_user_words(next_review_at);
-CREATE INDEX idx_en_user_daily_limit_user_id ON en_user_daily_limit(user_id);
+  // ============ FACEBOOK LOGIN ============
+  const loginWithFacebook = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
 
--- FONKSİYONLAR VE TRIGGERLAR
+  // ============ KULLANICI VERİLERİNİ GETİR ============
+  const fetchUserData = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_users")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
 
--- Günlük limit sıfırlama
-CREATE OR REPLACE FUNCTION reset_daily_limit()
-RETURNS trigger AS $$
-BEGIN
-  IF OLD.last_reset_date < CURRENT_DATE THEN
-    NEW.remaining_today = 5;
-    NEW.last_reset_date = CURRENT_DATE;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+      if (error) {
+        console.error("❌ Kullanıcı verisi çekme hatası:", error);
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error("❌ Kullanıcı verisi hatası:", error);
+      return null;
+    }
+  };
 
-DROP TRIGGER IF EXISTS trigger_reset_daily_limit ON en_user_daily_limit;
-CREATE TRIGGER trigger_reset_daily_limit
-BEFORE UPDATE ON en_user_daily_limit
-FOR EACH ROW
-EXECUTE FUNCTION reset_daily_limit();
+  // ============ KULLANICI SEVİYESİNİ GÜNCELLE ============
+  const updateUserLevel = async (userId, level) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_users")
+        .update({ level })
+        .eq("id", userId);
 
--- Yeni kullanıcı kaydı için tetikleyici
-CREATE OR REPLACE FUNCTION create_user_daily_limit()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO en_user_daily_limit (user_id, remaining_today, last_reset_date)
-  VALUES (NEW.id, 5, CURRENT_DATE)
-  ON CONFLICT (user_id) DO NOTHING;
-  
-  INSERT INTO en_users (id, email, username)
-  VALUES (NEW.id, NEW.email, split_part(NEW.email, '@', 1))
-  ON CONFLICT (id) DO NOTHING;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error("❌ Seviye güncelleme hatası:", error);
+      return { success: false, error: error.message };
+    }
+  };
 
-DROP TRIGGER IF EXISTS after_auth_user_signup ON auth.users;
-CREATE TRIGGER after_auth_user_signup
-AFTER INSERT ON auth.users
-FOR EACH ROW
-EXECUTE FUNCTION create_user_daily_limit();
+  // ============ GÜNLÜK LİMİTİ KONTROL ET ============
+  const checkDailyLimit = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_user_daily_limit")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
 
+      if (error) {
+        console.error("❌ Günlük limit kontrol hatası:", error);
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error("❌ Günlük limit hatası:", error);
+      return null;
+    }
+  };
 
--- Kullanıcı Cümle Havuzu (SRS için)
-CREATE TABLE IF NOT EXISTS en_user_sentences (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES en_users(id) ON DELETE CASCADE,
-  sentence_id uuid REFERENCES en_example_sentences(id) ON DELETE CASCADE,
-  added_at timestamp DEFAULT now(),
-  next_review_at timestamp DEFAULT now(),
-  ease_factor float DEFAULT 2.5,
-  review_count int DEFAULT 0,
-  last_score int CHECK (last_score BETWEEN 0 AND 100),
-  last_reviewed_at timestamp,
-  UNIQUE(user_id, sentence_id)
-);
+  // ============ GÜNLÜK LİMİTİ GÜNCELLE ============
+  const updateDailyLimit = async (userId, remaining) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_user_daily_limit")
+        .update({ 
+          remaining_today: remaining,
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error("❌ Günlük limit güncelleme hatası:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ============ VALUE ============
+  const value = {
+    user,
+    session,
+    loading,
+    error,
+    login,
+    register,
+    logout,
+    loginWithGoogle,
+    loginWithFacebook,
+    fetchUserData,
+    updateUserLevel,
+    checkDailyLimit,
+    updateDailyLimit,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// ============ USE AUTH HOOK ============
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};

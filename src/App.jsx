@@ -39,7 +39,7 @@ function AppContent() {
           .from("en_users")
           .select("level")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           console.error("Seviye çekme hatası:", error);

@@ -348,7 +348,7 @@ function LessonAdder() {
           content_json: contentJson
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

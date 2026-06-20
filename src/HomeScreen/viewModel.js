@@ -29,7 +29,7 @@ export function useHomeViewModel() {
         .from("en_users")
         .select("level")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       const level = userData?.level || "A1";
       setUserLevel(level);
@@ -52,7 +52,7 @@ export function useHomeViewModel() {
         .from("en_user_daily_limit")
         .select("remaining_today")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       // Vadesi geçmiş kelimeler
       const { count: due } = await supabase

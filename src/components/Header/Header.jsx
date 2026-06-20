@@ -44,7 +44,7 @@ export default function Header({
           .from("en_users")
           .select("username, streak_days")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           console.error("Kullanıcı verisi çekme hatası:", error);

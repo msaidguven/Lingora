@@ -21,7 +21,7 @@ export function useHomeData() {
       .from("en_users")
       .select("level")
       .eq("id", FIXED_USER_ID)
-      .single();
+      .maybeSingle();
 
     const level = user?.level || "A1";
     setUserLevel(level);
@@ -41,7 +41,7 @@ export function useHomeData() {
       .from("en_user_daily_limit")
       .select("remaining_today")
       .eq("user_id", FIXED_USER_ID)
-      .single();
+      .maybeSingle();
 
     const { count: due } = await supabase
       .from("en_user_words")

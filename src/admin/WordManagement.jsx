@@ -300,7 +300,7 @@ function WordAdder() {
               antonyms: item.antonyms || [],
             })
             .select()
-            .single();
+            .maybeSingle();
 
           if (insertError) throw insertError;
           

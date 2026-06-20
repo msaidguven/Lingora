@@ -51,6 +51,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       
+      console.log("📝 Kayıt başlatılıyor...", { email, fullName });
+      
       // 1. Supabase'de kullanıcı oluştur
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -64,9 +66,11 @@ export const AuthProvider = ({ children }) => {
       
       if (error) throw error;
       
+      console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
+      
       // 2. Kullanıcı oluşturulduysa, en_users tablosuna ekle
       if (data.user) {
-        // en_users'a ekle
+        // en_users'a ekle (upsert ile)
         const { error: insertError } = await supabase
           .from("en_users")
           .upsert([{ 
@@ -76,50 +80,63 @@ export const AuthProvider = ({ children }) => {
             username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
             streak_days: 0,
             created_at: new Date().toISOString()
-          }], { onConflict: 'id' });  // upsert ile çakışma durumunda güncelle
+          }], { onConflict: 'id' });
         
         if (insertError) {
           console.error("❌ en_users'a ekleme hatası:", insertError);
           if (insertError.code === '42501') {
             console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
-            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
           }
         } else {
           console.log("✅ Kullanıcı en_users tablosuna eklendi!");
         }
 
-        // 3. Günlük limit oluştur (eğer yoksa)
-        const { error: dailyError } = await supabase
+        // 3. Günlük limit oluştur (upsert ile)
+        console.log("📝 Günlük limit oluşturuluyor...");
+        
+        const { data: dailyData, error: dailyError } = await supabase
           .from("en_user_daily_limit")
           .upsert([{
             user_id: data.user.id,
             remaining_today: 5,
-            last_reset_at: new Date().toISOString()
-          }], { onConflict: 'user_id' });  // upsert ile çakışma durumunda güncelle
+            last_reset_date: new Date().toISOString().split('T')[0],
+            updated_at: new Date().toISOString()
+          }], { onConflict: 'user_id' })
+          .select();
         
         if (dailyError) {
           console.error("❌ Günlük limit oluşturma hatası:", dailyError);
+          console.error("❌ Hata kodu:", dailyError.code);
+          console.error("❌ Hata mesajı:", dailyError.message);
+          
+          if (dailyError.code === '42501') {
+            console.warn("⚠️ RLS politikası nedeniyle günlük limit oluşturulamadı!");
+            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
+          }
         } else {
-          console.log("✅ Günlük limit oluşturuldu!");
+          console.log("✅ Günlük limit oluşturuldu!", dailyData);
         }
 
-        // 4. Otomatik giriş yap (email confirmation kapalıysa)
-        // Eğer email confirmation açık ise bu kısım çalışmaz
+        // 4. Otomatik giriş dene
         try {
+          console.log("📝 Otomatik giriş deneniyor...");
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
           if (!signInError) {
             console.log("✅ Otomatik giriş başarılı!");
+          } else {
+            console.log("📝 Otomatik giriş başarısız:", signInError.message);
           }
         } catch (signInError) {
-          console.log("📝 Otomatik giriş yapılamadı, kullanıcı manuel giriş yapmalı.");
+          console.log("📝 Otomatik giriş yapılamadı:", signInError.message);
         }
       }
       
       return { success: true, data, user: data.user };
     } catch (error) {
+      console.error("❌ Register hatası:", error);
       setError(error.message);
       return { success: false, error: error.message };
     }
@@ -178,7 +195,7 @@ export const AuthProvider = ({ children }) => {
         .from("en_users")
         .select("*")
         .eq("id", userId)
-        .maybeSingle();  // maybeSingle() kullan
+        .maybeSingle();
 
       if (error) {
         console.error("❌ Kullanıcı verisi çekme hatası:", error);
@@ -207,6 +224,45 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============ GÜNLÜK LİMİTİ KONTROL ET ============
+  const checkDailyLimit = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_user_daily_limit")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ Günlük limit kontrol hatası:", error);
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error("❌ Günlük limit hatası:", error);
+      return null;
+    }
+  };
+
+  // ============ GÜNLÜK LİMİTİ GÜNCELLE ============
+  const updateDailyLimit = async (userId, remaining) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_user_daily_limit")
+        .update({ 
+          remaining_today: remaining,
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error("❌ Günlük limit güncelleme hatası:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // ============ VALUE ============
   const value = {
     user,
@@ -220,6 +276,8 @@ export const AuthProvider = ({ children }) => {
     loginWithFacebook,
     fetchUserData,
     updateUserLevel,
+    checkDailyLimit,
+    updateDailyLimit,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
