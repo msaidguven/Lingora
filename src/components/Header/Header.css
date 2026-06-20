@@ -47,13 +47,6 @@
 }
 
 /* ============ HEADER WRAPPER ============ */
-.header-wrapper,
-.header-wrapper *,
-.header-wrapper *::before,
-.header-wrapper *::after {
-  box-sizing: border-box;
-}
-
 .header-wrapper {
   position: sticky;
   top: 0;
@@ -67,10 +60,6 @@
   overflow: visible;
   transition: background 0.3s ease, border-color 0.3s ease;
   padding: 0 16px;
-  /* Mobil uygulama olarak (PWA/WebView) kullanıldığında çentik/durum çubuğu
-     ile header'ın üst üste binmesini engeller. Normal web tarayıcısında
-     env() değeri 0 olduğu için herhangi bir görsel etkisi olmaz. */
-  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ============ GLOW EFFECT ============ */
@@ -145,22 +134,15 @@
   position: relative;
   color: var(--header-text-muted);
   background: transparent;
-  overflow: hidden; /* taşan içeriğin komşu butona binmesini engeller */
 }
 
 .nav-btn i {
   font-size: 18px;
   transition: transform 0.2s ease;
   line-height: 1;
-  flex-shrink: 0;
 }
 
 .nav-btn span {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 8px;
   line-height: 1.2;
   opacity: 0.8;
@@ -300,10 +282,8 @@
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 12px);
-  right: 0;
-  width: min(260px, calc(100vw - 32px));
-  max-height: min(480px, calc(100vh - 120px));
-  overflow-y: auto;
+  right: -8px;
+  width: 260px;
   border-radius: 18px;
   padding: 8px;
   z-index: 9999;
@@ -578,8 +558,8 @@
   }
 
   .dropdown-menu {
-    width: min(240px, calc(100vw - 24px));
-    right: 0;
+    width: 220px;
+    right: -12px;
     padding: 6px;
   }
 
@@ -630,13 +610,11 @@
   }
 
   .nav-btn i {
-    font-size: 17px;
+    font-size: 13px;
   }
   
-  /* Çok dar ekranlarda etiketleri gizleyip sadece ikon göster:
-     metin taşması/üst üste binme riskini tamamen ortadan kaldırır. */
   .nav-btn span {
-    display: none;
+    font-size: 6px;
   }
 
   .menu-toggle-btn {
@@ -666,8 +644,8 @@
   }
   
   .dropdown-menu {
-    width: min(210px, calc(100vw - 16px));
-    right: 0;
+    width: 190px;
+    right: -8px;
     padding: 4px;
   }
   
