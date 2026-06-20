@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
-import { useAuth } from '../../contexts/AuthContext.js';
+import { useAuth } from '../../contexts/AuthContext';
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
