@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { updateDailyStats } from "../utils/dailyStats.js";
+// ✅ updateDailyStats import'u KALDIRILDI
 import { supabase } from "../config.js";
 import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
 import { useAuth } from "../contexts/AuthContext";
@@ -155,6 +155,7 @@ export function useSentenceQuiz(userLevel) {
     }
   };
 
+  // Cevap seçildiğinde - ✅ GÜNCELLENDİ (updateDailyStats KALDIRILDI)
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
     
@@ -164,10 +165,8 @@ export function useSentenceQuiz(userLevel) {
     setAnswered(true);
     setSaving(true);
     
+    // SADECE cümle sonucunu kaydet
     await saveSentenceResult(currentQuestion.id, isCorrect);
-    
-    // Günlük istatistiği güncelle
-    await updateDailyStats(userId, 'sentence', isCorrect);
     
     setSaving(false);
     onComplete(isCorrect);

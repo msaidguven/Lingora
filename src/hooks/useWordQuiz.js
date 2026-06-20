@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
-import { updateDailyStats } from "../utils/dailyStats.js";
+// ✅ updateDailyStats import'u KALDIRILDI
 import { useAuth } from "../contexts/AuthContext";
 
 const SESSION_WORD_LIMIT = 20;
@@ -165,7 +165,7 @@ export function useWordQuiz(userLevel) {
     }
   };
 
-  // Cevap seçildiğinde
+  // Cevap seçildiğinde - ✅ GÜNCELLENDİ (updateDailyStats KALDIRILDI)
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
     
@@ -175,11 +175,8 @@ export function useWordQuiz(userLevel) {
     setAnswered(true);
     setSaving(true);
     
-    // Kelime sonucunu kaydet
+    // SADECE kelime sonucunu kaydet
     await saveWordResult(currentQuestion.id, isCorrect);
-
-    // Günlük istatistiği güncelle
-    await updateDailyStats(userId, 'word', isCorrect);
     
     setSaving(false);
     onComplete(isCorrect);
