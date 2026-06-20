@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
-import { updateDailyStats } from "../../utils/dailyStats.js"; // ✅ Eklendi
+import { updateDailyStats } from "../../utils/dailyStats.js";
+import { useAuth } from '../../contexts/AuthContext'; // ✅ EKLENDİ
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
@@ -10,6 +11,8 @@ import ExampleModal from "./ExampleModal.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
 export default function WordQuiz({ userLevel, onChangeLevel }) {
+  const { user } = useAuth(); // ✅ EKLENDİ
+  
   const {
     loading,
     error,
@@ -70,9 +73,11 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   const onSelect = async (opt) => {
     await handleSelect(opt, async (isCorrect) => {
-      // ✅ İstatistikleri güncelle
+      // ✅ userId eklendi
       try {
-        await updateDailyStats('word', isCorrect);
+        if (user) {
+          await updateDailyStats(user.id, 'word', isCorrect);
+        }
       } catch (error) {
         console.error('İstatistik güncelleme hatası:', error);
       }
