@@ -1,5 +1,5 @@
 // src/HomeScreen.jsx
-import { useHomeViewModel } from "./HomeScreen.viewModel";
+import { useHomeViewModel } from "./viewModel";
 import { useTheme } from '../contexts/ThemeContext';
 import './HomeScreen.css';
 
