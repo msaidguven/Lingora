@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
+
 import { AuthLayout } from './AuthLayout';
 import '../../styles/auth.css';
 

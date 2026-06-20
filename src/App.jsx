@@ -1,8 +1,10 @@
 // App.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
-import { useAuth } from './hooks/useAuth';
-import { useTheme } from './hooks/useTheme';
+
+import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
+
 import Header from './components/Header';
 
 import HomeScreen from "./HomeScreen.jsx";

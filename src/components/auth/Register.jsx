@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
 import { AuthLayout } from './AuthLayout';
+
+import { useAuth } from '../../contexts/AuthContext';
+
+
 import '../../styles/auth.css';
 
 export const Register = ({ onRegisterSuccess, onSwitchToLogin }) => {

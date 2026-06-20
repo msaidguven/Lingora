@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 
-const FIXED_USER_ID = "302a3b6b-c1e9-49c4-98fe-52115bd7d204";
+import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) { // ✅ onGoToLesson prop'u eklendi
   const [loading, setLoading] = useState(true);
