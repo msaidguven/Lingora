@@ -819,6 +819,7 @@ const NEW_JSON_EXAMPLE = `{
 const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
 
 JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary):
+
 {
   "steps": [
     {
@@ -827,10 +828,14 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
       "title": "Başlık",
       "content": {
         "explanation": "Açıklama metni",
-        "rule": "Kural",
-        "tip": "İpucu",
+        "rule": "📌 KURAL: Kural metni",
+        "tip": "💡 İpucu metni",
         "examples": [
-          {"correct": "doğru örnek", "wrong": "yanlış örnek", "note": "not"}
+          {
+            "correct": "Doğru örnek cümle",
+            "wrong": "Yanlış örnek cümle",
+            "note": "Açıklama notu"
+          }
         ]
       }
     },
@@ -839,14 +844,14 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
       "type": "multiple_choice",
       "title": "Test Başlığı",
       "rule": "📌 KURAL: Kural metni",
-      "instructions": "Talimatlar",
+      "instructions": "Aşağıdaki cümlede doğru seçeneği işaretleyin:",
       "questions": [
         {
           "question": "Soru metni",
-          "options": ["A", "B", "C", "D"],
+          "options": ["A seçeneği", "B seçeneği", "C seçeneği", "D seçeneği"],
           "correct": 0,
-          "feedback_correct": "✅ Doğru geri bildirimi",
-          "feedback_wrong": "❌ Yanlış geri bildirimi"
+          "feedback_correct": "✅ Doğru! Açıklama",
+          "feedback_wrong": "❌ Yanlış! İpucu"
         }
       ]
     },
@@ -855,14 +860,14 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
       "type": "fill_blank",
       "title": "Boşluk Doldurma",
       "rule": "📌 KURAL: Kural metni",
-      "instructions": "Talimatlar",
+      "instructions": "Boşluğa uygun kelimeyi seçin:",
       "questions": [
         {
-          "question": "Soru metni (___ ile göster)",
-          "options": ["A", "B", "C"],
+          "question": "I ___ a student.",
+          "options": ["am", "is", "are"],
           "correct": 0,
-          "feedback_correct": "✅ Doğru",
-          "feedback_wrong": "❌ Yanlış"
+          "feedback_correct": "✅ Doğru! Açıklama",
+          "feedback_wrong": "❌ Yanlış! İpucu"
         }
       ]
     },
@@ -870,43 +875,46 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
       "id": "step_4",
       "type": "matching",
       "title": "Eşleştirme",
-      "instructions": "Eşleştirme talimatı",
+      "instructions": "Sol taraftaki kelimeleri sağ taraftaki anlamlarıyla eşleştirin:",
       "pairs": [
-        {"left": "sol taraf", "right": "sağ taraf"}
+        {"left": "I", "right": "ben"},
+        {"left": "you", "right": "sen"},
+        {"left": "he", "right": "o"}
       ],
-      "feedback_correct": "🎉 Tüm eşleştirmeler doğru!",
-      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış."
+      "feedback_correct": "🎉 Harika! Tüm eşleştirmeler doğru!",
+      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış. Tekrar dene!"
     },
     {
       "id": "step_5",
       "type": "drag_drop",
       "title": "Sürükle-Bırak",
-      "instructions": "Kelimeleri doğru sıraya dizin",
-      "sentence": "Tam cümle",
-      "words": ["kelime1", "kelime2", "kelime3"],
-      "correct_order": [0, 1, 2],
-      "feedback_correct": "✅ Doğru sıralama!",
-      "feedback_wrong": "❌ Sıralama yanlış."
+      "instructions": "Kelimeleri doğru sıraya dizerek cümle oluşturun:",
+      "sentence": "I am a teacher.",
+      "words": ["I", "am", "a", "teacher", "."],
+      "correct_order": [0, 1, 2, 3, 4],
+      "feedback_correct": "✅ Mükemmel! Doğru sıralama!",
+      "feedback_wrong": "❌ Sıralama yanlış. Tekrar deneyin!"
     },
     {
       "id": "step_6",
       "type": "dialogue",
-      "title": "Diyalog Başlığı",
+      "title": "Diyalog",
       "content": {
-        "context": "Diyalog bağlamı",
+        "context": "Diyalog bağlamı (kim, nerede, ne hakkında konuşuyor)",
         "scenes": [
-          {"speaker": "Konuşmacı", "text": "Konuşma metni", "translation": "Türkçe çeviri"}
+          {"speaker": "Ali", "text": "Hello! I am Ali.", "translation": "Merhaba! Ben Ali."},
+          {"speaker": "Emma", "text": "Hi Ali! I am Emma.", "translation": "Merhaba Ali! Ben Emma."}
         ]
       },
       "practice": {
-        "instructions": "Pratik talimatı",
+        "instructions": "Diyaloga göre boşluğu doldurun:",
         "questions": [
           {
-            "question": "Soru",
-            "options": ["A", "B", "C"],
+            "question": "Ali: Hello! I ___ Ali.",
+            "options": ["am", "is", "are"],
             "correct": 0,
-            "feedback_correct": "✅ Doğru",
-            "feedback_wrong": "❌ Yanlış"
+            "feedback_correct": "✅ Doğru! 'I am Ali'",
+            "feedback_wrong": "❌ İpucu: 'I' ile 'am' kullanılır."
           }
         ]
       }
@@ -914,40 +922,50 @@ JSON Formatı (DESTEKLENEN TİPLER: info, multiple_choice, fill_blank, matching,
     {
       "id": "step_7",
       "type": "summary",
-      "title": "Özet Başlığı",
+      "title": "🎉 Ders Özeti",
       "content": {
-        "key_points": ["Önemli nokta 1", "Önemli nokta 2"],
-        "practice_tasks": ["Pratik görevi 1", "Pratik görevi 2"]
+        "key_points": [
+          "Önemli nokta 1",
+          "Önemli nokta 2",
+          "Önemli nokta 3"
+        ],
+        "practice_tasks": [
+          "Pratik görevi 1",
+          "Pratik görevi 2"
+        ]
       }
     }
   ],
   "metadata": {
-    "level": "A1/A2/B1/B2",
-    "title": "Ders başlığı",
+    "level": "A1",
+    "title": "Ders Başlığı",
     "duration": 45,
     "lesson_number": 1,
-    "learning_objectives": ["Öğrenim hedefi 1", "Öğrenim hedefi 2"]
+    "learning_objectives": [
+      "Öğrenim hedefi 1",
+      "Öğrenim hedefi 2"
+    ]
   }
 }
 
-Konu: [BURAYA KONUYU YAZIN]
+KONU: [BURAYA KONUYU YAZIN]
 
-Kurallar:
+KURALLAR:
 1. Her step için benzersiz id kullan (step_1, step_2, ...)
-2. type alanları: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary
-3. multiple_choice: 4-5 seçenekli test soruları, correct index 0'dan başlar
-4. fill_blank: Boşluk doldurma, options array'inden doğru cevabı seçme
-5. matching: Sol-sağ eşleştirme, pairs array'i ile
-6. drag_drop: Kelimeleri doğru sıraya dizme, correct_order array'i ile
-7. dialogue: Diyalog + pratik sorusu
-8. summary: Ders özeti
-9. Türkçe açıklamalar ve örnek cümleler ekle
-10. Öğrenici seviyesine uygun kelimeler kullan
-11. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
-12. JSON geçerli olmalı
-13. metadata kısmını doldur
+2. type alanları SADECE: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary
+3. multiple_choice: 4-5 seçenek, correct index 0'dan başlar
+4. fill_blank: 3-4 seçenek, correct index 0'dan başlar
+5. matching: pairs array'inde left/right eşleştirmeleri
+6. drag_drop: words array'i ve correct_order array'i (index'ler 0'dan başlar)
+7. dialogue: scenes array'i (speaker, text, translation) + practice questions
+8. summary: key_points ve practice_tasks array'leri
+9. Tüm metinler Türkçe açıklamalar içermeli
+10. Öğrenici seviyesine uygun kelimeler kullan (A1/A2/B1/B2)
+11. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌, 🎉)
+12. JSON geçerli olmalı (son virgül yok, tüm tırnaklar kapalı)
+13. metadata kısmını mutlaka doldur
 
-Bu formata uygun bir ders içeriği hazırla.`;
+Bu formata TAM OLARAK uygun bir ders içeriği hazırla.`;
 
 export default function LessonManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
