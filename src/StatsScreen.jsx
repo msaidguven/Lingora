@@ -175,24 +175,6 @@ export default function StatsScreen({ userLevel }) {
     // Sayfayı sıfırla
     setCurrentPage(1);
   };
-      const term = searchTerm.toLowerCase().trim();
-      filteredS = filteredS.filter(s => 
-        s.sentence.toLowerCase().includes(term) || 
-        s.meaning.toLowerCase().includes(term)
-      );
-    }
-    
-    // Cümleleri sırala
-    filteredS.sort((a, b) => {
-      if (sortBy === "accuracy") return b.accuracy - a.accuracy;
-      if (sortBy === "reviews") return b.totalReviews - a.totalReviews;
-      return 0;
-    });
-    setFilteredSentences(filteredS);
-    
-    // Sayfayı sıfırla
-    setCurrentPage(1);
-  };
 
   const getCurrentItems = (items) => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
