@@ -33,123 +33,7 @@ const LESSON_EXAMPLE_JSON = `{
   ]
 }`;
 
-// Yeni JSON formatı için örnek prompt
-const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
-
-JSON Formatı:
-{
-  "steps": [
-    {
-      "id": "step_1",
-      "type": "info",
-      "title": "Başlık",
-      "content": {
-        "explanation": "Açıklama metni",
-        "items": [
-          {
-            "key": "değer"
-          }
-        ],
-        "rule": "Kural",
-        "tip": "İpucu",
-        "table": [
-          {
-            "column1": "değer1",
-            "column2": "değer2"
-          }
-        ],
-        "short_forms": "Kısaltmalar",
-        "examples": [
-          {
-            "note": "not",
-            "correct": "doğru",
-            "wrong": "yanlış"
-          }
-        ]
-      }
-    },
-    {
-      "id": "step_2",
-      "type": "practice",
-      "title": "Pratik Başlığı",
-      "rule": "📌 KURAL: Kural metni",
-      "instructions": "Talimatlar",
-      "questions": [
-        {
-          "question": "Soru metni",
-          "correct": "doğru cevap",
-          "options": ["A", "B", "C", "D"],
-          "feedback_correct": "✅ Doğru geri bildirimi",
-          "feedback_wrong": "❌ Yanlış geri bildirimi"
-        }
-      ]
-    },
-    {
-      "id": "step_3",
-      "type": "dialogue",
-      "title": "Diyalog Başlığı",
-      "content": {
-        "context": "Diyalog bağlamı",
-        "scenes": [
-          {
-            "speaker": "Konuşmacı",
-            "text": "Konuşma metni",
-            "translation": "Türkçe çeviri"
-          }
-        ]
-      },
-      "practice": {
-        "instructions": "Pratik talimatı",
-        "questions": [
-          {
-            "question": "Soru",
-            "correct": "cevap",
-            "feedback_correct": "✅ Doğru",
-            "feedback_wrong": "❌ Yanlış"
-          }
-        ]
-      }
-    },
-    {
-      "id": "step_4",
-      "type": "summary",
-      "title": "Özet Başlığı",
-      "content": {
-        "key_points": ["Önemli nokta 1", "Önemli nokta 2"],
-        "practice_tasks": ["Pratik görevi 1", "Pratik görevi 2"]
-      }
-    }
-  ],
-  "metadata": {
-    "level": "A1/A2/B1/B2",
-    "title": "Ders başlığı",
-    "duration": 45,
-    "lesson_number": 1,
-    "learning_objectives": [
-      "Öğrenim hedefi 1",
-      "Öğrenim hedefi 2"
-    ]
-  }
-}
-
-Konu: [BURAYA KONUYU YAZIN]
-
-Kurallar:
-1. Her step için benzersiz id kullan (step_1, step_2, ...)
-2. type alanları: info, practice, dialogue, summary
-3. info tipinde: content içinde explanation, items, rule, tip, table, examples kullanılabilir
-4. practice tipinde: questions dizisi ve her soruda question, correct, options (opsiyonel), feedback_correct, feedback_wrong
-5. dialogue tipinde: scenes dizisi ve practice objesi
-6. summary tipinde: key_points ve practice_tasks dizileri
-7. Türkçe açıklamalar ve örnek cümleler ekle
-8. Öğrenici seviyesine uygun (A1/A2/B1/B2) kelimeler kullan
-9. Her bölümde öğreniciyi motive edecek emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
-10. JSON geçerli olmalı (son virgül yok, tüm tırnaklar kapalı)
-11. metadata kısmını doldurmayı unutma
-
-Bu formata uygun bir ders içeriği hazırla.`;
-
-// Yeni JSON formatı için örnek JSON
+// Yeni JSON formatı - Çoktan seçmeli, boşluk doldurma, eşleştirme, sürükle-bırak
 const NEW_JSON_EXAMPLE = `{
   "steps": [
     {
@@ -159,67 +43,111 @@ const NEW_JSON_EXAMPLE = `{
       "content": {
         "tip": "📝 İpucu: 'it' sadece cansız varlıklar ve hayvanlar için kullanılır.",
         "items": [
-          {
-            "meaning": "ben",
-            "pronoun": "I"
-          },
-          {
-            "meaning": "sen / siz",
-            "pronoun": "you"
-          },
-          {
-            "meaning": "o (erkek)",
-            "pronoun": "he"
-          },
-          {
-            "meaning": "o (kadın)",
-            "pronoun": "she"
-          },
-          {
-            "meaning": "o (eşya/hayvan)",
-            "pronoun": "it"
-          },
-          {
-            "meaning": "biz",
-            "pronoun": "we"
-          },
-          {
-            "meaning": "onlar",
-            "pronoun": "they"
-          }
+          {"meaning": "ben", "pronoun": "I"},
+          {"meaning": "sen / siz", "pronoun": "you"},
+          {"meaning": "o (erkek)", "pronoun": "he"},
+          {"meaning": "o (kadın)", "pronoun": "she"},
+          {"meaning": "o (eşya/hayvan)", "pronoun": "it"},
+          {"meaning": "biz", "pronoun": "we"},
+          {"meaning": "onlar", "pronoun": "they"}
         ],
         "explanation": "İngilizce'de özneleri belirten zamirler şunlardır:"
       }
     },
     {
       "id": "step_2",
-      "rule": "📌 KURAL: 'I' = ben. 'I' zamiri ile 'am' kullanılır.",
-      "type": "practice",
+      "type": "multiple_choice",
       "title": "Pratik: I Zamiri",
+      "rule": "📌 KURAL: 'I' = ben. 'I' zamiri ile 'am' kullanılır.",
+      "instructions": "Aşağıdaki cümlede doğru zamiri seçin:",
       "questions": [
         {
-          "correct": "I",
-          "options": [
-            "I",
-            "You",
-            "He",
-            "She"
-          ],
           "question": "___ am a student.",
-          "feedback_wrong": "❌ İpucu: Cümlede 'am' kullanılmış. 'am' her zaman 'I' ile gelir.",
-          "feedback_correct": "✅ Doğru! 'I am a student.' = Ben öğrenciyim."
+          "options": ["I", "You", "He", "She"],
+          "correct": 0,
+          "feedback_correct": "✅ Doğru! 'I am a student.' = Ben öğrenciyim.",
+          "feedback_wrong": "❌ İpucu: Cümlede 'am' kullanılmış. 'am' her zaman 'I' ile gelir."
         }
-      ],
-      "instructions": "Aşağıdaki cümlede doğru zamiri seçin:"
+      ]
     },
     {
       "id": "step_3",
+      "type": "fill_blank",
+      "title": "Pratik: To Be Fiili",
+      "rule": "📌 KURAL: I → am, He/She/It → is, You/We/They → are",
+      "instructions": "Boşluğa uygun 'to be' fiilini seçin:",
+      "questions": [
+        {
+          "question": "I ___ a student.",
+          "options": ["am", "is", "are", "be"],
+          "correct": 0,
+          "feedback_correct": "✅ Doğru! 'I' ile 'am' kullanılır.",
+          "feedback_wrong": "❌ İpucu: 'I' her zaman 'am' ile kullanılır."
+        }
+      ]
+    },
+    {
+      "id": "step_4",
+      "type": "matching",
+      "title": "Eşleştirme: Zamirler ve Anlamları",
+      "instructions": "Zamirleri doğru anlamlarıyla eşleştirin:",
+      "pairs": [
+        {"left": "I", "right": "ben"},
+        {"left": "you", "right": "sen / siz"},
+        {"left": "he", "right": "o (erkek)"},
+        {"left": "she", "right": "o (kadın)"},
+        {"left": "it", "right": "o (eşya/hayvan)"},
+        {"left": "we", "right": "biz"},
+        {"left": "they", "right": "onlar"}
+      ],
+      "feedback_correct": "🎉 Harika! Tüm eşleştirmeler doğru!",
+      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış. Tekrar dene!"
+    },
+    {
+      "id": "step_5",
+      "type": "drag_drop",
+      "title": "Sürükle-Bırak: Cümle Kurma",
+      "instructions": "Kelimeleri doğru sıraya dizerek cümle oluşturun:",
+      "sentence": "I am a teacher.",
+      "words": ["I", "am", "a", "teacher", "."],
+      "correct_order": [0, 1, 2, 3, 4],
+      "feedback_correct": "✅ Mükemmel! Doğru cümle: 'I am a teacher.'",
+      "feedback_wrong": "❌ Sıralama yanlış. Tekrar deneyin!"
+    },
+    {
+      "id": "step_6",
+      "type": "dialogue",
+      "title": "Diyalog",
+      "content": {
+        "context": "Ali ve Emma ilk kez tanışıyorlar.",
+        "scenes": [
+          {"speaker": "Ali", "text": "Hello! I am Ali.", "translation": "Merhaba! Ben Ali."},
+          {"speaker": "Emma", "text": "Hi Ali! I am Emma.", "translation": "Merhaba Ali! Ben Emma."}
+        ]
+      },
+      "practice": {
+        "type": "multiple_choice",
+        "instructions": "Diyalogdaki boşluğu doldurun:",
+        "questions": [
+          {
+            "question": "Ali: Hello! I ___ Ali.",
+            "options": ["am", "is", "are", "be"],
+            "correct": 0,
+            "feedback_correct": "✅ Doğru! 'I am Ali' = Ben Ali.",
+            "feedback_wrong": "❌ İpucu: 'I' ile 'am' kullanılır."
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_7",
       "type": "summary",
       "title": "🎉 Ders Özeti",
       "content": {
         "key_points": [
           "Zamirler: I, you, he, she, it, we, they",
-          "To be: am (I), is (he/she/it), are (you/we/they)"
+          "To be: am (I), is (he/she/it), are (you/we/they)",
+          "A/an: sessiz harf → a, sesli harf → an"
         ],
         "practice_tasks": [
           "Kendinizi İngilizce tanıtın (I am ...)",
@@ -235,10 +163,147 @@ const NEW_JSON_EXAMPLE = `{
     "lesson_number": 1,
     "learning_objectives": [
       "Subject pronouns'ları (I, you, he, she, it, we, they) öğrenmek",
-      "'To be' fiilinin olumlu hallerini (am/is/are) kullanmak"
+      "'To be' fiilinin olumlu hallerini (am/is/are) kullanmak",
+      "Meslek ve milliyetlerden önce a/an kullanımını kavramak"
     ]
   }
 }`;
+
+// Güncellenmiş Prompt
+const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
+
+JSON Formatı:
+{
+  "steps": [
+    {
+      "id": "step_1",
+      "type": "info",
+      "title": "Başlık",
+      "content": {
+        "explanation": "Açıklama metni",
+        "items": [{"key": "değer"}],
+        "rule": "Kural",
+        "tip": "İpucu",
+        "table": [{"column1": "değer1", "column2": "değer2"}],
+        "short_forms": "Kısaltmalar",
+        "examples": [{"note": "not", "correct": "doğru", "wrong": "yanlış"}]
+      }
+    },
+    {
+      "id": "step_2",
+      "type": "multiple_choice",
+      "title": "Test Başlığı",
+      "rule": "📌 KURAL: Kural metni",
+      "instructions": "Talimatlar",
+      "questions": [
+        {
+          "question": "Soru metni",
+          "options": ["A", "B", "C", "D"],
+          "correct": 0,
+          "feedback_correct": "✅ Doğru geri bildirimi",
+          "feedback_wrong": "❌ Yanlış geri bildirimi"
+        }
+      ]
+    },
+    {
+      "id": "step_3",
+      "type": "fill_blank",
+      "title": "Boşluk Doldurma",
+      "rule": "📌 KURAL: Kural metni",
+      "instructions": "Talimatlar",
+      "questions": [
+        {
+          "question": "Soru metni (___ ile göster)",
+          "options": ["A", "B", "C", "D"],
+          "correct": 0,
+          "feedback_correct": "✅ Doğru geri bildirimi",
+          "feedback_wrong": "❌ Yanlış geri bildirimi"
+        }
+      ]
+    },
+    {
+      "id": "step_4",
+      "type": "matching",
+      "title": "Eşleştirme",
+      "instructions": "Eşleştirme talimatı",
+      "pairs": [
+        {"left": "sol taraf", "right": "sağ taraf"}
+      ],
+      "feedback_correct": "🎉 Tüm eşleştirmeler doğru!",
+      "feedback_wrong": "😅 Bazı eşleştirmeler yanlış."
+    },
+    {
+      "id": "step_5",
+      "type": "drag_drop",
+      "title": "Sürükle-Bırak",
+      "instructions": "Kelimeleri doğru sıraya dizin",
+      "sentence": "Tam cümle",
+      "words": ["kelime1", "kelime2", "kelime3"],
+      "correct_order": [0, 1, 2],
+      "feedback_correct": "✅ Doğru sıralama!",
+      "feedback_wrong": "❌ Sıralama yanlış."
+    },
+    {
+      "id": "step_6",
+      "type": "dialogue",
+      "title": "Diyalog Başlığı",
+      "content": {
+        "context": "Diyalog bağlamı",
+        "scenes": [
+          {"speaker": "Konuşmacı", "text": "Konuşma metni", "translation": "Türkçe çeviri"}
+        ]
+      },
+      "practice": {
+        "type": "multiple_choice",
+        "instructions": "Pratik talimatı",
+        "questions": [
+          {
+            "question": "Soru",
+            "options": ["A", "B", "C", "D"],
+            "correct": 0,
+            "feedback_correct": "✅ Doğru",
+            "feedback_wrong": "❌ Yanlış"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_7",
+      "type": "summary",
+      "title": "Özet Başlığı",
+      "content": {
+        "key_points": ["Önemli nokta 1", "Önemli nokta 2"],
+        "practice_tasks": ["Pratik görevi 1", "Pratik görevi 2"]
+      }
+    }
+  ],
+  "metadata": {
+    "level": "A1/A2/B1/B2",
+    "title": "Ders başlığı",
+    "duration": 45,
+    "lesson_number": 1,
+    "learning_objectives": ["Öğrenim hedefi 1", "Öğrenim hedefi 2"]
+  }
+}
+
+Konu: [BURAYA KONUYU YAZIN]
+
+Kurallar:
+1. Her step için benzersiz id kullan (step_1, step_2, ...)
+2. type alanları: info, multiple_choice, fill_blank, matching, drag_drop, dialogue, summary
+3. multiple_choice: 4-5 seçenekli test soruları, correct index 0'dan başlar
+4. fill_blank: Boşluk doldurma, options array'inden doğru cevabı seçme
+5. matching: Sol-sağ eşleştirme, pairs array'i ile
+6. drag_drop: Kelimeleri doğru sıraya dizme, correct_order array'i ile
+7. dialogue: Diyalog + pratik sorusu (multiple_choice tipinde)
+8. summary: Ders özeti
+9. Türkçe açıklamalar ve örnek cümleler ekle
+10. Öğrenici seviyesine uygun kelimeler kullan
+11. Her bölümde emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
+12. JSON geçerli olmalı
+13. metadata kısmını doldur
+
+Bu formata uygun bir ders içeriği hazırla.`;
 
 export default function LessonManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
@@ -756,7 +821,7 @@ function LessonEditor() {
       {searchResults.length > 0 && !selectedLesson && (
         <Card>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
-            {searchResults.map((lesson, index) => (
+            {searchResults.map((lesson) => (
               <div 
                 key={lesson.id}
                 onClick={() => selectLesson(lesson)}
@@ -780,7 +845,7 @@ function LessonEditor() {
                   padding: "2px 10px", 
                   borderRadius: 4
                 }}>
-                  📝 {typeof lesson.content_json === 'object' && lesson.content_json.sections ? lesson.content_json.sections.length : 0} bölüm
+                  📝 {typeof lesson.content_json === 'object' && lesson.content_json.sections ? lesson.content_json.sections.length : Object.keys(lesson.content_json).length} bölüm
                 </span>
               </div>
             ))}
