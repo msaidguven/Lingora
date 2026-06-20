@@ -1,5 +1,7 @@
+// DashboardScreen.jsx
 import { useState, useEffect } from "react";
-import { getDailyStats, getTodayStats } from "../../utils/dailyStats.js";
+import { supabase } from "../config.js";
+import { useAuth } from '../contexts/AuthContext';
 
 // ── Yardımcılar ──────────────────────────────────────────────
 
@@ -92,6 +94,7 @@ const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
 );
 
 export default function DashboardScreen() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [todayStats, setTodayStats] = useState(null);
   const [last30Days, setLast30Days] = useState([]);
@@ -109,24 +112,62 @@ export default function DashboardScreen() {
   });
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
+    if (!user) return;
     setLoading(true);
 
     try {
-      const today = await getTodayStats();
-      setTodayStats(today);
+      // Bugünün tarihi (Türkiye saati)
+      const now = new Date();
+      const turkeyNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      const todayStr = turkeyNow.toISOString().split('T')[0];
 
-      const stats = await getDailyStats(30);
-      setLast30Days(stats);
+      // 30 gün önce
+      const thirtyDaysAgo = new Date(turkeyNow);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
+      // 1. Bugünün istatistiklerini al
+      const { data: todayData, error: todayError } = await supabase
+        .from("en_user_daily_stats")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("stat_date", todayStr)
+        .maybeSingle();
+
+      if (todayError) {
+        console.error("Bugün istatistikleri hatası:", todayError);
+      }
+
+      setTodayStats(todayData || null);
+
+      // 2. Son 30 günün istatistiklerini al
+      const { data: statsData, error: statsError } = await supabase
+        .from("en_user_daily_stats")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("stat_date", thirtyDaysAgoStr)
+        .lte("stat_date", todayStr)
+        .order("stat_date", { ascending: true });
+
+      if (statsError) {
+        console.error("Son 30 gün istatistikleri hatası:", statsError);
+        setLast30Days([]);
+      } else {
+        setLast30Days(statsData || []);
+      }
+
+      // 3. Özet hesaplamalar
       let totalCorrect = 0, totalWrong = 0;
       let wordTotalCorrect = 0, wordTotalWrong = 0;
       let sentenceTotalCorrect = 0, sentenceTotalWrong = 0;
 
-      stats.forEach(day => {
+      (statsData || []).forEach(day => {
         totalCorrect += day.total_correct || 0;
         totalWrong += day.total_wrong || 0;
         wordTotalCorrect += day.word_correct || 0;
@@ -179,7 +220,6 @@ export default function DashboardScreen() {
   };
 
   const isToday = (dateStr) => {
-    // Türkiye saatiyle bugünü kontrol et
     const now = new Date();
     const turkeyNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
     const today = turkeyNow.toISOString().split('T')[0];
@@ -208,6 +248,12 @@ export default function DashboardScreen() {
   const todayWordAcc = todayStats ? calcAcc(todayStats.word_correct, todayStats.word_wrong) : 0;
   const todaySentenceAcc = todayStats ? calcAcc(todayStats.sentence_correct, todayStats.sentence_wrong) : 0;
   const todayTotalAcc = todayStats ? (todayStats.accuracy || calcAcc(todayStats.total_correct, todayStats.total_wrong)) : 0;
+
+  // Son 30 gün grafik için max değer
+  const maxTotal = last30Days.length > 0 ? Math.max(...last30Days.map(d =>
+    (d.word_correct || 0) + (d.word_wrong || 0) +
+    (d.sentence_correct || 0) + (d.sentence_wrong || 0)
+  ), 1) : 1;
 
   return (
     <div style={{
@@ -247,7 +293,7 @@ export default function DashboardScreen() {
             📅 Bugün
           </div>
 
-          {todayStats ? (
+          {todayStats && ((todayStats.total_correct || 0) + (todayStats.total_wrong || 0) > 0) ? (
             <>
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                 <StatPill value={todayStats.word_correct || 0} label="Kel. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
@@ -448,11 +494,6 @@ export default function DashboardScreen() {
                 {last30Days.slice(-30).map((day, index) => {
                   const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
                   const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
-                  const maxTotal = Math.max(...last30Days.map(d =>
-                    (d.word_correct || 0) + (d.word_wrong || 0) +
-                    (d.sentence_correct || 0) + (d.sentence_wrong || 0)
-                  ), 1);
-                  const total = wordTotal + sentenceTotal;
                   const today = isToday(day.stat_date);
 
                   return (
