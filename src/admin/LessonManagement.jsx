@@ -33,6 +33,213 @@ const LESSON_EXAMPLE_JSON = `{
   ]
 }`;
 
+// Yeni JSON formatı için örnek prompt
+const PROMPT_TEMPLATE = `Aşağıdaki JSON formatında sana verdiğim konularda bir ders içeriği oluştur.
+
+JSON Formatı:
+{
+  "steps": [
+    {
+      "id": "step_1",
+      "type": "info",
+      "title": "Başlık",
+      "content": {
+        "explanation": "Açıklama metni",
+        "items": [
+          {
+            "key": "değer"
+          }
+        ],
+        "rule": "Kural",
+        "tip": "İpucu",
+        "table": [
+          {
+            "column1": "değer1",
+            "column2": "değer2"
+          }
+        ],
+        "short_forms": "Kısaltmalar",
+        "examples": [
+          {
+            "note": "not",
+            "correct": "doğru",
+            "wrong": "yanlış"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_2",
+      "type": "practice",
+      "title": "Pratik Başlığı",
+      "rule": "📌 KURAL: Kural metni",
+      "instructions": "Talimatlar",
+      "questions": [
+        {
+          "question": "Soru metni",
+          "correct": "doğru cevap",
+          "options": ["A", "B", "C", "D"],
+          "feedback_correct": "✅ Doğru geri bildirimi",
+          "feedback_wrong": "❌ Yanlış geri bildirimi"
+        }
+      ]
+    },
+    {
+      "id": "step_3",
+      "type": "dialogue",
+      "title": "Diyalog Başlığı",
+      "content": {
+        "context": "Diyalog bağlamı",
+        "scenes": [
+          {
+            "speaker": "Konuşmacı",
+            "text": "Konuşma metni",
+            "translation": "Türkçe çeviri"
+          }
+        ]
+      },
+      "practice": {
+        "instructions": "Pratik talimatı",
+        "questions": [
+          {
+            "question": "Soru",
+            "correct": "cevap",
+            "feedback_correct": "✅ Doğru",
+            "feedback_wrong": "❌ Yanlış"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_4",
+      "type": "summary",
+      "title": "Özet Başlığı",
+      "content": {
+        "key_points": ["Önemli nokta 1", "Önemli nokta 2"],
+        "practice_tasks": ["Pratik görevi 1", "Pratik görevi 2"]
+      }
+    }
+  ],
+  "metadata": {
+    "level": "A1/A2/B1/B2",
+    "title": "Ders başlığı",
+    "duration": 45,
+    "lesson_number": 1,
+    "learning_objectives": [
+      "Öğrenim hedefi 1",
+      "Öğrenim hedefi 2"
+    ]
+  }
+}
+
+Konu: [BURAYA KONUYU YAZIN]
+
+Kurallar:
+1. Her step için benzersiz id kullan (step_1, step_2, ...)
+2. type alanları: info, practice, dialogue, summary
+3. info tipinde: content içinde explanation, items, rule, tip, table, examples kullanılabilir
+4. practice tipinde: questions dizisi ve her soruda question, correct, options (opsiyonel), feedback_correct, feedback_wrong
+5. dialogue tipinde: scenes dizisi ve practice objesi
+6. summary tipinde: key_points ve practice_tasks dizileri
+7. Türkçe açıklamalar ve örnek cümleler ekle
+8. Öğrenici seviyesine uygun (A1/A2/B1/B2) kelimeler kullan
+9. Her bölümde öğreniciyi motive edecek emojiler kullan (📚, ✏️, 🎯, 💡, ✅, ❌)
+10. JSON geçerli olmalı (son virgül yok, tüm tırnaklar kapalı)
+11. metadata kısmını doldurmayı unutma
+
+Bu formata uygun bir ders içeriği hazırla.`;
+
+// Yeni JSON formatı için örnek JSON
+const NEW_JSON_EXAMPLE = `{
+  "steps": [
+    {
+      "id": "step_1",
+      "type": "info",
+      "title": "Zamirleri Tanıyalım",
+      "content": {
+        "tip": "📝 İpucu: 'it' sadece cansız varlıklar ve hayvanlar için kullanılır.",
+        "items": [
+          {
+            "meaning": "ben",
+            "pronoun": "I"
+          },
+          {
+            "meaning": "sen / siz",
+            "pronoun": "you"
+          },
+          {
+            "meaning": "o (erkek)",
+            "pronoun": "he"
+          },
+          {
+            "meaning": "o (kadın)",
+            "pronoun": "she"
+          },
+          {
+            "meaning": "o (eşya/hayvan)",
+            "pronoun": "it"
+          },
+          {
+            "meaning": "biz",
+            "pronoun": "we"
+          },
+          {
+            "meaning": "onlar",
+            "pronoun": "they"
+          }
+        ],
+        "explanation": "İngilizce'de özneleri belirten zamirler şunlardır:"
+      }
+    },
+    {
+      "id": "step_2",
+      "rule": "📌 KURAL: 'I' = ben. 'I' zamiri ile 'am' kullanılır.",
+      "type": "practice",
+      "title": "Pratik: I Zamiri",
+      "questions": [
+        {
+          "correct": "I",
+          "options": [
+            "I",
+            "You",
+            "He",
+            "She"
+          ],
+          "question": "___ am a student.",
+          "feedback_wrong": "❌ İpucu: Cümlede 'am' kullanılmış. 'am' her zaman 'I' ile gelir.",
+          "feedback_correct": "✅ Doğru! 'I am a student.' = Ben öğrenciyim."
+        }
+      ],
+      "instructions": "Aşağıdaki cümlede doğru zamiri seçin:"
+    },
+    {
+      "id": "step_3",
+      "type": "summary",
+      "title": "🎉 Ders Özeti",
+      "content": {
+        "key_points": [
+          "Zamirler: I, you, he, she, it, we, they",
+          "To be: am (I), is (he/she/it), are (you/we/they)"
+        ],
+        "practice_tasks": [
+          "Kendinizi İngilizce tanıtın (I am ...)",
+          "3 arkadaşınızı tanıtın (He/She is ...)"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "level": "A1",
+    "title": "Kişiler ve Olumlama Cümleleri",
+    "duration": 45,
+    "lesson_number": 1,
+    "learning_objectives": [
+      "Subject pronouns'ları (I, you, he, she, it, we, they) öğrenmek",
+      "'To be' fiilinin olumlu hallerini (am/is/are) kullanmak"
+    ]
+  }
+}`;
+
 export default function LessonManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
 
@@ -67,6 +274,7 @@ function LessonAdder() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [showExample, setShowExample] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
 
   const handleAddLesson = async () => {
     if (!lessonNumber || !title) {
@@ -139,6 +347,18 @@ function LessonAdder() {
     }
   };
 
+  const copyPrompt = () => {
+    navigator.clipboard.writeText(PROMPT_TEMPLATE);
+    setMessage({ type: "success", text: "✅ Prompt kopyalandı!" });
+    setTimeout(() => setMessage(null), 2000);
+  };
+
+  const copyNewJsonExample = () => {
+    navigator.clipboard.writeText(NEW_JSON_EXAMPLE);
+    setMessage({ type: "success", text: "✅ Örnek JSON kopyalandı!" });
+    setTimeout(() => setMessage(null), 2000);
+  };
+
   return (
     <div>
       <Message type={message?.type} text={message?.text} />
@@ -177,33 +397,119 @@ function LessonAdder() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <label style={styles.label}>İçerik (JSON)</label>
-            <button
-              onClick={() => setShowExample(!showExample)}
-              style={{
-                background: "none",
-                border: `1px solid ${colors.border}`,
-                borderRadius: 6,
-                color: colors.textSecondary,
-                fontSize: 11,
-                padding: "4px 10px",
-                cursor: "pointer"
-              }}
-            >
-              {showExample ? "Gizle" : "Örnek JSON"}
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setShowPrompt(!showPrompt)}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 6,
+                  color: colors.textSecondary,
+                  fontSize: 11,
+                  padding: "4px 10px",
+                  cursor: "pointer"
+                }}
+              >
+                {showPrompt ? "Gizle" : "📋 Prompt"}
+              </button>
+              <button
+                onClick={() => setShowExample(!showExample)}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 6,
+                  color: colors.textSecondary,
+                  fontSize: 11,
+                  padding: "4px 10px",
+                  cursor: "pointer"
+                }}
+              >
+                {showExample ? "Gizle" : "Örnek JSON"}
+              </button>
+            </div>
           </div>
           <TextArea
             value={jsonInput}
             onChange={(e) => setJsonInput(e.target.value)}
-            placeholder='{"sections": [...]} veya boş bırakın'
+            placeholder='{"steps": [...]} veya boş bırakın'
             rows={8}
           />
+          
+          {showPrompt && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: colors.textSecondary }}>
+                  📋 Prompt Template - AI'ya göndermek için kopyalayın
+                </div>
+                <button
+                  onClick={copyPrompt}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${colors.border}`,
+                    background: "transparent",
+                    color: colors.textSecondary,
+                    cursor: "pointer",
+                    fontSize: 11
+                  }}
+                >
+                  📋 Kopyala
+                </button>
+              </div>
+              <div style={{
+                background: colors.surfaceDark,
+                borderRadius: 8,
+                padding: "12px",
+                maxHeight: 300,
+                overflowY: "auto",
+                border: `1px solid ${colors.border}`,
+                fontSize: 12,
+                fontFamily: "monospace",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                color: colors.textSecondary,
+                lineHeight: 1.6
+              }}>
+                {PROMPT_TEMPLATE}
+              </div>
+            </div>
+          )}
+
           {showExample && (
             <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 6 }}>
-                📄 Örnek JSON Formatı
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: colors.textSecondary }}>
+                  📄 Yeni JSON Formatı Örneği
+                </div>
+                <button
+                  onClick={copyNewJsonExample}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${colors.border}`,
+                    background: "transparent",
+                    color: colors.textSecondary,
+                    cursor: "pointer",
+                    fontSize: 11
+                  }}
+                >
+                  📋 Kopyala
+                </button>
               </div>
-              <JsonDisplay data={LESSON_EXAMPLE_JSON} />
+              <JsonDisplay data={NEW_JSON_EXAMPLE} />
+              
+              <div style={{ marginTop: 12, padding: 12, background: colors.surfaceDark, borderRadius: 8, border: `1px solid ${colors.border}` }}>
+                <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 6 }}>
+                  💡 Kullanım Adımları:
+                </div>
+                <ol style={{ fontSize: 12, color: colors.textSecondary, margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
+                  <li>📋 Prompt'u kopyalayın (yukarıdaki "Prompt" butonuna tıklayın)</li>
+                  <li>🤖 ChatGPT/Claude'a gönderin ve konuyu belirtin</li>
+                  <li>📥 AI size JSON formatında ders içeriği üretecek</li>
+                  <li>📋 Üretilen JSON'u bu alana yapıştırın</li>
+                  <li>📚 Dersi kaydedin</li>
+                </ol>
+              </div>
             </div>
           )}
         </div>
