@@ -289,9 +289,45 @@ function AdminPanel({ onBack, user }) {
 // ============================
 export default function Admin({ onBack }) {
   const { user, loading } = useAuth();
+  const [userRole, setUserRole] = useState('user');
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  // Kullanıcı rolünü veritabanından al
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) {
+        setRoleLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("en_users")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("❌ Rol çekme hatası:", error);
+          setRoleLoading(false);
+          return;
+        }
+
+        if (data) {
+          setUserRole(data.role || 'user');
+        }
+      } catch (error) {
+        console.error("❌ Rol işlemleri hatası:", error);
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   // Auth yükleniyor
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div style={styles.pageContainer}>
         <div style={styles.smallContainer}>
@@ -305,7 +341,8 @@ export default function Admin({ onBack }) {
   }
 
   // Kullanıcı yoksa veya admin yetkisi yoksa
-  if (!user || !hasAdminAccess(user)) {
+  const hasAccess = userRole === 'admin' || userRole === 'editor' || userRole === 'moderator';
+  if (!user || !hasAccess) {
     return <UnauthorizedScreen onBack={onBack} />;
   }
 

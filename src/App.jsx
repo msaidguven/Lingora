@@ -11,6 +11,7 @@ import StatsScreen from "./StatsScreen.jsx";
 import DashboardScreen from "./components/Dashboard/DashboardScreen.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 import LessonPage from "./components/Lesson/LessonPage.jsx";
+import Admin from "./Admin.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
 import './App.css';
@@ -116,6 +117,11 @@ function AppContent() {
     setCurrentScreen("home");
     setQuizType(null);
     setSelectedLessonId(null);
+  };
+
+  const handleNavigateToAdmin = () => {
+    console.log("👑 Admin sayfasına gidiliyor");
+    setCurrentScreen("admin");
   };
 
   // ============ LOGOUT ============
@@ -235,6 +241,7 @@ function AppContent() {
         userLevel={userLevel}
         quizType={quizType}
         onLogout={handleLogout}
+        onNavigateToAdmin={handleNavigateToAdmin}
       />
       
       <main className="app-main">
@@ -261,6 +268,10 @@ function AppContent() {
             onBack={handleBackToHome}
             userId={user?.id}
           />
+        )}
+
+        {currentScreen === "admin" && (
+          <Admin onBack={handleBackToHome} />
         )}
       </main>
     </div>
