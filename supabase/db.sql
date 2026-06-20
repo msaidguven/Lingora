@@ -1,293 +1,164 @@
-// src/contexts/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../config';
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-const AuthContext = createContext();
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Mevcut oturumu kontrol et
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Auth state değişikliklerini dinle
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ============ LOGIN ============
-  const login = async (email, password) => {
-    try {
-      setError(null);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ REGISTER ============
-  const register = async (email, password, fullName) => {
-    try {
-      setError(null);
-      
-      console.log("📝 Kayıt başlatılıyor...", { email, fullName });
-      
-      // 1. Supabase'de kullanıcı oluştur
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
-      
-      // 2. Kullanıcı oluşturulduysa, en_users tablosuna ekle
-      if (data.user) {
-        // en_users'a ekle (upsert ile)
-        const { error: insertError } = await supabase
-          .from("en_users")
-          .upsert([{ 
-            id: data.user.id,
-            email: data.user.email,
-            level: "A1",
-            username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
-            streak_days: 0,
-            created_at: new Date().toISOString()
-          }], { onConflict: 'id' });
-        
-        if (insertError) {
-          console.error("❌ en_users'a ekleme hatası:", insertError);
-          if (insertError.code === '42501') {
-            console.warn("⚠️ RLS politikası nedeniyle en_users'a eklenemedi.");
-          }
-        } else {
-          console.log("✅ Kullanıcı en_users tablosuna eklendi!");
-        }
-
-        // 3. Günlük limit oluştur (upsert ile)
-        console.log("📝 Günlük limit oluşturuluyor...");
-        
-        const { data: dailyData, error: dailyError } = await supabase
-          .from("en_user_daily_limit")
-          .upsert([{
-            user_id: data.user.id,
-            remaining_today: 5,
-            last_reset_date: new Date().toISOString().split('T')[0],
-            updated_at: new Date().toISOString()
-          }], { onConflict: 'user_id' })
-          .select();
-        
-        if (dailyError) {
-          console.error("❌ Günlük limit oluşturma hatası:", dailyError);
-          console.error("❌ Hata kodu:", dailyError.code);
-          console.error("❌ Hata mesajı:", dailyError.message);
-          
-          if (dailyError.code === '42501') {
-            console.warn("⚠️ RLS politikası nedeniyle günlük limit oluşturulamadı!");
-            console.warn("📝 Lütfen Supabase'de RLS politikalarını yapılandırın.");
-          }
-        } else {
-          console.log("✅ Günlük limit oluşturuldu!", dailyData);
-        }
-
-        // 4. Otomatik giriş dene
-        try {
-          console.log("📝 Otomatik giriş deneniyor...");
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (!signInError) {
-            console.log("✅ Otomatik giriş başarılı!");
-          } else {
-            console.log("📝 Otomatik giriş başarısız:", signInError.message);
-          }
-        } catch (signInError) {
-          console.log("📝 Otomatik giriş yapılamadı:", signInError.message);
-        }
-      }
-      
-      return { success: true, data, user: data.user };
-    } catch (error) {
-      console.error("❌ Register hatası:", error);
-      setError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ LOGOUT ============
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ GOOGLE LOGIN ============
-  const loginWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ FACEBOOK LOGIN ============
-  const loginWithFacebook = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ KULLANICI VERİLERİNİ GETİR ============
-  const fetchUserData = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from("en_users")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ Kullanıcı verisi çekme hatası:", error);
-        return null;
-      }
-      return data;
-    } catch (error) {
-      console.error("❌ Kullanıcı verisi hatası:", error);
-      return null;
-    }
-  };
-
-  // ============ KULLANICI SEVİYESİNİ GÜNCELLE ============
-  const updateUserLevel = async (userId, level) => {
-    try {
-      const { data, error } = await supabase
-        .from("en_users")
-        .update({ level })
-        .eq("id", userId);
-
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      console.error("❌ Seviye güncelleme hatası:", error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ GÜNLÜK LİMİTİ KONTROL ET ============
-  const checkDailyLimit = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from("en_user_daily_limit")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ Günlük limit kontrol hatası:", error);
-        return null;
-      }
-      return data;
-    } catch (error) {
-      console.error("❌ Günlük limit hatası:", error);
-      return null;
-    }
-  };
-
-  // ============ GÜNLÜK LİMİTİ GÜNCELLE ============
-  const updateDailyLimit = async (userId, remaining) => {
-    try {
-      const { data, error } = await supabase
-        .from("en_user_daily_limit")
-        .update({ 
-          remaining_today: remaining,
-          updated_at: new Date().toISOString()
-        })
-        .eq("user_id", userId);
-
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      console.error("❌ Günlük limit güncelleme hatası:", error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============ VALUE ============
-  const value = {
-    user,
-    session,
-    loading,
-    error,
-    login,
-    register,
-    logout,
-    loginWithGoogle,
-    loginWithFacebook,
-    fetchUserData,
-    updateUserLevel,
-    checkDailyLimit,
-    updateDailyLimit,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-// ============ USE AUTH HOOK ============
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+CREATE TABLE public.en_words (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  word text NOT NULL UNIQUE,
+  meaning text NOT NULL,
+  level text CHECK (level = ANY (ARRAY['A1'::text, 'A2'::text, 'B1'::text, 'B2'::text])),
+  type text DEFAULT 'word'::text CHECK (type = ANY (ARRAY['word'::text, 'phrase'::text])),
+  part_of_speech ARRAY DEFAULT '{}'::text[],
+  category ARRAY DEFAULT '{}'::text[],
+  difficulty integer CHECK (difficulty >= 1 AND difficulty <= 5),
+  synonyms ARRAY DEFAULT '{}'::text[],
+  antonyms ARRAY DEFAULT '{}'::text[],
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_words_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.en_users (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  username text UNIQUE,
+  avatar_url text,
+  level text DEFAULT 'A1'::text,
+  total_points integer DEFAULT 0,
+  streak_days integer DEFAULT 0,
+  last_active_at timestamp without time zone DEFAULT now(),
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  role text NOT NULL DEFAULT 'user'::text CHECK (role = ANY (ARRAY['admin'::text, 'editor'::text, 'moderator'::text, 'premium'::text, 'user'::text])),
+  CONSTRAINT en_users_pkey PRIMARY KEY (id),
+  CONSTRAINT en_users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.en_lessons (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  lesson_number integer NOT NULL,
+  title text NOT NULL,
+  level text NOT NULL DEFAULT 'A1'::text,
+  content_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_lessons_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.en_lesson_words (
+  lesson_id uuid NOT NULL,
+  word_id uuid NOT NULL,
+  CONSTRAINT en_lesson_words_pkey PRIMARY KEY (lesson_id, word_id),
+  CONSTRAINT en_lesson_words_word_id_fkey FOREIGN KEY (word_id) REFERENCES public.en_words(id)
+);
+CREATE TABLE public.en_example_sentences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  word_id uuid,
+  sentence_en text NOT NULL,
+  sentence_tr text,
+  difficulty integer CHECK (difficulty >= 1 AND difficulty <= 5),
+  order_index smallint DEFAULT 0,
+  source text DEFAULT 'manual'::text,
+  is_approved boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_example_sentences_pkey PRIMARY KEY (id),
+  CONSTRAINT en_example_sentences_word_id_fkey FOREIGN KEY (word_id) REFERENCES public.en_words(id)
+);
+CREATE TABLE public.en_quiz_questions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  word_id uuid,
+  question_text text NOT NULL,
+  options ARRAY NOT NULL DEFAULT '{}'::text[],
+  correct_answer text NOT NULL,
+  difficulty integer CHECK (difficulty >= 1 AND difficulty <= 5),
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_quiz_questions_pkey PRIMARY KEY (id),
+  CONSTRAINT en_quiz_questions_word_id_fkey FOREIGN KEY (word_id) REFERENCES public.en_words(id)
+);
+CREATE TABLE public.en_user_words (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  word_id uuid,
+  added_at timestamp without time zone DEFAULT now(),
+  next_review_at timestamp without time zone DEFAULT now(),
+  ease_factor double precision DEFAULT 2.5,
+  review_count integer DEFAULT 0,
+  last_score integer CHECK (last_score >= 0 AND last_score <= 100),
+  last_reviewed_at timestamp without time zone,
+  is_mastered boolean DEFAULT false,
+  mastery_level integer DEFAULT 0,
+  total_correct integer DEFAULT 0,
+  total_wrong integer DEFAULT 0,
+  CONSTRAINT en_user_words_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_words_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id),
+  CONSTRAINT en_user_words_word_id_fkey FOREIGN KEY (word_id) REFERENCES public.en_words(id)
+);
+CREATE TABLE public.en_user_daily_limit (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid UNIQUE,
+  remaining_today integer DEFAULT 5,
+  last_reset_date date DEFAULT CURRENT_DATE,
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_user_daily_limit_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_daily_limit_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id)
+);
+CREATE TABLE public.en_user_quiz_attempts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  question_id uuid,
+  user_answer text NOT NULL,
+  is_correct boolean NOT NULL,
+  attempted_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_user_quiz_attempts_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_quiz_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id),
+  CONSTRAINT en_user_quiz_attempts_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.en_quiz_questions(id)
+);
+CREATE TABLE public.en_user_lesson_progress (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  lesson_id uuid,
+  completed boolean DEFAULT false,
+  score integer,
+  completed_at timestamp without time zone,
+  wrong_questions jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT en_user_lesson_progress_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_lesson_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id)
+);
+CREATE TABLE public.en_user_sentences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  sentence_id uuid,
+  added_at timestamp without time zone DEFAULT now(),
+  next_review_at timestamp without time zone DEFAULT now(),
+  ease_factor double precision DEFAULT 2.5,
+  review_count integer DEFAULT 0,
+  last_score integer CHECK (last_score >= 0 AND last_score <= 100),
+  last_reviewed_at timestamp without time zone,
+  total_correct integer DEFAULT 0,
+  total_wrong integer DEFAULT 0,
+  CONSTRAINT en_user_sentences_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_sentences_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id),
+  CONSTRAINT en_user_sentences_sentence_id_fkey FOREIGN KEY (sentence_id) REFERENCES public.en_example_sentences(id)
+);
+CREATE TABLE public.en_user_daily_stats (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  stat_date date NOT NULL,
+  word_correct integer DEFAULT 0,
+  word_wrong integer DEFAULT 0,
+  sentence_correct integer DEFAULT 0,
+  sentence_wrong integer DEFAULT 0,
+  total_correct integer DEFAULT 0,
+  total_wrong integer DEFAULT 0,
+  total_attempts integer DEFAULT 0,
+  accuracy numeric DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT en_user_daily_stats_pkey PRIMARY KEY (id),
+  CONSTRAINT en_user_daily_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.en_users(id)
+);
+CREATE TABLE public.en_user_stats (
+  user_id uuid NOT NULL,
+  total_words_learned integer DEFAULT 0,
+  total_quizzes_taken integer DEFAULT 0,
+  total_correct_answers integer DEFAULT 0,
+  streak_days integer DEFAULT 0,
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT en_user_stats_pkey PRIMARY KEY (user_id),
+  CONSTRAINT en_user_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
