@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 import WordManagement from "./admin/WordManagement.jsx";
 import LessonManagement from "./admin/LessonManagement.jsx";
-import { styles, colors, PageHeader, Card, Message } from "./admin/adminStyles.js";
-
+import { styles, colors, PageHeader, Card, Message } from "./admin/adminStyles.jsx";
 const ADMIN_PASSWORD = "123456";
 
 // ============================

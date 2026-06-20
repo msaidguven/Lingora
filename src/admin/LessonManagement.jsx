@@ -4,7 +4,7 @@ import { supabase } from "../config.js";
 import { 
   styles, colors, PageHeader, Tabs, Card, Message, 
   Input, TextArea, JsonDisplay, SearchInput, Badge 
-} from "./adminStyles.js";
+} from "./adminStyles.jsx";
 
 const LESSON_EXAMPLE_JSON = `{
   "sections": [
