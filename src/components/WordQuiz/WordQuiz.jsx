@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
-import { useAuth } from '../../contexts/AuthContext'; // ✅ EKLENDİ
+import { useAuth } from '../../contexts/AuthContext.js';
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
@@ -11,7 +11,8 @@ import ExampleModal from "./ExampleModal.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
 export default function WordQuiz({ userLevel, onChangeLevel }) {
-  const { user } = useAuth(); // ✅ EKLENDİ
+  const { user } = useAuth();
+  const isUpdatingRef = useRef(false);
   
   const {
     loading,
@@ -44,7 +45,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
-  // Kelime gelince telaffuz et
   useEffect(() => {
     if (currentQuestion && !answered && !saving) {
       setTimeout(() => {
@@ -72,8 +72,11 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   };
 
   const onSelect = async (opt) => {
+    if (answered || saving || isUpdatingRef.current) return;
+    
+    isUpdatingRef.current = true;
+
     await handleSelect(opt, async (isCorrect) => {
-      // ✅ userId eklendi
       try {
         if (user) {
           await updateDailyStats(user.id, 'word', isCorrect);
@@ -82,6 +85,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         console.error('İstatistik güncelleme hatası:', error);
       }
     });
+
+    isUpdatingRef.current = false;
   };
 
   const onNext = () => {
