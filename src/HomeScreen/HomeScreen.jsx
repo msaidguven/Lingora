@@ -1,5 +1,6 @@
 // src/HomeScreen.jsx
 import { useHomeViewModel } from "./viewModel";
+import QuizOptionButton from "./components/QuizOptionButton";
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   const viewModel = useHomeViewModel();
@@ -194,7 +195,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           className="animate-fade-up mb-4 flex flex-col gap-2.5"
           style={{ animationDelay: "0.14s" }}
         >
-          <QuizButton
+          <QuizOptionButton
             icon="📖"
             label="Kelime Çalış"
             subLabel="kelime hazır"
@@ -202,7 +203,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             gradient="from-indigo-500 to-purple-500"
             onClick={() => onStartQuiz("word")}
           />
-          <QuizButton
+          <QuizOptionButton
             icon="📝"
             label="Cümle Çalış"
             subLabel="cümle hazır"
@@ -252,53 +253,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 }
 
 // ============ ALT BİLEŞENLER ============
-
-function QuizButton({ icon, label, subLabel, count, gradient, onClick }) {
-  const active = count > 0;
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={!active}
-      className={`group flex w-full items-center gap-3.5 rounded-2xl border p-3.5 text-left transition-all duration-200 ${
-        active
-          ? "border-base-300 bg-base-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
-          : "border-base-300/60 bg-base-200/50"
-      }`}
-    >
-      <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
-          active
-            ? `bg-gradient-to-br ${gradient} text-white shadow-md`
-            : "bg-base-300 text-base-content/30"
-        }`}
-      >
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span
-          className={`block font-display text-[14.5px] font-bold ${
-            active ? "" : "text-base-content/40"
-          }`}
-        >
-          {label}
-        </span>
-        <span className="block text-[12px] text-base-content/45">
-          {active ? `${count} ${subLabel}` : "Şu an çalışılacak yok"}
-        </span>
-      </span>
-
-      <span
-        className={`font-display text-lg transition-transform group-hover:translate-x-0.5 ${
-          active ? "text-primary" : "text-base-content/20"
-        }`}
-      >
-        →
-      </span>
-    </button>
-  );
-}
 
 function SummaryItem({ color, label, value }) {
   return (
