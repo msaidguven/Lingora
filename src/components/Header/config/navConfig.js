@@ -13,7 +13,7 @@ export const NAV_ITEMS = [
 export const QUIZ_VARIANTS = {
   word:     { icon: "ti-book",       label: "Kelime" },
   sentence: { icon: "ti-message",    label: "Cümle"  },
-  default:  { icon: "ti-tournament", label: "Quiz"   },
+  default:  { icon: "ti-tournament", label: "Kelime/Cümle"   },
 };
 
 export const LEVEL_COLOR = {
