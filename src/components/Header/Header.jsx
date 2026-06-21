@@ -6,14 +6,13 @@ import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
 import StreakPill from "./components/StreakPill";
 import UserMenu from "./components/UserMenu";
-import "./Header.css";
 
 export default function Header(props) {
   const vm = useHeaderViewModel(props);
 
   return (
-    <header className="header-wrapper" data-theme={vm.theme}>
-      <div className="header-bar">
+    <header className="sticky top-0 z-[1000] border-b border-base-300 bg-base-100/85 px-3 shadow-md backdrop-blur-xl backdrop-saturate-[120%] sm:px-4">
+      <div className="mx-auto flex min-h-[56px] max-w-[500px] items-center justify-between gap-2.5 py-2.5">
         <NavBar
           currentScreen={vm.currentScreen}
           onNavigate={vm.onNavigate}
@@ -22,7 +21,7 @@ export default function Header(props) {
           quizVariant={vm.quizVariant}
         />
 
-        <div className="header-right">
+        <div className="flex shrink-0 items-center gap-2">
           <StreakPill days={vm.streakDays} />
 
           <UserMenu
@@ -32,7 +31,6 @@ export default function Header(props) {
             displayName={vm.displayName}
             user={vm.user}
             userLevel={vm.userLevel}
-            accent={vm.accent}
             roleLabel={vm.roleLabel}
             isAdmin={vm.isAdmin}
             theme={vm.theme}
