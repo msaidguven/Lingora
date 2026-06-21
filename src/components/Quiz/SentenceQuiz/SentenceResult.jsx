@@ -1,4 +1,4 @@
-import SpeakerIcon from "../common/SpeakerIcon.jsx";
+import SpeakerIcon from "../../common/SpeakerIcon.jsx";
 
 export default function SentenceResult({ 
   isCorrect, 
