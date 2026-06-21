@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function useHomeViewModel() {
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
@@ -24,7 +24,7 @@ export function useHomeViewModel() {
     setLoading(true);
 
     try {
-      // Kullanıcı seviyesi
+      // 1) Önce kullanıcı seviyesi lazım (diğer sorgular buna bağımlı)
       const { data: userData } = await supabase
         .from("en_users")
         .select("level")
@@ -34,45 +34,45 @@ export function useHomeViewModel() {
       const level = userData?.level || "A1";
       setUserLevel(level);
 
-      // Toplam kelimeler
-      const { count: total } = await supabase
-        .from("en_words")
-        .select("*", { count: "exact", head: true })
-        .eq("level", level)
-        .eq("type", "word");
+      // 2) Geri kalan sorgular birbirinden bağımsız -> paralel çalıştır
+      const [
+        totalRes,
+        myWordsRes,
+        dailyRes,
+        dueRes,
+        dueSentencesRes,
+      ] = await Promise.all([
+        supabase
+          .from("en_words")
+          .select("*", { count: "exact", head: true })
+          .eq("level", level)
+          .eq("type", "word"),
+        supabase
+          .from("en_user_words")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("en_user_daily_limit")
+          .select("remaining_today")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("en_user_words")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .lt("next_review_at", new Date().toISOString()),
+        supabase
+          .from("en_user_sentences")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .lt("next_review_at", new Date().toISOString()),
+      ]);
 
-      // Kullanıcının kelimeleri
-      const { count: myWords } = await supabase
-        .from("en_user_words")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      // Günlük limit
-      const { data: daily } = await supabase
-        .from("en_user_daily_limit")
-        .select("remaining_today")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      // Vadesi geçmiş kelimeler
-      const { count: due } = await supabase
-        .from("en_user_words")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .lt("next_review_at", new Date().toISOString());
-
-      // Vadesi geçmiş cümleler
-      const { count: dueSentences } = await supabase
-        .from("en_user_sentences")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .lt("next_review_at", new Date().toISOString());
-
-      setTotalWords(total || 0);
-      setMyWordsCount(myWords || 0);
-      setDailyRemaining(daily?.remaining_today ?? 5);
-      setDueCount(due || 0);
-      setDueSentenceCount(dueSentences || 0);
+      setTotalWords(totalRes.count || 0);
+      setMyWordsCount(myWordsRes.count || 0);
+      setDailyRemaining(dailyRes.data?.remaining_today ?? 5);
+      setDueCount(dueRes.count || 0);
+      setDueSentenceCount(dueSentencesRes.count || 0);
     } catch (error) {
       console.error("Veri çekme hatası:", error);
     } finally {
@@ -84,7 +84,7 @@ export function useHomeViewModel() {
   const fetchRecentLessons = async () => {
     if (!user) return;
     setLessonsLoading(true);
-    
+
     try {
       const { data, error } = await supabase
         .from("en_lessons")
@@ -94,7 +94,7 @@ export function useHomeViewModel() {
         .limit(3);
 
       if (error) throw error;
-      
+
       const lessons = data || [];
       const lessonIds = lessons.map((lesson) => lesson.id);
 
@@ -233,7 +233,7 @@ export function useHomeViewModel() {
       setLoading(false);
       return;
     }
-    
+
     fetchData();
     fetchRecentLessons();
     const t = setTimeout(() => setMounted(true), 50);
