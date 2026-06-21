@@ -3,21 +3,25 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../config.js";
 import { useAuth } from '../../contexts/AuthContext';
 
-// ── Yardımcılar ──────────────────────────────────────────────
-
 const getAccColor = (acc) => {
-  if (acc >= 85) return "#10b981";
-  if (acc >= 60) return "#f59e0b";
-  if (acc > 0) return "#ef4444";
-  return "#64748b";
+  if (acc >= 85) return "text-emerald-400";
+  if (acc >= 60) return "text-amber-400";
+  if (acc > 0) return "text-rose-400";
+  return "text-slate-500";
 };
 
-const getAccTones = (acc) => {
-  const color = getAccColor(acc);
-  if (acc >= 85) return { color, bg: "rgba(16,185,129,0.07)", border: "rgba(16,185,129,0.12)" };
-  if (acc >= 60) return { color, bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.12)" };
-  if (acc > 0) return { color, bg: "rgba(239,68,68,0.07)", border: "rgba(239,68,68,0.12)" };
-  return { color, bg: "rgba(100,116,139,0.07)", border: "rgba(100,116,139,0.12)" };
+const getAccBg = (acc) => {
+  if (acc >= 85) return "bg-emerald-500/10 border-emerald-500/20";
+  if (acc >= 60) return "bg-amber-500/10 border-amber-500/20";
+  if (acc > 0) return "bg-rose-500/10 border-rose-500/20";
+  return "bg-slate-500/10 border-slate-500/20";
+};
+
+const getAccBadge = (acc) => {
+  if (acc >= 85) return "bg-emerald-500/20 border-emerald-500/40 text-emerald-300";
+  if (acc >= 60) return "bg-amber-500/20 border-amber-500/40 text-amber-300";
+  if (acc > 0) return "bg-rose-500/20 border-rose-500/40 text-rose-300";
+  return "bg-slate-500/20 border-slate-500/40 text-slate-300";
 };
 
 const calcAcc = (correct, wrong) => {
@@ -26,68 +30,24 @@ const calcAcc = (correct, wrong) => {
 };
 
 const StatPill = ({ value, label, color, bg, border }) => (
-  <div style={{
-    flex: 1,
-    minWidth: 0,
-    background: bg,
-    border: `1px solid ${border}`,
-    borderRadius: 10,
-    padding: "8px 4px",
-    textAlign: "center"
-  }}>
-    <div style={{ fontSize: 16, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-    <div style={{ fontSize: 9, color: `${color}70`, fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</div>
+  <div className={`flex-1 min-w-0 rounded-xl px-2 py-2.5 text-center ${bg} ${border} border`}>
+    <div className={`text-base font-extrabold leading-none ${color}`}>{value}</div>
+    <div className={`text-[10px] font-semibold mt-1.5 uppercase tracking-wider ${color} opacity-70`}>{label}</div>
   </div>
 );
 
 const MiniBadge = ({ icon, value, color, bg, border }) => (
-  <span style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 3,
-    padding: "2px 6px",
-    borderRadius: 7,
-    background: bg,
-    border: `1px solid ${border}`,
-    fontSize: 10,
-    fontWeight: 700,
-    color,
-    lineHeight: 1.4
-  }}>
-    <span style={{ fontSize: 9 }}>{icon}</span>
+  <span className={`inline-flex items-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-bold leading-tight ${bg} ${border} border ${color}`}>
+    <span className="text-[9px]">{icon}</span>
     <span>{value}</span>
   </span>
 );
 
-const SurfaceCard = ({ accentColor = "#6366f1", children, style }) => (
-  <div style={{
-    flex: 1,
-    minWidth: 0,
-    background: "linear-gradient(160deg, #14142a 0%, #111126 100%)",
-    borderRadius: 18,
-    padding: "18px 20px",
-    border: "1px solid rgba(255,255,255,0.05)",
-    boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
-    position: "relative",
-    overflow: "hidden",
-    ...style
-  }}>
-    <div style={{
-      position: "absolute",
-      left: 0, top: 12, bottom: 12,
-      width: 3,
-      background: `linear-gradient(180deg, ${accentColor}, ${accentColor}55)`,
-      borderRadius: "0 3px 3px 0",
-    }} />
-    <div style={{
-      position: "absolute",
-      top: -20, right: -20,
-      width: 80, height: 80,
-      borderRadius: "50%",
-      background: `radial-gradient(circle, ${accentColor}12 0%, transparent 70%)`,
-      pointerEvents: "none"
-    }} />
-    <div style={{ paddingLeft: 10, position: "relative" }}>
+const SurfaceCard = ({ accentColor = "indigo", children, className = "" }) => (
+  <div className={`flex-1 min-w-0 bg-gradient-to-br from-indigo-950/40 to-slate-900/40 rounded-2xl p-4 sm:p-5 border border-white/5 shadow-xl shadow-black/30 relative overflow-hidden ${className}`}>
+    <div className={`absolute left-0 top-3 bottom-3 w-1 bg-gradient-to-b from-${accentColor}-400 to-${accentColor}-400/40 rounded-r-full`} />
+    <div className={`absolute -top-5 -right-5 w-20 h-20 rounded-full bg-${accentColor}-400/5 pointer-events-none`} />
+    <div className="relative pl-2.5">
       {children}
     </div>
   </div>
@@ -122,17 +82,14 @@ export default function DashboardScreen() {
     setLoading(true);
 
     try {
-      // Bugünün tarihi (Türkiye saati)
       const now = new Date();
       const turkeyNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
       const todayStr = turkeyNow.toISOString().split('T')[0];
 
-      // 30 gün önce
       const thirtyDaysAgo = new Date(turkeyNow);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-      // 1. Bugünün istatistiklerini al
       const { data: todayData, error: todayError } = await supabase
         .from("en_user_daily_stats")
         .select("*")
@@ -140,13 +97,9 @@ export default function DashboardScreen() {
         .eq("stat_date", todayStr)
         .maybeSingle();
 
-      if (todayError) {
-        console.error("Bugün istatistikleri hatası:", todayError);
-      }
-
+      if (todayError) console.error("Bugün istatistikleri hatası:", todayError);
       setTodayStats(todayData || null);
 
-      // 2. Son 30 günün istatistiklerini al
       const { data: statsData, error: statsError } = await supabase
         .from("en_user_daily_stats")
         .select("*")
@@ -162,7 +115,6 @@ export default function DashboardScreen() {
         setLast30Days(statsData || []);
       }
 
-      // 3. Özet hesaplamalar
       let totalCorrect = 0, totalWrong = 0;
       let wordTotalCorrect = 0, wordTotalWrong = 0;
       let sentenceTotalCorrect = 0, sentenceTotalWrong = 0;
@@ -228,18 +180,10 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "70vh", background: "#0a0a18", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <div style={{
-            width: 44, height: 44,
-            border: "3px solid rgba(99,102,241,0.15)",
-            borderTopColor: "#6366f1",
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-            boxShadow: "0 0 20px rgba(99,102,241,0.2)"
-          }} />
-          <div style={{ color: "#475569", fontSize: 13, fontWeight: 500, letterSpacing: "0.05em" }}>Veriler yükleniyor...</div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="flex justify-center items-center min-h-[70vh] bg-slate-950 font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-11 h-11 border-4 border-indigo-500/15 border-t-indigo-400 rounded-full animate-spin shadow-lg shadow-indigo-500/20" />
+          <div className="text-slate-500 text-xs font-medium tracking-wider">Veriler yükleniyor...</div>
         </div>
       </div>
     );
@@ -249,143 +193,119 @@ export default function DashboardScreen() {
   const todaySentenceAcc = todayStats ? calcAcc(todayStats.sentence_correct, todayStats.sentence_wrong) : 0;
   const todayTotalAcc = todayStats ? (todayStats.accuracy || calcAcc(todayStats.total_correct, todayStats.total_wrong)) : 0;
 
-  // Son 30 gün grafik için max değer
   const maxTotal = last30Days.length > 0 ? Math.max(...last30Days.map(d =>
     (d.word_correct || 0) + (d.word_wrong || 0) +
     (d.sentence_correct || 0) + (d.sentence_wrong || 0)
   ), 1) : 1;
 
   return (
-    <div style={{
-      background: "#0a0a18",
-      minHeight: "100vh",
-      color: "#f8fafc",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      padding: "24px 16px 48px"
-    }}>
+    <div className="bg-slate-950 min-h-screen text-slate-100 font-sans p-4 sm:p-6 pb-12">
+      <style>
+        {`
+          ::-webkit-scrollbar { width: 6px; height: 6px; }
+          ::-webkit-scrollbar-thumb { background: #1e1e38; border-radius: 6px; }
+        `}
+      </style>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #1e1e38; border-radius: 6px; }
-      `}</style>
-
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
-
-        {/* ── HEADER ── */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: "4px",
-            color: "#6366f1",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            marginBottom: 8,
-            opacity: 0.7
-          }}>
+      <div className="max-w-md mx-auto">
+        {/* HEADER */}
+        <div className="text-center mb-7">
+          <div className="text-[10px] tracking-[4px] text-indigo-400 font-bold uppercase opacity-70 mb-2">
             Çalışma İstatistikleri
           </div>
         </div>
 
-        {/* ── BUGÜN ── */}
-        <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 14 }}>
+        {/* BUGÜN */}
+        <SurfaceCard accentColor="indigo" className="mb-3.5">
+          <div className="text-xs text-slate-500 font-bold tracking-wider uppercase mb-3.5">
             📅 Bugün
           </div>
 
           {todayStats && ((todayStats.total_correct || 0) + (todayStats.total_wrong || 0) > 0) ? (
             <>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                <StatPill value={todayStats.word_correct || 0} label="Kel. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-                <StatPill value={todayStats.word_wrong || 0} label="Kel. Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
-                <StatPill value={todayStats.sentence_correct || 0} label="Cüm. Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-                <StatPill value={todayStats.sentence_wrong || 0} label="Cüm. Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
+              <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                <StatPill value={todayStats.word_correct || 0} label="Kel. Doğru" color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+                <StatPill value={todayStats.word_wrong || 0} label="Kel. Yanlış" color="text-rose-400" bg="bg-rose-500/10" border="border-rose-500/20" />
+                <StatPill value={todayStats.sentence_correct || 0} label="Cüm. Doğru" color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+                <StatPill value={todayStats.sentence_wrong || 0} label="Cüm. Yanlış" color="text-rose-400" bg="bg-rose-500/10" border="border-rose-500/20" />
               </div>
 
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                borderTop: "1px solid rgba(255,255,255,0.05)",
-                paddingTop: 12,
-                marginTop: 4
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>📊 Toplam</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <MiniBadge icon="✅" value={todayStats.total_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
-                  <MiniBadge icon="❌" value={todayStats.total_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
-                  <span style={{ fontSize: 15, fontWeight: 800, color: getAccColor(todayTotalAcc) }}>%{todayTotalAcc}</span>
+              <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
+                <span className="text-sm font-bold text-slate-300">📊 Toplam</span>
+                <div className="flex gap-2 items-center">
+                  <MiniBadge icon="✅" value={todayStats.total_correct || 0} color="text-emerald-300" bg="bg-emerald-500/20" border="border-emerald-500/40" />
+                  <MiniBadge icon="❌" value={todayStats.total_wrong || 0} color="text-rose-300" bg="bg-rose-500/20" border="border-rose-500/40" />
+                  <span className={`text-base font-extrabold ${getAccColor(todayTotalAcc)}`}>%{todayTotalAcc}</span>
                 </div>
               </div>
 
-              <div style={{ marginTop: 12 }}>
-                <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{
-                    width: `${todayTotalAcc}%`,
-                    height: "100%",
-                    background: `linear-gradient(90deg, ${getAccColor(todayTotalAcc)}99, ${getAccColor(todayTotalAcc)})`,
-                    borderRadius: 4,
-                    transition: "width 0.4s ease",
-                    boxShadow: `0 0 8px ${getAccColor(todayTotalAcc)}60`
-                  }} />
+              <div className="mt-3">
+                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-400 shadow-lg shadow-${getAccColor(todayTotalAcc).replace('text-', '')}/40`}
+                    style={{
+                      width: `${todayTotalAcc}%`,
+                      background: `linear-gradient(90deg, ${todayTotalAcc >= 85 ? '#10b98199' : todayTotalAcc >= 60 ? '#f59e0b99' : todayTotalAcc > 0 ? '#ef444499' : '#64748b99'}, ${todayTotalAcc >= 85 ? '#10b981' : todayTotalAcc >= 60 ? '#f59e0b' : todayTotalAcc > 0 ? '#ef4444' : '#64748b'})`
+                    }}
+                  />
                 </div>
               </div>
             </>
           ) : (
-            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "16px 0" }}>
+            <div className="text-center text-slate-600 text-sm py-4">
               Bugün henüz çalışma yok 🌱
             </div>
           )}
         </SurfaceCard>
 
-        {/* ── KELİME / CÜMLE ÖZETİ ── */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-          <SurfaceCard accentColor="#818cf8">
-            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+        {/* KELİME / CÜMLE ÖZETİ */}
+        <div className="grid grid-cols-2 gap-3 mb-3.5">
+          <SurfaceCard accentColor="indigo">
+            <div className="text-[11px] text-slate-500 font-bold tracking-wider uppercase mb-2.5">
               📖 Kelime
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: getAccColor(summary.wordAccuracy) }}>
+            <div className="flex items-baseline gap-1.5 mb-2.5">
+              <span className={`text-2xl font-extrabold ${getAccColor(summary.wordAccuracy)}`}>
                 %{summary.wordAccuracy}
               </span>
-              <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
+              <span className="text-[11px] text-slate-500">başarı</span>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <StatPill value={summary.wordTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-              <StatPill value={summary.wordTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
+            <div className="grid grid-cols-2 gap-1.5">
+              <StatPill value={summary.wordTotalCorrect} label="Doğru" color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+              <StatPill value={summary.wordTotalWrong} label="Yanlış" color="text-rose-400" bg="bg-rose-500/10" border="border-rose-500/20" />
             </div>
           </SurfaceCard>
 
-          <SurfaceCard accentColor="#60a5fa">
-            <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+          <SurfaceCard accentColor="blue">
+            <div className="text-[11px] text-slate-500 font-bold tracking-wider uppercase mb-2.5">
               📝 Cümle
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: getAccColor(summary.sentenceAccuracy) }}>
+            <div className="flex items-baseline gap-1.5 mb-2.5">
+              <span className={`text-2xl font-extrabold ${getAccColor(summary.sentenceAccuracy)}`}>
                 %{summary.sentenceAccuracy}
               </span>
-              <span style={{ fontSize: 11, color: "#475569" }}>başarı</span>
+              <span className="text-[11px] text-slate-500">başarı</span>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <StatPill value={summary.sentenceTotalCorrect} label="Doğru" color="#10b981" bg="rgba(16,185,129,0.07)" border="rgba(16,185,129,0.12)" />
-              <StatPill value={summary.sentenceTotalWrong} label="Yanlış" color="#ef4444" bg="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.12)" />
+            <div className="grid grid-cols-2 gap-1.5">
+              <StatPill value={summary.sentenceTotalCorrect} label="Doğru" color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+              <StatPill value={summary.sentenceTotalWrong} label="Yanlış" color="text-rose-400" bg="bg-rose-500/10" border="border-rose-500/20" />
             </div>
           </SurfaceCard>
         </div>
 
-        {/* ── SON 30 GÜN TABLOSU ── */}
-        <SurfaceCard accentColor="#6366f1" style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        {/* SON 30 GÜN TABLOSU */}
+        <SurfaceCard accentColor="indigo" className="mb-3.5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-slate-500 font-bold tracking-wider uppercase">
               📋 Son 30 Gün
             </div>
-            <div style={{ fontSize: 11, color: "#334155" }}>
+            <div className="text-[11px] text-slate-600">
               {last30Days.filter(d => (d.total_correct || 0) + (d.total_wrong || 0) > 0).length} gün çalışılmış
             </div>
           </div>
 
           {last30Days.length > 0 ? (
-            <div style={{ maxHeight: 380, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="max-h-[380px] overflow-y-auto flex flex-col gap-2">
               {last30Days.slice().reverse().map((day) => {
                 const total = (day.total_correct || 0) + (day.total_wrong || 0);
                 const today = isToday(day.stat_date);
@@ -399,64 +319,43 @@ export default function DashboardScreen() {
                 return (
                   <div
                     key={day.stat_date}
-                    style={{
-                      borderRadius: 12,
-                      padding: "9px 12px",
-                      background: today ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.02)",
-                      border: today ? "1px solid rgba(99,102,241,0.25)" : "1px solid rgba(255,255,255,0.04)",
-                    }}
+                    className={`rounded-xl p-2.5 ${today ? 'bg-indigo-500/10 border border-indigo-500/25' : 'bg-white/5 border border-white/5'}`}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: total > 0 ? 6 : 0 }}>
-                      <span style={{ fontSize: 12, fontWeight: today ? 700 : 600, color: today ? "#818cf8" : "#e2e8f0" }}>
+                    <div className={`flex items-center justify-between ${total > 0 ? 'mb-1.5' : ''}`}>
+                      <span className={`text-xs ${today ? 'font-bold text-indigo-300' : 'font-semibold text-slate-300'}`}>
                         {formatDate(day.stat_date)}
-                        <span style={{ fontSize: 9, color: "#475569", marginLeft: 5, fontWeight: 500 }}>
+                        <span className="text-[9px] text-slate-500 ml-1.5 font-medium">
                           {getDayName(day.stat_date)}
                         </span>
-                        {today && <span style={{ fontSize: 10, marginLeft: 4 }}>⭐</span>}
+                        {today && <span className="text-[10px] ml-1">⭐</span>}
                       </span>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: getAccColor(totalAcc) }}>
-                        {total > 0 ? `%${totalAcc}` : <span style={{ color: "#334155", fontWeight: 500 }}>Veri yok</span>}
+                      <span className={`text-sm font-extrabold ${getAccColor(totalAcc)}`}>
+                        {total > 0 ? `%${totalAcc}` : <span className="text-slate-600 font-medium">Veri yok</span>}
                       </span>
                     </div>
 
                     {total > 0 && (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <div style={{
-                          flex: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          background: "rgba(255,255,255,0.025)",
-                          borderRadius: 8,
-                          padding: "5px 8px",
-                        }}>
-                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>Kelime</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg px-2 py-1.5">
+                          <span className="text-[10px] text-slate-500 font-semibold">Kelime</span>
                           {wordTotal > 0 ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <MiniBadge icon="✅" value={day.word_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
-                              <MiniBadge icon="❌" value={day.word_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
-                              <span style={{ fontSize: 11, color: getAccColor(wordAcc), fontWeight: 700 }}>%{wordAcc}</span>
+                            <span className="flex items-center gap-1">
+                              <MiniBadge icon="✅" value={day.word_correct || 0} color="text-emerald-300" bg="bg-emerald-500/20" border="border-emerald-500/40" />
+                              <MiniBadge icon="❌" value={day.word_wrong || 0} color="text-rose-300" bg="bg-rose-500/20" border="border-rose-500/40" />
+                              <span className={`text-[11px] font-bold ${getAccColor(wordAcc)}`}>%{wordAcc}</span>
                             </span>
-                          ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
+                          ) : <span className="text-[11px] text-slate-600">-</span>}
                         </div>
 
-                        <div style={{
-                          flex: 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          background: "rgba(255,255,255,0.025)",
-                          borderRadius: 8,
-                          padding: "5px 8px",
-                        }}>
-                          <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>Cümle</span>
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg px-2 py-1.5">
+                          <span className="text-[10px] text-slate-500 font-semibold">Cümle</span>
                           {sentenceTotal > 0 ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <MiniBadge icon="✅" value={day.sentence_correct || 0} color="#34d399" bg="rgba(16,185,129,0.12)" border="rgba(16,185,129,0.3)" />
-                              <MiniBadge icon="❌" value={day.sentence_wrong || 0} color="#f87171" bg="rgba(239,68,68,0.14)" border="rgba(239,68,68,0.35)" />
-                              <span style={{ fontSize: 11, color: getAccColor(sentenceAcc), fontWeight: 700 }}>%{sentenceAcc}</span>
+                            <span className="flex items-center gap-1">
+                              <MiniBadge icon="✅" value={day.sentence_correct || 0} color="text-emerald-300" bg="bg-emerald-500/20" border="border-emerald-500/40" />
+                              <MiniBadge icon="❌" value={day.sentence_wrong || 0} color="text-rose-300" bg="bg-rose-500/20" border="border-rose-500/40" />
+                              <span className={`text-[11px] font-bold ${getAccColor(sentenceAcc)}`}>%{sentenceAcc}</span>
                             </span>
-                          ) : <span style={{ fontSize: 11, color: "#334155" }}>-</span>}
+                          ) : <span className="text-[11px] text-slate-600">-</span>}
                         </div>
                       </div>
                     )}
@@ -465,98 +364,71 @@ export default function DashboardScreen() {
               })}
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "20px 0" }}>
+            <div className="text-center text-slate-600 text-sm py-5">
               Henüz veri yok
             </div>
           )}
         </SurfaceCard>
 
-        {/* ── GRAFİK ── */}
-        <SurfaceCard accentColor="#3b82f6">
-          <div style={{ fontSize: 12, color: "#475569", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
+        {/* GRAFİK */}
+        <SurfaceCard accentColor="blue">
+          <div className="text-xs text-slate-500 font-bold tracking-wider uppercase mb-3">
             📈 Günlük Çalışma Grafiği
           </div>
 
-          <div style={{ display: "flex", gap: 16, marginBottom: 14, fontSize: 11 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 10, height: 10, background: "#6366f1", borderRadius: 3, boxShadow: "0 0 6px rgba(99,102,241,0.5)" }}></span>
-              <span style={{ color: "#94a3b8" }}>Kelime</span>
+          <div className="flex gap-4 mb-3.5 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 bg-indigo-400 rounded shadow-lg shadow-indigo-500/50" />
+              <span className="text-slate-400">Kelime</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 10, height: 10, background: "#3b82f6", borderRadius: 3, boxShadow: "0 0 6px rgba(59,130,246,0.5)" }}></span>
-              <span style={{ color: "#94a3b8" }}>Cümle</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 bg-blue-400 rounded shadow-lg shadow-blue-500/50" />
+              <span className="text-slate-400">Cümle</span>
             </div>
           </div>
 
           {last30Days.length > 0 ? (
             <div>
-              <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 84 }}>
+              <div className="flex gap-1 items-end h-[84px]">
                 {last30Days.slice(-30).map((day, index) => {
                   const wordTotal = (day.word_correct || 0) + (day.word_wrong || 0);
                   const sentenceTotal = (day.sentence_correct || 0) + (day.sentence_wrong || 0);
                   const today = isToday(day.stat_date);
 
                   return (
-                    <div key={index} style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      position: "relative"
-                    }}>
-                      <div style={{
-                        width: "100%",
-                        height: 70,
-                        display: "flex",
-                        flexDirection: "column-reverse",
-                        borderRadius: 3,
-                        overflow: "hidden",
-                        background: "rgba(255,255,255,0.03)",
-                      }}>
+                    <div key={index} className="flex-1 flex flex-col items-center relative">
+                      <div className="w-full h-[70px] flex flex-col-reverse rounded overflow-hidden bg-white/5">
                         {sentenceTotal > 0 && (
-                          <div style={{
-                            height: `${(sentenceTotal / maxTotal) * 100}%`,
-                            background: today ? "#60a5fa" : "#3b82f6",
-                            transition: "height 0.3s ease",
-                            minHeight: 2,
-                            boxShadow: today ? "0 0 6px rgba(96,165,250,0.5)" : "none"
-                          }} />
+                          <div
+                            className={`transition-all duration-300 min-h-[2px] ${today ? 'bg-blue-300 shadow-lg shadow-blue-500/50' : 'bg-blue-400'}`}
+                            style={{ height: `${(sentenceTotal / maxTotal) * 100}%` }}
+                          />
                         )}
                         {wordTotal > 0 && (
-                          <div style={{
-                            height: `${(wordTotal / maxTotal) * 100}%`,
-                            background: today ? "#a78bfa" : "#6366f1",
-                            borderRadius: "3px 3px 0 0",
-                            transition: "height 0.3s ease",
-                            minHeight: 2,
-                            boxShadow: today ? "0 0 6px rgba(167,139,250,0.5)" : "none"
-                          }} />
+                          <div
+                            className={`transition-all duration-300 rounded-t min-h-[2px] ${today ? 'bg-indigo-300 shadow-lg shadow-indigo-500/50' : 'bg-indigo-400'}`}
+                            style={{ height: `${(wordTotal / maxTotal) * 100}%` }}
+                          />
                         )}
                       </div>
-                      <div style={{
-                        fontSize: 7,
-                        color: today ? "#818cf8" : "#334155",
-                        marginTop: 4,
-                        fontWeight: today ? 700 : 400
-                      }}>
+                      <div className={`text-[7px] mt-1 ${today ? 'text-indigo-300 font-bold' : 'text-slate-600'}`}>
                         {new Date(day.stat_date).getDate()}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#334155", marginTop: 8 }}>
+              <div className="flex justify-between text-[9px] text-slate-600 mt-2">
                 <span>{new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')}</span>
-                <span style={{ color: "#818cf8" }}>⭐ Bugün</span>
+                <span className="text-indigo-300">⭐ Bugün</span>
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#334155", fontSize: 13, padding: "12px 0" }}>
+            <div className="text-center text-slate-600 text-sm py-3">
               Henüz veri yok
             </div>
           )}
         </SurfaceCard>
-
       </div>
     </div>
   );
