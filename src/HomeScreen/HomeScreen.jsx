@@ -1,6 +1,6 @@
 // src/HomeScreen.jsx
 import { useHomeViewModel } from "./viewModel";
-import QuizOptionButton from "./components/QuizOptionButton";
+import QuizOptionButton from "../components/Quiz/QuizOptionButton";
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   const viewModel = useHomeViewModel();
