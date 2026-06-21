@@ -6,7 +6,7 @@ const ITEMS_PER_PAGE = 25;
 
 const getMasteryBadge = (level, isMastered) => {
   if (!isMastered && level === 0) return null;
-  
+
   if (level >= 9) return { emoji: "🏆", color: "#fbbf24", label: "Efsane Uzman", days: "180 gün" };
   if (level >= 8) return { emoji: "💎", color: "#c084fc", label: "Diamond Uzman", days: "120 gün" };
   if (level >= 7) return { emoji: "⭐", color: "#60a5fa", label: "Gold Uzman", days: "90 gün" };
@@ -15,6 +15,40 @@ const getMasteryBadge = (level, isMastered) => {
   if (level >= 3) return { emoji: "📘", color: "#818cf8", label: "Bilgili", days: `${level === 3 ? 7 : 14} gün` };
   return { emoji: "📖", color: "#94a3b8", label: "Öğreniyor", days: `${level === 1 ? 1 : 3} gün` };
 };
+
+// Başarı oranına göre daisyUI semantic tonu (light/dark temada otomatik uyumlu)
+const getAccuracyTone = (accuracy) => {
+  if (accuracy >= 85) return "success";
+  if (accuracy >= 60) return "warning";
+  if (accuracy > 0) return "error";
+  return "neutral";
+};
+
+const TONE_PILL_CLASSES = {
+  success: "border-success/20 bg-success/10 text-success",
+  warning: "border-warning/20 bg-warning/10 text-warning",
+  error: "border-error/20 bg-error/10 text-error",
+  primary: "border-primary/20 bg-primary/10 text-primary",
+  neutral: "border-base-300 bg-base-300/40 text-base-content/40",
+};
+
+const TONE_PROGRESS_CLASSES = {
+  success: "progress-success",
+  warning: "progress-warning",
+  error: "progress-error",
+  neutral: "progress-neutral",
+};
+
+function StatPill({ value, label, tone }) {
+  return (
+    <div className={`rounded-[10px] border px-1 py-2 text-center ${TONE_PILL_CLASSES[tone] || TONE_PILL_CLASSES.neutral}`}>
+      <div className="text-base font-extrabold leading-none">{value}</div>
+      <div className="mt-1 text-[9px] font-semibold uppercase tracking-wider opacity-70">
+        {label}
+      </div>
+    </div>
+  );
+}
 
 export default function StatsScreen({ userLevel }) {
   const { user } = useAuth();
@@ -48,7 +82,7 @@ export default function StatsScreen({ userLevel }) {
     }
 
     setLoading(true);
-    
+
     try {
       // 1. Kelime istatistikleri
       const { data: userWords } = await supabase
@@ -63,7 +97,7 @@ export default function StatsScreen({ userLevel }) {
           en_words (word, meaning, part_of_speech)
         `)
         .eq("user_id", userId);
-      
+
       // 2. Cümle istatistikleri
       const { data: userSentences } = await supabase
         .from("en_user_sentences")
@@ -75,7 +109,7 @@ export default function StatsScreen({ userLevel }) {
           en_example_sentences (sentence_en, sentence_tr, word_id)
         `)
         .eq("user_id", userId);
-      
+
       // 3. Kelimeleri düzenle
       const words = (userWords || [])
         .filter(uw => uw.en_words)
@@ -84,7 +118,7 @@ export default function StatsScreen({ userLevel }) {
           const totalWrong = uw.total_wrong || 0;
           const totalReviews = totalCorrect + totalWrong;
           const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
-          
+
           return {
             id: uw.word_id,
             word: uw.en_words.word,
@@ -99,7 +133,7 @@ export default function StatsScreen({ userLevel }) {
             reviewCount: uw.review_count || 0
           };
         });
-      
+
       // 4. Cümleleri düzenle
       const sentences = (userSentences || [])
         .filter(us => us.en_example_sentences)
@@ -108,7 +142,7 @@ export default function StatsScreen({ userLevel }) {
           const totalWrong = us.total_wrong || 0;
           const totalReviews = totalCorrect + totalWrong;
           const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
-          
+
           return {
             id: us.sentence_id,
             sentence: us.en_example_sentences.sentence_en,
@@ -121,12 +155,12 @@ export default function StatsScreen({ userLevel }) {
             reviewCount: us.review_count || 0
           };
         });
-      
+
       setAllWords(words);
       setAllSentences(sentences);
       setFilteredWords(words);
       setFilteredSentences(sentences);
-      
+
     } catch (error) {
       console.error("Veri çekme hatası:", error);
     } finally {
@@ -139,12 +173,12 @@ export default function StatsScreen({ userLevel }) {
     let filteredW = [...allWords];
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
-      filteredW = filteredW.filter(w => 
-        w.word.toLowerCase().includes(term) || 
+      filteredW = filteredW.filter(w =>
+        w.word.toLowerCase().includes(term) ||
         w.meaning.toLowerCase().includes(term)
       );
     }
-    
+
     // Kelimeleri sırala
     filteredW.sort((a, b) => {
       if (sortBy === "accuracy") return b.accuracy - a.accuracy;
@@ -153,17 +187,17 @@ export default function StatsScreen({ userLevel }) {
       return 0;
     });
     setFilteredWords(filteredW);
-    
+
     // Cümleleri filtrele
     let filteredS = [...allSentences];
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
-      filteredS = filteredS.filter(s => 
-        s.sentence.toLowerCase().includes(term) || 
+      filteredS = filteredS.filter(s =>
+        s.sentence.toLowerCase().includes(term) ||
         s.meaning.toLowerCase().includes(term)
       );
     }
-    
+
     // Cümleleri sırala
     filteredS.sort((a, b) => {
       if (sortBy === "accuracy") return b.accuracy - a.accuracy;
@@ -171,7 +205,7 @@ export default function StatsScreen({ userLevel }) {
       return 0;
     });
     setFilteredSentences(filteredS);
-    
+
     // Sayfayı sıfırla
     setCurrentPage(1);
   };
@@ -187,90 +221,44 @@ export default function StatsScreen({ userLevel }) {
   const renderPagination = (items) => {
     const total = totalPages(items);
     if (total <= 1) return null;
-    
+
+    const pageNumbers = Array.from({ length: Math.min(total, 5) }, (_, i) => {
+      if (total <= 5) return i + 1;
+      if (currentPage <= 3) return i + 1;
+      if (currentPage >= total - 2) return total - 4 + i;
+      return currentPage - 2 + i;
+    });
+
     return (
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 6, 
-        marginTop: 28,
-        flexWrap: "wrap"
-      }}>
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-1.5">
         <button
           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
           disabled={currentPage === 1}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: currentPage === 1 ? "transparent" : "rgba(99,102,241,0.08)",
-            color: currentPage === 1 ? "#2d2d50" : "#818cf8",
-            cursor: currentPage === 1 ? "not-allowed" : "pointer",
-            fontSize: 13,
-            fontWeight: 600,
-            transition: "all 0.15s ease",
-            letterSpacing: "0.02em"
-          }}
+          className="btn btn-sm rounded-xl border-none bg-primary/10 text-xs font-semibold text-primary disabled:bg-transparent disabled:text-base-content/20"
         >
           ← Önceki
         </button>
-        
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {Array.from({ length: Math.min(total, 5) }, (_, i) => {
-            let pageNum;
-            if (total <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= total - 2) {
-              pageNum = total - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
-            
-            return (
-              <button
-                key={pageNum}
-                onClick={() => setCurrentPage(pageNum)}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  border: "1px solid",
-                  borderColor: currentPage === pageNum ? "#6366f1" : "rgba(255,255,255,0.06)",
-                  background: currentPage === pageNum 
-                    ? "linear-gradient(135deg, #6366f1, #818cf8)" 
-                    : "transparent",
-                  color: currentPage === pageNum ? "#fff" : "#475569",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: currentPage === pageNum ? 700 : 500,
-                  transition: "all 0.15s ease",
-                  boxShadow: currentPage === pageNum ? "0 4px 12px rgba(99,102,241,0.35)" : "none"
-                }}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
+
+        <div className="flex items-center gap-1">
+          {pageNumbers.map((pageNum) => (
+            <button
+              key={pageNum}
+              onClick={() => setCurrentPage(pageNum)}
+              className={`btn btn-sm btn-circle border text-xs ${
+                currentPage === pageNum
+                  ? "border-primary bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+                  : "border-base-300 bg-transparent font-medium text-base-content/40"
+              }`}
+            >
+              {pageNum}
+            </button>
+          ))}
         </div>
-        
+
         <button
           onClick={() => setCurrentPage(p => Math.min(total, p + 1))}
           disabled={currentPage === total}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: currentPage === total ? "transparent" : "rgba(99,102,241,0.08)",
-            color: currentPage === total ? "#2d2d50" : "#818cf8",
-            cursor: currentPage === total ? "not-allowed" : "pointer",
-            fontSize: 13,
-            fontWeight: 600,
-            transition: "all 0.15s ease",
-            letterSpacing: "0.02em"
-          }}
+          className="btn btn-sm rounded-xl border-none bg-primary/10 text-xs font-semibold text-primary disabled:bg-transparent disabled:text-base-content/20"
         >
           Sonraki →
         </button>
@@ -279,166 +267,67 @@ export default function StatsScreen({ userLevel }) {
   };
 
   const renderStatCard = (item, type) => {
-    const accuracyColor = item.accuracy >= 85 ? "#10b981" : 
-                          item.accuracy >= 60 ? "#f59e0b" : 
-                          item.accuracy > 0 ? "#ef4444" : "#64748b";
-
-    const accuracyBg = item.accuracy >= 85 ? "rgba(16,185,129,0.07)" : 
-                       item.accuracy >= 60 ? "rgba(245,158,11,0.07)" : 
-                       item.accuracy > 0 ? "rgba(239,68,68,0.07)" : "rgba(100,116,139,0.07)";
-
-    const accuracyBorder = item.accuracy >= 85 ? "rgba(16,185,129,0.12)" : 
-                           item.accuracy >= 60 ? "rgba(245,158,11,0.12)" : 
-                           item.accuracy > 0 ? "rgba(239,68,68,0.12)" : "rgba(100,116,139,0.12)";
-    
+    const accuracyTone = getAccuracyTone(item.accuracy);
     const badge = type === "word" ? getMasteryBadge(item.masteryLevel, item.isMastered) : null;
-    const accentColor = badge ? badge.color : "#6366f1";
-    
+
     return (
-      <div key={item.id} style={{ 
-        background: "linear-gradient(160deg, #14142a 0%, #111126 100%)",
-        borderRadius: 18, 
-        padding: "18px 20px",
-        border: "1px solid rgba(255,255,255,0.05)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
-        position: "relative",
-        overflow: "hidden",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-      }}>
-
+      <div
+        key={item.id}
+        className="relative overflow-hidden rounded-2xl border border-base-300 bg-base-200 p-4.5 shadow-lg shadow-black/5"
+      >
         {/* Sol mastery renk çizgisi */}
-        <div style={{ 
-          position: "absolute", 
-          left: 0, top: 12, bottom: 12,
-          width: 3,
-          background: `linear-gradient(180deg, ${accentColor}, ${accentColor}55)`,
-          borderRadius: "0 3px 3px 0",
-        }} />
+        {badge ? (
+          <div
+            className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full"
+            style={{ background: `linear-gradient(180deg, ${badge.color}, ${badge.color}55)` }}
+          />
+        ) : (
+          <div className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full bg-gradient-to-b from-primary to-primary/30" />
+        )}
 
-        {/* Sağ üst ambient ışık */}
-        <div style={{
-          position: "absolute",
-          top: -20, right: -20,
-          width: 80, height: 80,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${accentColor}12 0%, transparent 70%)`,
-          pointerEvents: "none"
-        }} />
-        
         {/* Başlık satırı */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14, paddingLeft: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ 
-              fontSize: type === "word" ? 17 : 14,
-              fontWeight: 800,
-              color: "#f1f5f9",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              letterSpacing: type === "word" ? "-0.3px" : "0",
-            }}>
+        <div className="mb-3.5 flex items-start justify-between gap-2.5 pl-2.5">
+          <div className="min-w-0 flex-1">
+            <div
+              className={`overflow-hidden text-ellipsis whitespace-nowrap font-bold ${
+                type === "word" ? "text-[17px] tracking-tight" : "text-sm"
+              }`}
+            >
               {type === "word" ? item.word : `"${item.sentence}"`}
             </div>
-            <div style={{ 
-              fontSize: 12,
-              color: "#475569",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              marginTop: 3,
-              fontStyle: "italic"
-            }}>
+            <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-xs italic text-base-content/40">
               {item.meaning}
             </div>
           </div>
-          
+
           {badge && (
-            <div style={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 5,
-              background: `${badge.color}12`,
-              padding: "5px 10px", 
-              borderRadius: 10,
-              border: `1px solid ${badge.color}25`,
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}>
-              <span style={{ fontSize: 11 }}>{badge.emoji}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: badge.color, letterSpacing: "0.03em" }}>{badge.label}</span>
+            <div
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] border px-2.5 py-1"
+              style={{ background: `${badge.color}12`, borderColor: `${badge.color}25` }}
+            >
+              <span className="text-[11px]">{badge.emoji}</span>
+              <span className="text-[10px] font-bold tracking-wide" style={{ color: badge.color }}>
+                {badge.label}
+              </span>
             </div>
           )}
         </div>
-        
+
         {/* Stat pilleri */}
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(4, 1fr)", 
-          gap: 6,
-          marginBottom: 12,
-          paddingLeft: 10
-        }}>
-          {/* Doğru */}
-          <div style={{
-            background: "rgba(16,185,129,0.07)",
-            border: "1px solid rgba(16,185,129,0.12)",
-            borderRadius: 10,
-            padding: "8px 4px",
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#10b981", lineHeight: 1 }}>{item.totalCorrect}</div>
-            <div style={{ fontSize: 9, color: "#10b98170", fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>Doğru</div>
-          </div>
-
-          {/* Yanlış */}
-          <div style={{
-            background: "rgba(239,68,68,0.07)",
-            border: "1px solid rgba(239,68,68,0.12)",
-            borderRadius: 10,
-            padding: "8px 4px",
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#ef4444", lineHeight: 1 }}>{item.totalWrong}</div>
-            <div style={{ fontSize: 9, color: "#ef444470", fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>Yanlış</div>
-          </div>
-
-          {/* Başarı */}
-          <div style={{
-            background: accuracyBg,
-            border: `1px solid ${accuracyBorder}`,
-            borderRadius: 10,
-            padding: "8px 4px",
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: accuracyColor, lineHeight: 1 }}>%{item.accuracy}</div>
-            <div style={{ fontSize: 9, color: `${accuracyColor}70`, fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>Başarı</div>
-          </div>
-
-          {/* Tekrar */}
-          <div style={{
-            background: "rgba(99,102,241,0.07)",
-            border: "1px solid rgba(99,102,241,0.12)",
-            borderRadius: 10,
-            padding: "8px 4px",
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#818cf8", lineHeight: 1 }}>{item.totalReviews}</div>
-            <div style={{ fontSize: 9, color: "#818cf870", fontWeight: 600, marginTop: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>Tekrar</div>
-          </div>
+        <div className="mb-3 grid grid-cols-4 gap-1.5 pl-2.5">
+          <StatPill value={item.totalCorrect} label="Doğru" tone="success" />
+          <StatPill value={item.totalWrong} label="Yanlış" tone="error" />
+          <StatPill value={`%${item.accuracy}`} label="Başarı" tone={accuracyTone} />
+          <StatPill value={item.totalReviews} label="Tekrar" tone="primary" />
         </div>
-        
+
         {/* İlerleme çubuğu */}
-        <div style={{ paddingLeft: 10 }}>
-          <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ 
-              width: `${item.accuracy}%`, 
-              height: "100%", 
-              background: `linear-gradient(90deg, ${accuracyColor}99, ${accuracyColor})`,
-              borderRadius: 4,
-              transition: "width 0.4s ease",
-              boxShadow: `0 0 8px ${accuracyColor}60`
-            }} />
-          </div>
+        <div className="pl-2.5">
+          <progress
+            className={`progress h-1 w-full ${TONE_PROGRESS_CLASSES[accuracyTone] || TONE_PROGRESS_CLASSES.neutral}`}
+            value={item.accuracy}
+            max="100"
+          />
         </div>
       </div>
     );
@@ -446,19 +335,11 @@ export default function StatsScreen({ userLevel }) {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "70vh", background: "#0a0a18", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <div style={{ 
-            width: 44, height: 44, 
-            border: "3px solid rgba(99,102,241,0.15)", 
-            borderTopColor: "#6366f1", 
-            borderRadius: "50%", 
-            animation: "spin 0.8s linear infinite",
-            boxShadow: "0 0 20px rgba(99,102,241,0.2)"
-          }} />
-          <div style={{ color: "#475569", fontSize: 13, fontWeight: 500, letterSpacing: "0.05em" }}>Veriler yükleniyor...</div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-100">
+        <span className="loading loading-spinner loading-lg text-primary" />
+        <span className="text-[13px] font-medium tracking-wide text-base-content/50">
+          Veriler yükleniyor...
+        </span>
       </div>
     );
   }
@@ -468,127 +349,47 @@ export default function StatsScreen({ userLevel }) {
   const currentTotalPages = totalPages(activeTab === "words" ? filteredWords : filteredSentences);
 
   return (
-    <div style={{ 
-      background: "#0a0a18", 
-      minHeight: "100vh", 
-      color: "#f8fafc", 
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      padding: "24px 16px 48px"
-    }}>
+    <div className="min-h-screen bg-base-100 px-4 pb-12 pt-6 text-base-content">
+      <div className="mx-auto max-w-[480px]">
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        input[type="text"]::placeholder { color: #2d2d50; }
-        input[type="text"]:focus { border-color: rgba(99,102,241,0.4) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-        select option { background: #131324; }
-      `}</style>
-
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
-        
         {/* ── HEADER ── */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ 
-            fontSize: 10, 
-            letterSpacing: "4px", 
-            color: "#6366f1", 
-            fontWeight: 700, 
-            textTransform: "uppercase",
-            marginBottom: 8,
-            opacity: 0.7
-          }}>
+        <div className="mb-7 text-center">
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-[4px] text-primary/70">
             Lingora
           </div>
-          <h1 style={{ 
-            fontSize: 26, 
-            fontWeight: 900, 
-            margin: "0 0 14px", 
-            color: "#f1f5f9", 
-            letterSpacing: "-0.8px",
-            background: "linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}>
+          <h1 className="mb-3.5 bg-gradient-to-br from-base-content to-base-content/40 bg-clip-text font-display text-[26px] font-extrabold tracking-tight text-transparent">
             İstatistikler
           </h1>
 
           {/* Özet pill'ler */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
-            <div style={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 7,
-              background: "rgba(99,102,241,0.06)",
-              padding: "7px 16px", 
-              borderRadius: 12, 
-              fontSize: 12, 
-              color: "#818cf8",
-              fontWeight: 600,
-              border: "1px solid rgba(99,102,241,0.1)",
-              letterSpacing: "0.01em"
-            }}>
+          <div className="flex justify-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/10 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary">
               <span>📖</span>
               <span>{allWords.length} kelime</span>
-            </div>
-            <div style={{ 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 7,
-              background: "rgba(99,102,241,0.06)",
-              padding: "7px 16px", 
-              borderRadius: 12, 
-              fontSize: 12, 
-              color: "#818cf8",
-              fontWeight: 600,
-              border: "1px solid rgba(99,102,241,0.1)",
-              letterSpacing: "0.01em"
-            }}>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/10 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary">
               <span>📝</span>
               <span>{allSentences.length} cümle</span>
-            </div>
+            </span>
           </div>
         </div>
 
         {/* ── ARAMA & FİLTRE ── */}
-        <div style={{ marginBottom: 14, display: "flex", gap: 8 }}>
-          <div style={{ flex: 1, position: "relative" }}>
-            <span style={{ 
-              position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)",
-              fontSize: 14, color: "#2d2d50", pointerEvents: "none"
-            }}>🔍</span>
+        <div className="mb-3.5 flex gap-2">
+          <label className="input input-bordered flex flex-1 items-center gap-2 border-base-300 bg-base-200">
+            <span className="text-sm text-base-content/30">🔍</span>
             <input
               type="text"
               placeholder="Kelime veya anlam ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "11px 14px 11px 36px",
-                borderRadius: 13,
-                border: "1px solid rgba(255,255,255,0.05)",
-                background: "rgba(20,20,42,0.8)",
-                color: "#e2e8f0",
-                fontSize: 13,
-                outline: "none",
-                transition: "border-color 0.2s, box-shadow 0.2s",
-                boxSizing: "border-box",
-              }}
+              className="grow bg-transparent text-[13px] outline-none placeholder:text-base-content/30"
             />
-          </div>
+          </label>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              padding: "11px 12px",
-              borderRadius: 13,
-              border: "1px solid rgba(255,255,255,0.05)",
-              background: "rgba(20,20,42,0.8)",
-              color: "#94a3b8",
-              fontSize: 12,
-              outline: "none",
-              cursor: "pointer",
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
+            className="select select-bordered w-auto shrink-0 border-base-300 bg-base-200 text-xs font-semibold"
           >
             <option value="accuracy">Başarı Oranı</option>
             <option value="reviews">Çözüm Sayısı</option>
@@ -597,84 +398,40 @@ export default function StatsScreen({ userLevel }) {
         </div>
 
         {/* ── TABS ── */}
-        <div style={{ 
-          display: "flex", 
-          background: "rgba(14,14,30,0.8)",
-          padding: "5px", 
-          borderRadius: 16,
-          marginBottom: 18,
-          border: "1px solid rgba(255,255,255,0.04)",
-          gap: 4,
-        }}>
+        <div className="mb-4.5 flex gap-1 rounded-2xl border border-base-300 bg-base-200 p-1.5">
           <button
             onClick={() => { setActiveTab("words"); setCurrentPage(1); }}
-            style={{
-              flex: 1,
-              padding: "11px",
-              borderRadius: 12,
-              border: "none",
-              background: activeTab === "words" 
-                ? "linear-gradient(135deg, #6366f1, #818cf8)" 
-                : "transparent",
-              color: activeTab === "words" ? "#fff" : "#334155",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 7,
-              boxShadow: activeTab === "words" ? "0 4px 16px rgba(99,102,241,0.3)" : "none",
-              letterSpacing: "0.01em"
-            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${
+              activeTab === "words"
+                ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+                : "text-base-content/40 hover:text-base-content/60"
+            }`}
           >
             <span>📖</span>
             Kelimeler
-            <span style={{ 
-              fontSize: 10, 
-              background: activeTab === "words" ? "rgba(255,255,255,0.18)" : "rgba(99,102,241,0.1)",
-              padding: "2px 8px",
-              borderRadius: 20,
-              color: activeTab === "words" ? "#fff" : "#475569",
-              fontWeight: 700
-            }}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === "words" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
+              }`}
+            >
               {filteredWords.length}
             </span>
           </button>
           <button
             onClick={() => { setActiveTab("sentences"); setCurrentPage(1); }}
-            style={{
-              flex: 1,
-              padding: "11px",
-              borderRadius: 12,
-              border: "none",
-              background: activeTab === "sentences" 
-                ? "linear-gradient(135deg, #6366f1, #818cf8)" 
-                : "transparent",
-              color: activeTab === "sentences" ? "#fff" : "#334155",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 7,
-              boxShadow: activeTab === "sentences" ? "0 4px 16px rgba(99,102,241,0.3)" : "none",
-              letterSpacing: "0.01em"
-            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${
+              activeTab === "sentences"
+                ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+                : "text-base-content/40 hover:text-base-content/60"
+            }`}
           >
             <span>📝</span>
             Cümleler
-            <span style={{ 
-              fontSize: 10, 
-              background: activeTab === "sentences" ? "rgba(255,255,255,0.18)" : "rgba(99,102,241,0.1)",
-              padding: "2px 8px",
-              borderRadius: 20,
-              color: activeTab === "sentences" ? "#fff" : "#475569",
-              fontWeight: 700
-            }}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === "sentences" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
+              }`}
+            >
               {filteredSentences.length}
             </span>
           </button>
@@ -682,41 +439,27 @@ export default function StatsScreen({ userLevel }) {
 
         {/* ── İÇERİK ── */}
         {totalItems === 0 ? (
-          <div style={{ 
-            background: "linear-gradient(160deg, #14142a 0%, #111126 100%)",
-            borderRadius: 20, 
-            padding: "48px 24px", 
-            textAlign: "center", 
-            border: "1px solid rgba(255,255,255,0.04)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
-          }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>🌱</div>
-            <div style={{ color: "#e2e8f0", fontWeight: 700, marginBottom: 8, fontSize: 15 }}>
+          <div className="rounded-[20px] border border-base-300 bg-base-200 px-6 py-12 text-center shadow-lg shadow-black/5">
+            <div className="mb-3.5 text-4xl">🌱</div>
+            <div className="mb-2 text-[15px] font-bold">
               {activeTab === "words" ? "Henüz kelime yok" : "Henüz cümle yok"}
             </div>
-            <p style={{ color: "#334155", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
-              {activeTab === "words" 
-                ? "Ana sayfadan yeni kelimeler ekleyerek istatistiklerini görmeye başla!" 
+            <p className="m-0 text-[13px] leading-relaxed text-base-content/40">
+              {activeTab === "words"
+                ? "Ana sayfadan yeni kelimeler ekleyerek istatistiklerini görmeye başla!"
                 : "Kelime ekledikçe cümleler otomatik olarak eklenecek."}
             </p>
           </div>
         ) : (
           <>
-            <div style={{ 
-              fontSize: 11, 
-              color: "#2d2d50", 
-              marginBottom: 12, 
-              textAlign: "right",
-              fontWeight: 600,
-              letterSpacing: "0.03em"
-            }}>
+            <div className="mb-3 text-right text-[11px] font-semibold tracking-wide text-base-content/30">
               {totalItems} {activeTab === "words" ? "kelime" : "cümle"} · Sayfa {currentPage}/{currentTotalPages}
             </div>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+            <div className="flex flex-col gap-2.5">
               {currentItems.map(item => renderStatCard(item, activeTab === "words" ? "word" : "sentence"))}
             </div>
-            
+
             {renderPagination(activeTab === "words" ? filteredWords : filteredSentences)}
           </>
         )}
