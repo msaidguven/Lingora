@@ -1,2 +1,2 @@
 // src/components/Header/index.js
-export { default } from './Header.jsx';
+export { default } from "./Header";

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./config.js";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import Header from "./components/Header/Header.jsx";
+import Header from "./components/Header";
 import HomeScreen from "./HomeScreen/HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
