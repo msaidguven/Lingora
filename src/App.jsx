@@ -250,6 +250,10 @@ function AppContent() {
           <Admin onBack={handleBackToHome} />
         )}
       </main>
+
+      <button className="btn btn-primary">
+        DaisyUI çalışıyor 🎉
+      </button>
     </div>
   );
 }
