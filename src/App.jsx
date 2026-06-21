@@ -14,7 +14,6 @@ import LessonPage from "./components/Lesson/LessonPage.jsx";
 import Admin from "./Admin.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
-import './App.css';
 
 // AppContent bileşeni - AuthProvider içinde çalışır
 function AppContent() {
@@ -34,7 +33,7 @@ function AppContent() {
       setShowRegister(false);
       return;
     }
-    
+
     const fetchUserLevel = async () => {
       try {
         const { data, error } = await supabase
@@ -70,11 +69,11 @@ function AppContent() {
   // ============ NAVIGASYON ============
   const handleNavigate = (screen, type = null) => {
     console.log("🔄 Navigasyon:", screen, type);
-    
+
     if (screen === "quiz" && !type) {
       setQuizType(null);
     }
-    
+
     if (type) {
       setQuizType(type);
     }
@@ -139,36 +138,36 @@ function AppContent() {
   // ============ QUIZ RENDER ============
   const renderQuizScreen = () => {
     console.log("📝 Quiz render:", quizType);
-    
+
     if (!quizType) {
       return (
-        <QuizScreen 
+        <QuizScreen
           onStartQuiz={(type) => {
             console.log("🎯 Quiz başlatılıyor:", type);
             handleNavigate("quiz", type);
-          }} 
+          }}
           onBack={handleBackToHome}
         />
       );
     }
-    
+
     if (quizType === "word") {
       return <WordQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     } else if (quizType === "sentence") {
       return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     }
-    
+
     return null;
   };
 
   // ============ RENDER DURUMLARI ============
-  
+
   // 1. Auth yükleniyor durumu
   if (authLoading) {
     return (
-      <div className="app-loading">
-        <div className="loading-ring" />
-        <div className="loading-text">Uygulama yükleniyor...</div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-100 text-base-content">
+        <span className="loading loading-spinner loading-lg text-primary" />
+        <div className="text-sm text-base-content/55">Uygulama yükleniyor...</div>
       </div>
     );
   }
@@ -177,14 +176,14 @@ function AppContent() {
   if (showLogin) {
     console.log("📱 Login gösteriliyor, showRegister:", showRegister);
     return (
-      <div className="app-auth">
+      <div className="flex min-h-screen items-center justify-center bg-base-100">
         {showRegister ? (
-          <Register 
+          <Register
             onRegisterSuccess={handleRegisterSuccess}
             onSwitchToLogin={handleSwitchToLogin}
           />
         ) : (
-          <Login 
+          <Login
             onLoginSuccess={handleLoginSuccess}
             onSwitchToRegister={handleSwitchToRegister}
           />
@@ -198,8 +197,8 @@ function AppContent() {
     console.log("👤 Kullanıcı yok, login gösteriliyor");
     setShowLogin(true);
     return (
-      <div className="app-auth">
-        <Login 
+      <div className="flex min-h-screen items-center justify-center bg-base-100">
+        <Login
           onLoginSuccess={handleLoginSuccess}
           onSwitchToRegister={handleSwitchToRegister}
         />
@@ -209,20 +208,20 @@ function AppContent() {
 
   // 4. Ana uygulama
   return (
-    <div className="app-container">
-      <Header 
-        currentScreen={currentScreen} 
-        onNavigate={handleNavigate} 
+    <div className="min-h-screen bg-base-100 text-base-content">
+      <Header
+        currentScreen={currentScreen}
+        onNavigate={handleNavigate}
         userLevel={userLevel}
         userRole={userRole}
         quizType={quizType}
         onLogout={handleLogout}
         onNavigateToAdmin={handleNavigateToAdmin}
       />
-      
-      <main className="app-main">
+
+      <main className="mx-auto max-w-[1200px] p-3 sm:p-5">
         {currentScreen === "home" && (
-          <HomeScreen 
+          <HomeScreen
             onStartQuiz={(type) => {
               console.log("🏠 Home'dan quiz başlatılıyor:", type);
               handleNavigate("quiz", type);
@@ -231,16 +230,16 @@ function AppContent() {
             onGoToLesson={handleGoToLesson}
           />
         )}
-        
+
         {currentScreen === "dashboard" && <DashboardScreen />}
-        
+
         {currentScreen === "quiz" && renderQuizScreen()}
-        
+
         {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
-        
+
         {currentScreen === "lesson" && (
-          <LessonPage 
-            lessonId={selectedLessonId} 
+          <LessonPage
+            lessonId={selectedLessonId}
             onBack={handleBackToHome}
             userId={user?.id}
           />
@@ -250,7 +249,6 @@ function AppContent() {
           <Admin onBack={handleBackToHome} />
         )}
       </main>
-
     </div>
   );
 }
