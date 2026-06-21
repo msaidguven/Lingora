@@ -1,3 +1,108 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@plugin "daisyui";
+
+/* ============ LINGORA — DARK (varsayılan) ============ */
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: #0a0915;
+  --color-base-200: #130f24;
+  --color-base-300: #1a1730;
+  --color-base-content: #e9e6f7;
+
+  --color-primary: #8b7cff;
+  --color-primary-content: #ffffff;
+  --color-secondary: #5b8cff;
+  --color-secondary-content: #ffffff;
+  --color-accent: #a855f7;
+  --color-accent-content: #ffffff;
+  --color-neutral: #201c3a;
+  --color-neutral-content: #e9e6f7;
+
+  --color-success: #10b981;
+  --color-success-content: #ffffff;
+  --color-info: #3b82f6;
+  --color-info-content: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-content: #1a1a2e;
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
+
+  --radius-box: 1.25rem;
+  --radius-field: 0.9rem;
+  --radius-selector: 0.9rem;
+}
+
+/* ============ LINGORA — LIGHT ============ */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #f0f0f5;
+  --color-base-200: #ffffff;
+  --color-base-300: #f8f8fc;
+  --color-base-content: #1a1a2e;
+
+  --color-primary: #7c6cf0;
+  --color-primary-content: #ffffff;
+  --color-secondary: #5b8cff;
+  --color-secondary-content: #ffffff;
+  --color-accent: #a855f7;
+  --color-accent-content: #ffffff;
+  --color-neutral: #e0e0e8;
+  --color-neutral-content: #1a1a2e;
+
+  --color-success: #10b981;
+  --color-success-content: #ffffff;
+  --color-info: #3b82f6;
+  --color-info-content: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-content: #1a1a2e;
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
+
+  --radius-box: 1.25rem;
+  --radius-field: 0.9rem;
+  --radius-selector: 0.9rem;
+}
+
+@theme {
+  --font-display: "Manrope", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* ============ Geriye kalan tek özel animasyonlar ============ */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  from { transform: translateX(-120%) skewX(-15deg); }
+  to { transform: translateX(220%) skewX(-15deg); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-shimmer {
+  animation: shimmer 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-shimmer,
+  .animate-pulse {
+    animation: none !important;
+  }
+}

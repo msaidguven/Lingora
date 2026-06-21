@@ -1,10 +1,7 @@
 // src/HomeScreen.jsx
 import { useHomeViewModel } from "./viewModel";
-import { useTheme } from '../contexts/ThemeContext';
-import './HomeScreen.css';
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
-  const { theme } = useTheme();
   const viewModel = useHomeViewModel();
 
   const {
@@ -21,134 +18,149 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     lessonsLoading,
     progress,
     remainingWords,
-    handleOpenNewWords
+    handleOpenNewWords,
   } = viewModel;
 
   // Loading durumu
   if (loading) {
     return (
-      <div className={`home-page ${theme}`}>
-        <div className="loading-screen">
-          <div className="loading-ring" />
-          <div className="loading-text">Yükleniyor</div>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-100">
+        <span className="loading loading-spinner loading-lg text-primary" />
+        <span className="text-[13px] tracking-widest text-base-content/50">
+          YÜKLENİYOR
+        </span>
       </div>
     );
   }
 
   return (
-    <div className={`home-page ${theme}`}>
-      <div className="glow-top" />
-      <div className="glow-bottom" />
+    <div className="relative min-h-screen overflow-hidden bg-base-100 text-base-content">
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-80 w-[30rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl [animation-duration:6s] animate-pulse" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 h-96 w-[26rem] rounded-full bg-accent/15 blur-3xl [animation-duration:7s] animate-pulse" />
 
-      <div className={`content ${mounted ? 'mounted' : ''}`}>
+      <div
+        className={`relative z-10 mx-auto max-w-md px-5 py-7 transition-all duration-500 ${
+          mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+        }`}
+      >
         {/* Header */}
-        <div className="header reveal" data-delay="0">
-          <div className="brand">
-            <span className="brand-dot" />
+        <div
+          className="animate-fade-up mb-6 flex items-center justify-between"
+          style={{ animationDelay: "0.02s" }}
+        >
+          <div className="flex items-center gap-2 font-display text-[11px] font-bold tracking-[3px] text-primary">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px] shadow-primary" />
             LINGORA
           </div>
-          <div className="level-row">
-            <span className="level-badge">{userLevel}</span>
-            <span className="level-label">Seviyesi</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="bg-gradient-to-br from-base-content to-base-content/40 bg-clip-text font-display text-2xl font-extrabold text-transparent">
+              {userLevel}
+            </span>
+            <span className="text-[13px] font-medium text-base-content/55">
+              Seviyesi
+            </span>
           </div>
         </div>
 
         {/* Dersler Bölümü */}
-        <div className="lessons-section reveal" data-delay="0.5">
-          <div className="lessons-header">
-            <span className="lessons-title">📚 Dersler</span>
+        <div className="animate-fade-up mb-5" style={{ animationDelay: "0.05s" }}>
+          <div className="mb-2.5 flex items-center justify-between">
+            <span className="font-display text-[15px] font-bold">📚 Dersler</span>
             {recentLessons.length > 0 && (
-              <span className="lessons-count">{recentLessons.length} ders</span>
+              <span className="badge badge-ghost badge-sm">
+                {recentLessons.length} ders
+              </span>
             )}
           </div>
-          
+
           {lessonsLoading ? (
-            <div className="lessons-loading">
-              <span className="mini-spinner" />
-              Dersler yükleniyor...
+            <div className="space-y-2">
+              <div className="skeleton h-16 w-full rounded-2xl" />
+              <div className="skeleton h-16 w-full rounded-2xl" />
             </div>
           ) : recentLessons.length > 0 ? (
-            <div className="lessons-list">
+            <div className="flex flex-col gap-2">
               {recentLessons.map((lesson) => {
                 const isCompleted = lesson.progress?.completed;
                 return (
-                  <div
+                  <button
                     key={lesson.id}
                     onClick={() => onGoToLesson?.(lesson.id)}
-                    className={`lesson-card ${isCompleted ? 'completed' : ''}`}
+                    className={`group flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all duration-200 hover:translate-x-1 ${
+                      isCompleted
+                        ? "border-success/30 bg-gradient-to-r from-success/10 to-base-200"
+                        : "border-base-300 bg-base-200 hover:border-primary hover:shadow-lg hover:shadow-primary/15"
+                    }`}
                   >
-                    <div className="lesson-card-left">
-                      <div className={`lesson-number ${isCompleted ? 'completed' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`badge font-display font-bold ${
+                          isCompleted
+                            ? "badge-success badge-outline"
+                            : "badge-primary badge-outline"
+                        }`}
+                      >
                         {isCompleted ? "✓" : `#${lesson.lesson_number}`}
-                      </div>
+                      </span>
                       <div>
-                        <div className="lesson-title">{lesson.title}</div>
-                        <div className="lesson-meta-row">
-                          <span className="lesson-level">{lesson.level}</span>
+                        <div className="text-sm font-semibold">{lesson.title}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span className="badge badge-ghost badge-xs">
+                            {lesson.level}
+                          </span>
                           {isCompleted && (
-                            <span className="lesson-completed-badge">Tamamlandı</span>
+                            <span className="badge badge-success badge-xs">
+                              Tamamlandı
+                            </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="lesson-arrow">
+                    <span className="text-xs font-bold text-base-content/40 transition-colors group-hover:text-primary">
                       {isCompleted ? "Tekrar Et" : "→"}
-                    </div>
-                  </div>
+                    </span>
+                  </button>
                 );
               })}
             </div>
           ) : (
-            <div className="no-lessons">
-              <span className="no-lessons-icon">📖</span>
-              <span>Henüz ders eklenmemiş</span>
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-base-300 bg-base-200 py-5 text-sm text-base-content/55">
+              <span className="text-lg">📖</span>
+              Henüz ders eklenmemiş
             </div>
           )}
         </div>
 
         {/* Progress Card */}
-        <div className="progress-card reveal" data-delay="1">
-          <div className="progress-top">
+        <div
+          className="animate-fade-up card mb-4 border border-base-300 bg-base-200 bg-gradient-to-br from-base-200 to-base-100 p-4"
+          style={{ animationDelay: "0.08s" }}
+        >
+          <div className="mb-3 flex items-center justify-between">
             <div>
-              <div className="progress-label">Kelime Haznen</div>
-              <div className="progress-value">
+              <div className="text-[12.5px] font-medium text-base-content/55">
+                Kelime Haznen
+              </div>
+              <div className="font-display text-[26px] font-extrabold">
                 {myWordsCount}
-                <span className="progress-value-muted"> / {totalWords}</span>
+                <span className="text-[15px] font-semibold text-base-content/40">
+                  {" "}
+                  / {totalWords}
+                </span>
               </div>
             </div>
-            <div className="progress-ring-wrap">
-              <svg width="56" height="56" viewBox="0 0 56 56">
-                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--ring-bg)" strokeWidth="5" />
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="24"
-                  fill="none"
-                  stroke="url(#ringGrad)"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  strokeDasharray={2 * Math.PI * 24}
-                  strokeDashoffset={mounted ? 2 * Math.PI * 24 * (1 - progress / 100) : 2 * Math.PI * 24}
-                  transform="rotate(-90 28 28)"
-                  className="progress-ring"
-                />
-                <defs>
-                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#8b7cff" />
-                    <stop offset="100%" stopColor="#5b8cff" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="progress-ring-text">{Math.round(progress)}%</div>
+            <div
+              className="radial-progress text-primary"
+              style={{ "--value": progress, "--size": "3.5rem", "--thickness": "5px" }}
+              role="progressbar"
+            >
+              <span className="text-xs font-bold text-base-content">
+                {Math.round(progress)}%
+              </span>
             </div>
           </div>
-          <div className="track">
-            <div
-              className="track-fill"
-              style={{ width: mounted ? `${progress}%` : "0%" }}
-            />
-          </div>
+          <progress className="progress progress-primary w-full" value={progress} max="100" />
         </div>
 
         {/* CTA Button */}
@@ -156,19 +168,20 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           <button
             onClick={handleOpenNewWords}
             disabled={opening}
-            className={`cta-button reveal ${opening ? 'disabled' : ''}`}
-            data-delay="2"
+            className="btn btn-success btn-lg relative mb-3.5 w-full overflow-hidden border-0 font-display text-[15.5px] shadow-lg shadow-success/40"
           >
-            <span className="cta-shine" />
-            <span className="cta-content">
+            {!opening && (
+              <span className="animate-shimmer absolute inset-y-0 left-0 w-2/5 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+            )}
+            <span className="relative flex items-center gap-2">
               {opening ? (
                 <>
-                  <span className="mini-spinner" />
+                  <span className="loading loading-spinner loading-xs" />
                   Açılıyor
                 </>
               ) : (
                 <>
-                  <span className="cta-icon">✦</span>
+                  <span>✦</span>
                   {dailyRemaining} Yeni Kelime Aç
                 </>
               )}
@@ -177,38 +190,61 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
         )}
 
         {/* Quiz Buttons */}
-        <div className="quiz-stack reveal" data-delay="3">
+        <div
+          className="animate-fade-up mb-4 flex flex-col gap-2.5"
+          style={{ animationDelay: "0.14s" }}
+        >
           <QuizButton
             icon="📖"
             label="Kelime Çalış"
             count={dueCount}
-            accentFrom="#6366f1"
-            accentTo="#a855f7"
+            gradient="from-indigo-500 to-purple-500"
+            shadow="shadow-indigo-500/40"
             onClick={() => onStartQuiz("word")}
           />
           <QuizButton
             icon="📝"
             label="Cümle Çalış"
             count={dueSentenceCount}
-            accentFrom="#3b82f6"
-            accentTo="#6366f1"
+            gradient="from-blue-500 to-indigo-500"
+            shadow="shadow-blue-500/40"
             onClick={() => onStartQuiz("sentence")}
           />
         </div>
 
         {/* Stat Tiles */}
-        <div className="stat-grid reveal" data-delay="4">
-          <StatTile icon="📊" value={`${Math.round(progress)}%`} label="Tamamlanma" />
-          <StatTile icon="⏳" value={remainingWords} label="Kalan Kelime" />
+        <div
+          className="animate-fade-up stats mb-4 w-full border border-base-300 bg-base-200 shadow"
+          style={{ animationDelay: "0.20s" }}
+        >
+          <div className="stat place-items-center py-3">
+            <div className="stat-figure text-xl opacity-80">📊</div>
+            <div className="stat-value font-display text-xl">
+              {Math.round(progress)}%
+            </div>
+            <div className="stat-desc">Tamamlanma</div>
+          </div>
+          <div className="stat place-items-center py-3">
+            <div className="stat-figure text-xl opacity-80">⏳</div>
+            <div className="stat-value font-display text-xl">{remainingWords}</div>
+            <div className="stat-desc">Kalan Kelime</div>
+          </div>
         </div>
 
         {/* Summary Bar */}
-        <div className="summary-bar reveal" data-delay="5">
-          <SummaryItem color="#10b981" label="Kelime" value={dueCount} />
-          <div className="summary-divider" />
-          <SummaryItem color="#3b82f6" label="Cümle" value={dueSentenceCount} />
-          <div className="summary-divider" />
-          <SummaryItem color="#a855f7" label="Toplam" value={dueCount + dueSentenceCount} />
+        <div
+          className="animate-fade-up flex items-center justify-around rounded-2xl border border-base-300 bg-base-200 px-3 py-3"
+          style={{ animationDelay: "0.26s" }}
+        >
+          <SummaryItem color="bg-success" label="Kelime" value={dueCount} />
+          <div className="divider divider-horizontal mx-0" />
+          <SummaryItem color="bg-info" label="Cümle" value={dueSentenceCount} />
+          <div className="divider divider-horizontal mx-0" />
+          <SummaryItem
+            color="bg-accent"
+            label="Toplam"
+            value={dueCount + dueSentenceCount}
+          />
         </div>
       </div>
     </div>
@@ -217,53 +253,40 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 
 // ============ ALT BİLEŞENLER ============
 
-function QuizButton({ icon, label, count, accentFrom, accentTo, onClick }) {
+function QuizButton({ icon, label, count, gradient, shadow, onClick }) {
   const active = count > 0;
-  
+
   return (
     <button
       onClick={onClick}
       disabled={!active}
-      className={`quiz-btn ${active ? 'active' : ''}`}
-      style={{
-        background: active
-          ? `linear-gradient(135deg, ${accentFrom}, ${accentTo})`
-          : "var(--quiz-btn-bg)",
-        color: active ? "#fff" : "var(--quiz-btn-disabled)",
-        cursor: active ? "pointer" : "not-allowed",
-        boxShadow: active ? `0 8px 24px -8px ${accentFrom}66` : "none",
-      }}
+      className={`btn btn-lg h-auto justify-between border-0 font-display text-[14.5px] ${
+        active
+          ? `bg-gradient-to-br ${gradient} text-white shadow-lg ${shadow} hover:brightness-110`
+          : "bg-base-300 text-base-content/35 hover:bg-base-300"
+      }`}
     >
-      <span className="quiz-left">
-        <span className="quiz-icon">{icon}</span>
+      <span className="flex items-center gap-2.5">
+        <span className="text-lg">{icon}</span>
         {label}
       </span>
-      <span className={`quiz-count ${active ? 'active' : ''}`}>
+      <span
+        className={`badge border-0 ${
+          active ? "bg-white/20 text-white" : "badge-ghost"
+        }`}
+      >
         {count}
       </span>
     </button>
   );
 }
 
-function StatTile({ icon, value, label }) {
-  return (
-    <div className="stat-tile">
-      <div className="stat-icon">{icon}</div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
-
 function SummaryItem({ color, label, value }) {
   return (
-    <div className="summary-item">
-      <span 
-        className="summary-dot" 
-        style={{ background: color, boxShadow: `0 0 8px ${color}` }}
-      />
-      <span className="summary-label">{label}</span>
-      <span className="summary-value">{value}</span>
+    <div className="flex items-center gap-1.5 text-xs">
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
+      <span className="text-base-content/55">{label}</span>
+      <span className="font-bold">{value}</span>
     </div>
   );
 }
