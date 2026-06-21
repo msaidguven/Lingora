@@ -534,16 +534,13 @@
   }
 
   .nav-btn {
-    padding: 7px 2px;
-    gap: 0;
+    padding: 7px 3px;
+    gap: 3px;
+    font-size: 10px;
   }
 
   .nav-btn i {
-    font-size: 16px;
-  }
-
-  .nav-btn span {
-    display: none;
+    font-size: 14px;
   }
 
   .menu-toggle-btn {
