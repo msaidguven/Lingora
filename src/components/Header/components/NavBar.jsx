@@ -17,13 +17,7 @@ export default function NavBar({ currentScreen, onNavigate, isActive, accent, qu
             className={`nav-btn ${active ? "nav-btn-active" : ""}`}
             aria-label={displayLabel}
             title={displayLabel}
-            style={{
-              background: active
-                ? `linear-gradient(135deg, ${accent.from}, ${accent.to})`
-                : "transparent",
-              color: active ? "#ffffff" : "var(--text-muted)",
-              boxShadow: active ? `0 4px 14px -4px ${accent.from}88` : "none",
-            }}
+            style={active ? { "--nav-accent": accent.from } : undefined}
           >
             <i className={`ti ${displayIcon}`} aria-hidden="true" />
             <span>{displayLabel}</span>

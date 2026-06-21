@@ -13,8 +13,6 @@ export default function Header(props) {
 
   return (
     <header className="header-wrapper" data-theme={vm.theme}>
-      <div className="header-glow" />
-
       <div className="header-bar">
         <NavBar
           currentScreen={vm.currentScreen}
