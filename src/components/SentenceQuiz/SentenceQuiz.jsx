@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import { useSentenceQuiz } from "../hooks/useSentenceQuiz.js";
-import { speak } from "../utils/speechUtils.js";
-import { updateDailyStats } from "../utils/dailyStats.js";
-import { useAuth } from '../contexts/AuthContext.jsx';
-import SpeakerIcon from "../components/common/SpeakerIcon.jsx";
-import ProgressBar from "../components/common/ProgressBar.jsx";
-import OptionButton from "../components/common/OptionButton.jsx";
+import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
+import { speak } from "../../utils/speechUtils.js";
+import { updateDailyStats } from "../../utils/dailyStats.js";
+import { useAuth } from '../../contexts/AuthContext.jsx';
+import SpeakerIcon from "../common/SpeakerIcon.jsx";
+import ProgressBar from "../common/ProgressBar.jsx";
+import OptionButton from "../common/OptionButton.jsx";
 import SentenceResult from "./SentenceResult.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
