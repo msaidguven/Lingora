@@ -251,9 +251,6 @@ function AppContent() {
         )}
       </main>
 
-      <button className="btn btn-primary">
-        DaisyUI çalışıyor 🎉
-      </button>
     </div>
   );
 }

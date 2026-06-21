@@ -168,13 +168,7 @@ function AdminPanel({ onBack, user }) {
           📚 Son Eklenen Dersler
         </div>
 
-        <div className="rating">
-  <input type="radio" name="rating-1" className="mask mask-star" aria-label="1 star" />
-  <input type="radio" name="rating-1" className="mask mask-star" aria-label="2 star" defaultChecked />
-  <input type="radio" name="rating-1" className="mask mask-star" aria-label="3 star" />
-  <input type="radio" name="rating-1" className="mask mask-star" aria-label="4 star" />
-  <input type="radio" name="rating-1" className="mask mask-star" aria-label="5 star" />
-</div>
+  
         {loadingRecent ? (
           <div style={{ fontSize: 12, color: colors.textSecondary }}>Yükleniyor...</div>
         ) : recentLessons.length > 0 ? (
