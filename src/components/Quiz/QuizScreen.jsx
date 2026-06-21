@@ -1,6 +1,6 @@
 // src/QuizScreen.jsx
-import QuizOptionButton from "./components/QuizOptionButton";
-import BackButton from "./components/BackButton";
+import QuizOptionButton from "./QuizOptionButton";
+import BackButton from "./BackButton";
 
 export default function QuizScreen({ onStartQuiz, onBack }) {
   return (
