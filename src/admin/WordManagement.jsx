@@ -41,7 +41,7 @@ Her kelime için:
 
 kelimenin diğer anlamlarını virgül ile ayır.
 bu verdiğim kelimeler A1 seviyesinde.
-Eğer hatalı verilmişse yada eksik verilmişse onları da ekle/düzenle.
+Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt. önce en çok kullanılan anlamını ver.
 örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
 
 [
