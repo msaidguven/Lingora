@@ -449,7 +449,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
     onSpeak={handleSpeak}
     isSaving={saving}
     isLastQuestion={queueIndex + 1 >= queue.length}
-    isDarkMode={isDarkMode}
+    isDarkMode={isDarkMode}  // Bunu ekle
   />
 )}
 

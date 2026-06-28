@@ -1,34 +1,5 @@
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 
-const THEMES = {
-  dark: {
-    resultBg: "#1a1a2e",
-    resultBorder: "#1e293b",
-    textPrimary: "#e2e8f0",
-    textSecondary: "#64748b",
-    textMuted: "#475569",
-    correctBg: "#10b98120",
-    wrongBg: "#ef444420",
-    buttonBg: "#1e293b",
-    buttonHover: "#2d3a4f",
-    tagBg: "#6366f122",
-    tagText: "#818cf8",
-  },
-  light: {
-    resultBg: "#ffffff",
-    resultBorder: "#e2e8f0",
-    textPrimary: "#0f172a",
-    textSecondary: "#475569",
-    textMuted: "#94a3b8",
-    correctBg: "#10b98115",
-    wrongBg: "#ef444415",
-    buttonBg: "#f1f5f9",
-    buttonHover: "#e2e8f0",
-    tagBg: "#6366f115",
-    tagText: "#6366f1",
-  }
-};
-
 export default function SentenceResult({ 
   isCorrect, 
   correctAnswer, 
@@ -40,14 +11,24 @@ export default function SentenceResult({
   isLastQuestion,
   isDarkMode = true
 }) {
-  const theme = THEMES[isDarkMode ? 'dark' : 'light'];
+  // Sadece tema renkleri
+  const colors = {
+    bg: isCorrect 
+      ? (isDarkMode ? "#0e2d1f" : "#ecfdf5") 
+      : (isDarkMode ? "#2d0e0e" : "#fef2f2"),
+    textSecondary: isDarkMode ? "#64748b" : "#475569",
+    tagBg: isDarkMode ? "#6366f122" : "#6366f115",
+    tagText: isDarkMode ? "#818cf8" : "#6366f1",
+    buttonBg: isDarkMode ? "#1e293b" : "#f1f5f9",
+    buttonHover: isDarkMode ? "#2d3a4f" : "#e2e8f0"
+  };
 
   return (
     <div style={{ 
       marginTop: 14, 
       padding: "14px 16px", 
       borderRadius: 14, 
-      background: isCorrect ? (isDarkMode ? "#0e2d1f" : "#ecfdf5") : (isDarkMode ? "#2d0e0e" : "#fef2f2"),
+      background: colors.bg, 
       border: `1px solid ${isCorrect ? "#10b981" : "#ef4444"}` 
     }}>
       <div style={{ 
@@ -61,7 +42,7 @@ export default function SentenceResult({
 
       {currentWord && (
         <div style={{ marginTop: 8, marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: theme.textSecondary }}>
+          <div style={{ fontSize: 11, color: colors.textSecondary }}>
             Kelime: <span style={{ color: "#6366f1", fontWeight: 600 }}>{currentWord.word}</span> — {currentWord.meaning}
           </div>
           {currentWord.part_of_speech && currentWord.part_of_speech.length > 0 && (
@@ -69,8 +50,8 @@ export default function SentenceResult({
               {currentWord.part_of_speech.map(p => (
                 <span key={p} style={{ 
                   fontSize: 9, 
-                  color: theme.tagText, 
-                  background: theme.tagBg, 
+                  color: colors.tagText, 
+                  background: colors.tagBg, 
                   padding: "1px 8px", 
                   borderRadius: 4, 
                   fontWeight: 600 
@@ -88,7 +69,7 @@ export default function SentenceResult({
           onClick={() => onSpeak(currentWord.word)} 
           style={{ 
             border: "none", 
-            color: theme.textSecondary, 
+            color: colors.textSecondary, 
             cursor: "pointer", 
             fontSize: 11, 
             display: "inline-flex", 
@@ -96,15 +77,8 @@ export default function SentenceResult({
             gap: 4, 
             padding: "4px 8px",
             borderRadius: 6,
-            background: theme.buttonBg,
-            marginBottom: 12,
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = theme.buttonHover;
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = theme.buttonBg;
+            background: colors.buttonBg,
+            marginBottom: 12
           }}
         >
           <SpeakerIcon /> {currentWord.word} telaffuzunu dinle
@@ -123,18 +97,7 @@ export default function SentenceResult({
           color: "#fff", 
           fontWeight: 600, 
           fontSize: 14, 
-          cursor: isSaving ? "not-allowed" : "pointer",
-          transition: "all 0.2s"
-        }}
-        onMouseEnter={(e) => {
-          if (!isSaving) {
-            e.target.style.background = "#4f46e5";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSaving) {
-            e.target.style.background = "#6366f1";
-          }
+          cursor: isSaving ? "not-allowed" : "pointer" 
         }}
       >
         {isSaving ? "Kaydediliyor..." : isLastQuestion ? "🏁 Bitir" : "Sonraki →"}
