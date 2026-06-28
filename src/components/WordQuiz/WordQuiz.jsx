@@ -17,6 +17,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
+  const hasSpokenRef = useRef(false);
 
   const isAdmin = user?.role === 'admin';
 
@@ -48,6 +49,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   const levelColor = LEVEL_COLOR[userLevel];
 
+  // Auto-speak when new question loads
+  useEffect(() => {
+    if (currentQuestion && !answered && !speaking) {
+      hasSpokenRef.current = false;
+    }
+  }, [currentQuestion, answered]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -62,8 +70,20 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
+  // Auto-speak when question loads
+  useEffect(() => {
+    if (currentQuestion && !answered && !hasSpokenRef.current && !speaking) {
+      hasSpokenRef.current = true;
+      setSpeaking(true);
+      speak(currentQuestion.word);
+      setTimeout(() => {
+        setSpeaking(false);
+      }, 1800);
+    }
+  }, [currentQuestion, answered]);
+
   const handleCardClick = () => {
-    if (currentQuestion && !answered) {
+    if (currentQuestion && !answered && !speaking) {
       setSpeaking(true);
       speak(currentQuestion.word);
       setTimeout(() => {
@@ -95,6 +115,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     if (nextQuestion === null) {
       setIsFinished(true);
     }
+    hasSpokenRef.current = false;
   };
 
   const handleRestart = () => {
@@ -103,6 +124,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setShowFeedbackModal(false);
     setSelectedWordForExample(null);
     setSelectedWordForFeedback(null);
+    hasSpokenRef.current = false;
     restartQuizSession();
   };
 
@@ -299,23 +321,33 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         Türkçe anlamı nedir?
       </div>
 
-      {/* Options */}
+      {/* Options - Simple buttons without letters and checkmarks */}
       <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => {
           const isCorrect = opt === correctAnswer;
           const isSelected = opt === selected;
+          
+          // Determine button style based on state
+          let buttonStyle = "bg-base-100 border-base-200 hover:border-primary/30 text-base-content";
+          if (answered && isCorrect) {
+            buttonStyle = "bg-success/10 border-success/40 text-success";
+          } else if (answered && isSelected && !isCorrect) {
+            buttonStyle = "bg-error/10 border-error/40 text-error";
+          } else if (isSelected && !answered) {
+            buttonStyle = "bg-primary/10 border-primary/40 text-primary";
+          }
+
           return (
-            <OptionButton
+            <button
               key={i}
-              index={i}
-              label={opt}
-              isAnswered={answered}
-              isCorrect={isCorrect}
-              isSelected={isSelected}
               onClick={() => onSelect(opt)}
               disabled={answered || saving}
-              isDark={isDark}
-            />
+              className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
+                !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+              }`}
+            >
+              {opt}
+            </button>
           );
         })}
       </div>
