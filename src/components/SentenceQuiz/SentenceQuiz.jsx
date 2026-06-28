@@ -440,19 +440,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
       {/* Result */}
       {answered && (
-        <SentenceResult
-          isCorrect={isCorrect}
-          correctAnswer={correctAnswer}
-          selectedAnswer={selected}
-          currentWord={currentWord}
-          onNext={onNext}
-          onSpeak={handleSpeak}
-          isSaving={saving}
-          isLastQuestion={queueIndex + 1 >= queue.length}
-          isDarkMode={isDarkMode}
-          levelColor={levelColor}
-        />
-      )}
+  <SentenceResult
+    isCorrect={isCorrect}
+    correctAnswer={correctAnswer}
+    selectedAnswer={selected}
+    currentWord={currentWord}
+    onNext={onNext}
+    onSpeak={handleSpeak}
+    isSaving={saving}
+    isLastQuestion={queueIndex + 1 >= queue.length}
+    isDarkMode={isDarkMode}
+  />
+)}
 
       {/* Bottom Info */}
       {!answered && !saving && (
