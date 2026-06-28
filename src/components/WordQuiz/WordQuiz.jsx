@@ -18,9 +18,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
 
-const isAdmin = user?.role === 'admin'; // Artık çalışacak!
+  const isAdmin = user?.role === 'admin'; // Artık çalışacak!
  
- console.log('🔍 WordQuiz - User:', user);
+  console.log('🔍 WordQuiz - User:', user);
   console.log('🔍 WordQuiz - isAdmin:', isAdmin);
 
 
