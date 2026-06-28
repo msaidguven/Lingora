@@ -6,7 +6,6 @@ import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useTheme } from "../../contexts/ThemeContext.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
-import OptionButton from "../common/OptionButton.jsx";
 import SentenceResult from "./SentenceResult.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
@@ -18,6 +17,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
+  const hasSpokenRef = useRef(false);
 
   const {
     loading, error,
@@ -32,12 +32,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
 
-  useEffect(() => { setIsFinished(false); }, [userLevel]);
+  useEffect(() => { 
+    setIsFinished(false);
+    hasSpokenRef.current = false;
+  }, [userLevel]);
 
+  // Auto-speak when new question loads
   useEffect(() => {
-    if (currentQuestion && !answered && !saving) {
-      const t = setTimeout(() => speak(currentQuestion.sentence_en), 100);
-      return () => clearTimeout(t);
+    if (currentQuestion && !answered && !saving && !hasSpokenRef.current && !speaking) {
+      hasSpokenRef.current = true;
+      setSpeaking(true);
+      speak(currentQuestion.sentence_en);
+      setTimeout(() => setSpeaking(false), 1800);
     }
   }, [currentQuestion, answered, saving]);
 
@@ -62,11 +68,15 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   };
 
   const onNext = () => {
-    if (handleNext() === null) setIsFinished(true);
+    if (handleNext() === null) {
+      setIsFinished(true);
+    }
+    hasSpokenRef.current = false;
   };
 
   const handleRestart = () => {
     setIsFinished(false);
+    hasSpokenRef.current = false;
     restartQuizSession();
   };
 
@@ -280,20 +290,35 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </span>
       </div>
 
-      {/* Options - SADECE KARTLAR, HİÇ METİN YOK */}
+      {/* Options - Sadece kartlar, harf veya işaret yok */}
       <div className="flex flex-col gap-3">
-        {options.map((opt, i) => (
-          <OptionButton
-            key={i}
-            label={opt}  // ← METİN BURADA
-            isAnswered={answered}
-            isCorrect={opt === correctAnswer}
-            isSelected={opt === selected}
-            onClick={() => onSelect(opt)}
-            disabled={answered || saving}
-            isDark={isDarkMode}
-          />
-        ))}
+        {options.map((opt, i) => {
+          const isCorrectOpt = opt === correctAnswer;
+          const isSelectedOpt = opt === selected;
+          
+          // Buton stilini belirle
+          let buttonStyle = "bg-base-200 border-base-300 hover:border-primary/30 text-base-content";
+          if (answered && isCorrectOpt) {
+            buttonStyle = "bg-success/10 border-success/40 text-success";
+          } else if (answered && isSelectedOpt && !isCorrectOpt) {
+            buttonStyle = "bg-error/10 border-error/40 text-error";
+          } else if (isSelectedOpt && !answered) {
+            buttonStyle = "bg-primary/10 border-primary/40 text-primary";
+          }
+
+          return (
+            <button
+              key={i}
+              onClick={() => onSelect(opt)}
+              disabled={answered || saving}
+              className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
+                !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
       </div>
 
       {/* Result */}
