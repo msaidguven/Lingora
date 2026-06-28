@@ -10,17 +10,64 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ============ KULLANICI ROLÜNÜ GETİR ============
+  const fetchUserRole = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("en_users")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ Rol çekme hatası:", error);
+        return null;
+      }
+      return data?.role || 'user';
+    } catch (error) {
+      console.error("❌ Rol hatası:", error);
+      return null;
+    }
+  };
+
+  // ============ USER'ı ROLE İLE ZENGİNLEŞTİR ============
+  const enrichUserWithRole = async (authUser) => {
+    if (!authUser) return null;
+    
+    const role = await fetchUserRole(authUser.id);
+    return {
+      ...authUser,
+      role: role || 'user'
+    };
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      
+      // User'ı role ile zenginleştir
+      if (session?.user) {
+        const enrichedUser = await enrichUserWithRole(session.user);
+        setUser(enrichedUser);
+      } else {
+        setUser(null);
+      }
+      
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        
+        // User'ı role ile zenginleştir
+        if (session?.user) {
+          const enrichedUser = await enrichUserWithRole(session.user);
+          setUser(enrichedUser);
+        } else {
+          setUser(null);
+        }
+        
         setLoading(false);
       }
     );
@@ -37,6 +84,14 @@ export const AuthProvider = ({ children }) => {
         password,
       });
       if (error) throw error;
+      
+      // User'ı role ile zenginleştir
+      if (data?.user) {
+        const enrichedUser = await enrichUserWithRole(data.user);
+        setUser(enrichedUser);
+        data.user = enrichedUser;
+      }
+      
       return { success: true, data };
     } catch (error) {
       setError(error.message);
@@ -51,7 +106,6 @@ export const AuthProvider = ({ children }) => {
       
       console.log("📝 Kayıt başlatılıyor...", { email, fullName });
       
-      // 1. Supabase'de kullanıcı oluştur
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -67,7 +121,7 @@ export const AuthProvider = ({ children }) => {
       console.log("👤 Kullanıcı oluşturuldu:", data.user?.id);
       
       if (data.user) {
-        // 2. en_users'a ekle - 23505 hatasını yoksay
+        // en_users'a ekle - role varsayılan 'user'
         const { error: insertError } = await supabase
           .from("en_users")
           .upsert([{ 
@@ -75,6 +129,7 @@ export const AuthProvider = ({ children }) => {
             email: data.user.email,
             level: "A1",
             username: fullName || data.user.email?.split('@')[0] || 'Öğrenci',
+            role: 'user', // Varsayılan rol
             streak_days: 0,
             created_at: new Date().toISOString()
           }], { 
@@ -82,17 +137,16 @@ export const AuthProvider = ({ children }) => {
             ignoreDuplicates: true 
           });
         
-        // 23505 = Unique violation (kullanıcı zaten var) - yoksay
         if (insertError && insertError.code !== '23505') {
           console.error("❌ en_users'a ekleme hatası:", insertError);
         } else {
           console.log("✅ Kullanıcı en_users tablosuna eklendi!");
         }
 
-        // 3. Günlük limit oluştur
+        // Günlük limit oluştur
         console.log("📝 Günlük limit oluşturuluyor...");
         
-        const { data: dailyData, error: dailyError } = await supabase
+        const { error: dailyError } = await supabase
           .from("en_user_daily_limit")
           .upsert([{
             user_id: data.user.id,
@@ -102,16 +156,20 @@ export const AuthProvider = ({ children }) => {
           }], { 
             onConflict: 'user_id',
             ignoreDuplicates: true 
-          })
-          .select();
+          });
         
         if (dailyError) {
           console.error("❌ Günlük limit oluşturma hatası:", dailyError);
         } else {
-          console.log("✅ Günlük limit oluşturuldu!", dailyData);
+          console.log("✅ Günlük limit oluşturuldu!");
         }
 
-        // 4. Otomatik giriş dene
+        // User'ı role ile zenginleştir
+        const enrichedUser = await enrichUserWithRole(data.user);
+        setUser(enrichedUser);
+        data.user = enrichedUser;
+
+        // Otomatik giriş dene
         try {
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email,
@@ -138,6 +196,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      setUser(null);
+      setSession(null);
       return { success: true };
     } catch (error) {
       setError(error.message);
