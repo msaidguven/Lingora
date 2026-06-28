@@ -18,11 +18,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
 
-  const isAdmin = user?.role === 'admin'; // Artık çalışacak!
- 
-  console.log('🔍 WordQuiz - User:', user);
-  console.log('🔍 WordQuiz - isAdmin:', isAdmin);
-
+  const isAdmin = user?.role === 'admin';
 
   const {
     loading,
@@ -51,9 +47,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const menuRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
-  // BURADAKİ isAdmin TANIMINI SİL - yukarıda zaten var
 
-  // Click outside menu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -68,7 +62,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
-  // Word card click to speak
   const handleCardClick = () => {
     if (currentQuestion && !answered) {
       setSpeaking(true);
@@ -115,49 +108,34 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center font-sans transition-colors duration-300 ${
-        isDark ? 'bg-slate-950' : 'bg-slate-50'
-      }`}>
-        <div className={`text-sm font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-          Yükleniyor...
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-base-100">
+        <div className="text-base-content/50">Yükleniyor...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 transition-colors duration-300 ${
-        isDark ? 'bg-slate-950' : 'bg-slate-50'
-      }`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 bg-base-100">
         <div className="text-4xl">⚠️</div>
-        <div className={`text-sm text-center ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>
-          {error}
-        </div>
-        <button 
-          onClick={onChangeLevel} 
-          className="btn btn-primary"
-        >
-          Geri Dön
-        </button>
+        <div className="text-error text-sm text-center">{error}</div>
+        <button onClick={onChangeLevel} className="btn btn-primary">Geri Dön</button>
       </div>
     );
   }
 
   if (isFinished) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center transition-colors duration-300 ${
-        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-      }`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
         <div className="text-5xl">🎉</div>
-        <div className="text-xl font-extrabold">Tebrikler, bitirdiniz!</div>
-        <div className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+        <h2 className="text-xl font-extrabold text-base-content">Tebrikler, bitirdiniz!</h2>
+        <p className="text-sm text-base-content/50">
           Bu oturumda {queue.length} kelime çalıştınız.
-        </div>
+        </p>
         <button onClick={handleRestart} className="btn btn-primary mt-4">
           20 Kelime Daha Çalış
         </button>
-        <button onClick={onChangeLevel} className="btn btn-ghost">
+        <button onClick={onChangeLevel} className="btn btn-ghost text-base-content/50">
           Ana Sayfaya Dön
         </button>
       </div>
@@ -166,14 +144,12 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   if (!currentQuestion || queue.length === 0) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center transition-colors duration-300 ${
-        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-      }`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
         <div className="text-5xl">🎉</div>
-        <div className="text-lg font-bold">Tekrarlanacak kelime yok!</div>
-        <div className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+        <h3 className="text-lg font-bold text-base-content">Tekrarlanacak kelime yok!</h3>
+        <p className="text-sm text-base-content/50">
           Ana sayfadan yeni kelime ekleyebilirsin.
-        </div>
+        </p>
         <button onClick={onChangeLevel} className="btn btn-primary mt-4">
           Ana Sayfaya Dön
         </button>
@@ -184,14 +160,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const correctAnswer = currentQuestion.meaning;
 
   return (
-    <div className={`min-h-screen font-sans max-w-md mx-auto p-5 transition-colors duration-300 ${
-      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-    }`}>
+    <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto p-5">
       {/* Progress */}
       <div className="flex justify-between text-[11px] mb-1.5">
-        <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>
-          {queueIndex + 1} / {queue.length}
-        </span>
+        <span className="text-base-content/50">{queueIndex + 1} / {queue.length}</span>
         <span style={{ color: levelColor }} className="font-bold">
           {options.length} şık
         </span>
@@ -201,11 +173,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
       {/* Word Card */}
       <div 
-        className={`relative rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-          isDark 
-            ? 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50' 
-            : 'bg-gradient-to-br from-slate-100/80 to-white border border-slate-200'
-        } ${answered ? 'opacity-75 cursor-default' : 'hover:shadow-xl'}`}
+        className={`relative rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] bg-base-200 border border-base-300 hover:border-base-400 ${answered ? 'opacity-75 cursor-default' : 'hover:shadow-xl'}`}
         onClick={handleCardClick}
         style={{ marginBottom: 18 }}
       >
@@ -228,27 +196,19 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         )}
 
         {/* Word */}
-        <div className={`text-3xl font-extrabold tracking-tight mb-2 leading-tight ${
-          isDark ? 'text-slate-100' : 'text-slate-900'
-        }`}>
+        <div className="text-3xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
           {currentQuestion.word}
         </div>
 
         {/* Speaking indicator */}
         {speaking && (
-          <div className={`text-[11px] font-medium ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>
-            🔊 Dinleniyor...
-          </div>
+          <div className="text-[11px] font-medium text-primary">🔊 Dinleniyor...</div>
         )}
 
         {/* Menu Button - 3 dots */}
         <div className="absolute top-3 right-3" ref={menuRef}>
           <button
-            className={`p-1.5 rounded-lg transition-colors ${
-              isDark 
-                ? 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-200' 
-                : 'hover:bg-slate-200/50 text-slate-500 hover:text-slate-700'
-            }`}
+            className={`p-1.5 rounded-lg transition-colors text-base-content/50 hover:text-base-content hover:bg-base-300/50`}
             onClick={(e) => {
               e.stopPropagation();
               setMenuOpen(!menuOpen);
@@ -262,18 +222,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
           {/* Dropdown Menu */}
           {menuOpen && (
-            <div className={`absolute right-0 top-full mt-1 w-48 rounded-xl shadow-2xl border p-1 z-50 ${
-              isDark 
-                ? 'bg-slate-800 border-slate-700/50' 
-                : 'bg-white border-slate-200'
-            }`}>
+            <div className={`absolute right-0 top-full mt-1 w-48 rounded-xl shadow-2xl border p-1 z-50 bg-base-200 border-base-300`}>
               {/* Feedback Button - Everyone can see */}
               <button
-                className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isDark 
-                    ? 'hover:bg-slate-700 text-slate-200' 
-                    : 'hover:bg-slate-100 text-slate-700'
-                }`}
+                className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-base-300 text-base-content`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedWordForFeedback(currentQuestion);
@@ -288,11 +240,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               {/* Add Example Button - Admin only */}
               {isAdmin && (
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isDark 
-                      ? 'hover:bg-slate-700 text-slate-200' 
-                      : 'hover:bg-slate-100 text-slate-700'
-                  }`}
+                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-base-300 text-base-content`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedWordForExample(currentQuestion);
@@ -306,10 +254,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               )}
 
               {/* Divider */}
-              <div className={`my-1 h-px ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+              <div className={`my-1 h-px bg-base-300`} />
 
               {/* Word info */}
-              <div className={`px-3 py-1.5 text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+              <div className={`px-3 py-1.5 text-[10px] text-base-content/40`}>
                 ID: {currentQuestion.id?.slice(0, 8)}
               </div>
             </div>
@@ -318,7 +266,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       </div>
 
       {/* Question */}
-      <div className={`text-xs font-semibold mb-2.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+      <div className="text-xs font-semibold mb-2.5 text-base-content/50">
         Türkçe anlamı nedir?
       </div>
 
@@ -347,18 +295,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       {answered && (
         <div className={`mt-3.5 p-3.5 rounded-xl border transition-colors duration-300 ${
           selected === correctAnswer
-            ? isDark 
-              ? 'bg-emerald-950/30 border-emerald-500/30' 
-              : 'bg-emerald-50 border-emerald-200'
-            : isDark
-              ? 'bg-rose-950/30 border-rose-500/30'
-              : 'bg-rose-50 border-rose-200'
+            ? 'bg-success/20 border-success text-success'
+            : 'bg-error/20 border-error text-error'
         }`}>
-          <div className={`font-bold text-sm mb-3 ${
-            selected === correctAnswer
-              ? isDark ? 'text-emerald-400' : 'text-emerald-600'
-              : isDark ? 'text-rose-400' : 'text-rose-600'
-          }`}>
+          <div className="font-bold text-sm mb-3">
             {selected === correctAnswer ? "✓ Doğru!" : `✗ Doğru cevap: "${correctAnswer}"`}
           </div>
           

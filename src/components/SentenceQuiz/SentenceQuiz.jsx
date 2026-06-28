@@ -1,3 +1,4 @@
+// pages/SentenceQuiz.jsx
 import { useEffect, useState, useRef } from "react";
 import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
@@ -89,15 +90,15 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-[#0f0f1a]' : 'bg-[#f1f5f9]'}`}>
-        <div className={isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}>Yükleniyor...</div>
+      <div className="min-h-screen flex items-center justify-center bg-base-100">
+        <div className="text-base-content/50">Yükleniyor...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 ${isDarkMode ? 'bg-[#0f0f1a]' : 'bg-[#f1f5f9]'}`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 bg-base-100">
         <div className="text-4xl">⚠️</div>
         <div className="text-error text-sm text-center">{error}</div>
         <button onClick={onChangeLevel} className="btn btn-primary">Geri Dön</button>
@@ -107,16 +108,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
   if (isFinished) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-6 p-6 text-center ${isDarkMode ? 'bg-[#0f0f1a]' : 'bg-[#f1f5f9]'}`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-6 text-center bg-base-100">
         <div className="text-7xl">🎉</div>
-        <div className={`text-2xl font-extrabold ${isDarkMode ? 'text-[#e2e8f0]' : 'text-[#0f172a]'}`}>
-          Tebrikler, bitirdiniz!
-        </div>
-        <div className={`text-sm ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
+        <h2 className="text-2xl font-extrabold text-base-content">Tebrikler, bitirdiniz!</h2>
+        <p className="text-sm text-base-content/50">
           Bu oturumda {queue.length} cümle çalıştınız.
-        </div>
-        <div className={`card border px-6 py-4 shadow-lg ${isDarkMode ? 'bg-[#1a1a2e] border-[#1e293b]' : 'bg-white border-[#e2e8f0]'}`}>
-          <div className={`text-sm ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
+        </p>
+        <div className="card border border-base-300 bg-base-200 px-6 py-4 shadow-lg">
+          <div className="text-sm text-base-content/50">
             Seviye: <span style={{ color: levelColor }} className="font-bold">{userLevel} - {levelLabel}</span>
           </div>
         </div>
@@ -130,7 +129,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
         >
           20 Cümle Daha Çalış
         </button>
-        <button onClick={onChangeLevel} className={`btn btn-ghost ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
+        <button onClick={onChangeLevel} className="btn btn-ghost text-base-content/50">
           Ana Sayfaya Dön
         </button>
       </div>
@@ -139,14 +138,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
   if (!currentQuestion || queue.length === 0) {
     return (
-      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center ${isDarkMode ? 'bg-[#0f0f1a]' : 'bg-[#f1f5f9]'}`}>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
         <div className="text-6xl">📝</div>
-        <div className={`text-lg font-bold ${isDarkMode ? 'text-[#e2e8f0]' : 'text-[#0f172a]'}`}>
-          Tekrarlanacak cümle yok!
-        </div>
-        <div className={`text-sm ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
+        <h3 className="text-lg font-bold text-base-content">Tekrarlanacak cümle yok!</h3>
+        <p className="text-sm text-base-content/50">
           Ana sayfadan yeni cümle ekleyebilirsin.
-        </div>
+        </p>
         <button onClick={onChangeLevel} className="btn btn-primary mt-4">Ana Sayfaya Dön</button>
       </div>
     );
@@ -157,34 +154,32 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
   const isCorrect = selected === correctAnswer;
 
   return (
-    <div className={`min-h-screen font-sans max-w-md mx-auto px-5 py-6 ${isDarkMode ? 'bg-[#0f0f1a]' : 'bg-[#f1f5f9]'}`}>
+    <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto px-5 py-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <button 
             onClick={onChangeLevel}
-            className={`btn btn-ghost btn-sm btn-square ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}
+            className="btn btn-ghost btn-sm btn-square text-base-content/50"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className={`text-sm font-semibold ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
-            Cümle Quiz
-          </span>
+          <span className="text-sm font-semibold text-base-content/50">Cümle Quiz</span>
         </div>
         <div className="flex items-center gap-3">
           <div 
             className="badge badge-sm px-3 py-2 font-bold border"
             style={{ 
               color: levelColor,
-              backgroundColor: isDarkMode ? `${levelColor}20` : `${levelColor}15`,
+              backgroundColor: `${levelColor}15`,
               borderColor: `${levelColor}40`
             }}
           >
             {userLevel}
           </div>
-          <span className={`text-xs font-medium ${isDarkMode ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
+          <span className="text-xs font-medium text-base-content/30">
             {queueIndex + 1} / {queue.length}
           </span>
         </div>
@@ -198,20 +193,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       {/* Question Card */}
       <div 
         onClick={() => handleSpeak(currentQuestion.sentence_en)}
-        className={`card rounded-2xl p-8 text-center mb-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border ${
-          isDarkMode 
-            ? 'bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border-[#1e293b] hover:border-[#334155]' 
-            : 'bg-gradient-to-br from-white to-[#f8fafc] border-[#e2e8f0] hover:border-[#cbd5e1]'
-        } ${speaking ? 'ring-2 ring-offset-2' : ''}`}
+        className={`card rounded-2xl p-8 text-center mb-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border bg-base-200 border-base-300 hover:border-base-400 ${speaking ? 'ring-2 ring-offset-2' : ''}`}
         style={speaking ? { ringColor: levelColor } : {}}
       >
-        <div className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-xs ${
-          isDarkMode ? 'text-[#475569]' : 'text-[#94a3b8]'
-        }`}>
+        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-base-content/30">
           🔊 tıkla
         </div>
         <div className={`text-xl font-medium leading-relaxed transition-colors duration-300 ${
-          speaking ? 'text-primary' : isDarkMode ? 'text-[#e2e8f0]' : 'text-[#0f172a]'
+          speaking ? 'text-primary' : 'text-base-content'
         }`}>
           "{currentQuestion.sentence_en}"
         </div>
@@ -225,7 +214,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       </div>
 
       {/* Question Label */}
-      <div className={`flex items-center gap-2 text-sm font-medium mb-4 ${isDarkMode ? 'text-[#64748b]' : 'text-[#475569]'}`}>
+      <div className="flex items-center gap-2 text-sm font-medium text-base-content/50 mb-4">
         <span className="w-1 h-4 rounded-full" style={{ backgroundColor: levelColor }} />
         Bu cümlenin Türkçesi nedir?
       </div>
@@ -271,7 +260,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       {/* Bottom Info */}
       {!answered && !saving && (
         <div className="mt-8 text-center">
-          <span className={`text-xs tracking-wider ${isDarkMode ? 'text-[#475569]' : 'text-[#94a3b8]'}`}>
+          <span className="text-xs tracking-wider text-base-content/20">
             DOĞRU ŞIKKI SEÇ VE DEVAM ET
           </span>
         </div>

@@ -19,16 +19,16 @@ export default function OptionButton({
         disabled={disabled} 
         className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
           ${isDark 
-            ? 'bg-[#1e293b] border-[#334155] text-[#e2e8f0] hover:bg-[#2d3a4f] hover:border-[#475569]' 
-            : 'bg-white border-[#e2e8f0] text-[#0f172a] hover:bg-[#f8fafc] hover:border-[#cbd5e1]'
+            ? 'border-base-700 bg-base-800 text-base-100 hover:bg-base-700 hover:border-base-600' 
+            : 'border-base-300 bg-base-100 text-base-content hover:bg-base-200 hover:border-base-400'
           }
           ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-[1.01]'}
         `}
       >
         <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
           ${isDark 
-            ? 'bg-[#334155] text-[#94a3b8]' 
-            : 'bg-[#f1f5f9] text-[#64748b]'
+            ? 'bg-base-700 text-base-400' 
+            : 'bg-base-200 text-base-500'
           }
         `}>
           {letter}
@@ -41,7 +41,7 @@ export default function OptionButton({
   if (isCorrect && isSelected) {
     return (
       <button className="w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all duration-200 font-medium text-sm bg-success/20 border-success text-success shadow-lg shadow-success/20 cursor-pointer">
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-success text-white">✓</span>
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-success text-success-content">✓</span>
         <span className="flex-1">{label}</span>
         <span className="text-xs font-bold">✅</span>
       </button>
@@ -51,7 +51,7 @@ export default function OptionButton({
   if (isSelected && !isCorrect) {
     return (
       <button className="w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all duration-200 font-medium text-sm bg-error/20 border-error text-error shadow-lg shadow-error/20 cursor-pointer">
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-error text-white">✗</span>
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-error text-error-content">✗</span>
         <span className="flex-1">{label}</span>
         <span className="text-xs font-bold">❌</span>
       </button>
@@ -62,7 +62,7 @@ export default function OptionButton({
     return (
       <button className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
         ${isDark 
-          ? 'bg-[#0a1f1a] border-success/30 text-success' 
+          ? 'bg-success/10 border-success/30 text-success' 
           : 'bg-success/5 border-success/30 text-success'
         } cursor-pointer opacity-70`}
       >
@@ -79,12 +79,12 @@ export default function OptionButton({
   return (
     <button className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
       ${isDark 
-        ? 'bg-[#1a1a2e] border-[#1e293b] text-[#475569]' 
-        : 'bg-[#f8fafc] border-[#e2e8f0] text-[#94a3b8]'
+        ? 'bg-base-800 border-base-700 text-base-500' 
+        : 'bg-base-100 border-base-300 text-base-400'
       } cursor-pointer opacity-50`}
     >
       <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
-        ${isDark ? 'bg-[#1e293b] text-[#475569]' : 'bg-[#f1f5f9] text-[#94a3b8]'}`}>
+        ${isDark ? 'bg-base-700 text-base-500' : 'bg-base-200 text-base-400'}`}>
         {letter}
       </span>
       <span className="flex-1">{label}</span>
