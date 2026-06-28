@@ -307,7 +307,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
           return (
             <OptionButton
               key={i}
-              index={i}
+              //index={i}
               label={opt}
               isAnswered={answered}
               isCorrect={isCorrect}

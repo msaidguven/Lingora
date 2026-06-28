@@ -286,7 +286,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         {options.map((opt, i) => (
           <OptionButton
             key={i}
-            index={i}
+            //index={i}
             label={opt}
             isAnswered={answered}
             isCorrect={opt === correctAnswer}
