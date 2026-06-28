@@ -91,60 +91,81 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
-        <div className="text-base-content/50">Yükleniyor...</div>
+        <div className="text-base-content/50 font-medium tracking-wider">Yükleniyor...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 bg-base-100">
-        <div className="text-4xl">⚠️</div>
-        <div className="text-error text-sm text-center">{error}</div>
-        <button onClick={onChangeLevel} className="btn btn-primary">Geri Dön</button>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-6 bg-base-100">
+        <div className="text-5xl">⚠️</div>
+        <div className="text-error text-sm text-center font-medium">{error}</div>
+        <button onClick={onChangeLevel} className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
+          Geri Dön
+        </button>
       </div>
     );
   }
 
   if (isFinished) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-6 text-center bg-base-100">
-        <div className="text-7xl">🎉</div>
-        <h2 className="text-2xl font-extrabold text-base-content">Tebrikler, bitirdiniz!</h2>
-        <p className="text-sm text-base-content/50">
-          Bu oturumda {queue.length} cümle çalıştınız.
-        </p>
-        <div className="card border border-base-300 bg-base-200 px-6 py-4 shadow-lg">
-          <div className="text-sm text-base-content/50">
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-8 text-center bg-gradient-to-b from-base-100 to-base-200">
+        <div className="relative">
+          <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
+          <div className="relative text-6xl">🎉</div>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Tebrikler!
+          </h2>
+          <p className="text-base-content/60 text-sm font-medium">
+            Bu oturumda {queue.length} cümle çalıştınız.
+          </p>
+        </div>
+        <div className="card border border-base-200/50 bg-base-100/50 backdrop-blur-sm px-6 py-4 shadow-lg">
+          <div className="text-sm text-base-content/50 font-medium">
             Seviye: <span style={{ color: levelColor }} className="font-bold">{userLevel} - {levelLabel}</span>
           </div>
         </div>
-        <button 
-          onClick={handleRestart} 
-          className="btn text-white font-bold px-8 py-3 text-base shadow-lg hover:shadow-xl transition-all hover:scale-105"
-          style={{ 
-            backgroundColor: levelColor,
-            boxShadow: `0 4px 20px ${levelColor}50`
-          }}
-        >
-          20 Cümle Daha Çalış
-        </button>
-        <button onClick={onChangeLevel} className="btn btn-ghost text-base-content/50">
-          Ana Sayfaya Dön
-        </button>
+        <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
+          <button 
+            onClick={handleRestart} 
+            className="btn text-white font-bold px-8 py-3 text-base rounded-full shadow-lg transition-all hover:scale-105"
+            style={{ 
+              backgroundColor: levelColor,
+              boxShadow: `0 4px 24px ${levelColor}50`
+            }}
+          >
+            20 Cümle Daha Çalış
+          </button>
+          <button 
+            onClick={onChangeLevel} 
+            className="btn btn-ghost rounded-full text-base-content/50 hover:text-base-content transition-all"
+          >
+            Ana Sayfaya Dön
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!currentQuestion || queue.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-8 text-center bg-base-100">
         <div className="text-6xl">📝</div>
-        <h3 className="text-lg font-bold text-base-content">Tekrarlanacak cümle yok!</h3>
-        <p className="text-sm text-base-content/50">
-          Ana sayfadan yeni cümle ekleyebilirsin.
-        </p>
-        <button onClick={onChangeLevel} className="btn btn-primary mt-4">Ana Sayfaya Dön</button>
+        <div className="space-y-2">
+          <h3 className="text-xl font-bold text-base-content">Tekrarlanacak cümle yok!</h3>
+          <p className="text-sm text-base-content/50 font-medium">
+            Ana sayfadan yeni cümle ekleyebilirsin.
+          </p>
+        </div>
+        <button 
+          onClick={onChangeLevel} 
+          className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+        >
+          Ana Sayfaya Dön
+        </button>
       </div>
     );
   }
@@ -154,50 +175,50 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
   const isCorrect = selected === correctAnswer;
 
   return (
-    <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto px-5 py-6">
+    <div className="min-h-screen bg-gradient-to-b from-base-100 to-base-200/50 text-base-content font-sans max-w-md mx-auto px-5 py-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <button 
             onClick={onChangeLevel}
-            className="btn btn-ghost btn-sm btn-square text-base-content/50"
+            className="btn btn-ghost btn-sm btn-square rounded-xl text-base-content/40 hover:text-base-content hover:bg-base-200/50 transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-base-content/50">Cümle Quiz</span>
+          <span className="text-sm font-semibold text-base-content/40 tracking-wide">Cümle Quiz</span>
         </div>
         <div className="flex items-center gap-3">
           <div 
-            className="badge badge-sm px-3 py-2 font-bold border"
+            className="badge badge-sm px-3 py-2 font-bold border-2 rounded-full"
             style={{ 
               color: levelColor,
-              backgroundColor: `${levelColor}15`,
-              borderColor: `${levelColor}40`
+              backgroundColor: `${levelColor}12`,
+              borderColor: `${levelColor}30`
             }}
           >
             {userLevel}
           </div>
-          <span className="text-xs font-medium text-base-content/30">
+          <span className="text-xs font-medium text-base-content/30 tabular-nums">
             {queueIndex + 1} / {queue.length}
           </span>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-6">
+      <div className="mb-5">
         <ProgressBar current={queueIndex} total={queue.length} color={levelColor} />
       </div>
 
       {/* Question Card */}
       <div 
         onClick={() => handleSpeak(currentQuestion.sentence_en)}
-        className={`card rounded-2xl p-8 text-center mb-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border bg-base-200 border-base-300 hover:border-base-400 ${speaking ? 'ring-2 ring-offset-2' : ''}`}
+        className={`card rounded-2xl p-8 text-center mb-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border bg-base-100 border-base-200 hover:border-primary/20 ${speaking ? 'ring-2 ring-offset-2' : ''}`}
         style={speaking ? { ringColor: levelColor } : {}}
       >
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-base-content/30">
-          🔊 tıkla
+        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="text-[10px] font-medium text-base-content/25 tracking-wider">🔊 TIKLA</span>
         </div>
         <div className={`text-xl font-medium leading-relaxed transition-colors duration-300 ${
           speaking ? 'text-primary' : 'text-base-content'
@@ -214,13 +235,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       </div>
 
       {/* Question Label */}
-      <div className="flex items-center gap-2 text-sm font-medium text-base-content/50 mb-4">
-        <span className="w-1 h-4 rounded-full" style={{ backgroundColor: levelColor }} />
+      <div className="flex items-center gap-2.5 text-xs font-semibold mb-3.5 text-base-content/40 tracking-wider">
+        <span className="w-1 h-3 rounded-full" style={{ backgroundColor: levelColor }} />
         Bu cümlenin Türkçesi nedir?
       </div>
 
       {/* Options */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => {
           const isOptionCorrect = opt === correctAnswer;
           const isOptionSelected = opt === selected;
@@ -260,7 +281,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       {/* Bottom Info */}
       {!answered && !saving && (
         <div className="mt-8 text-center">
-          <span className="text-xs tracking-wider text-base-content/20">
+          <span className="text-[10px] tracking-[0.15em] text-base-content/20 font-medium">
             DOĞRU ŞIKKI SEÇ VE DEVAM ET
           </span>
         </div>

@@ -17,77 +17,77 @@ export default function OptionButton({
       <button 
         onClick={onClick} 
         disabled={disabled} 
-        className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
+        className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 font-medium text-[15px] shadow-sm
           ${isDark 
-            ? 'border-base-700 bg-base-800 text-base-100 hover:bg-base-700 hover:border-base-600' 
-            : 'border-base-300 bg-base-100 text-base-content hover:bg-base-200 hover:border-base-400'
+            ? 'border-base-700 bg-base-800 text-base-100 hover:bg-base-700 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10' 
+            : 'border-base-200 bg-white text-base-content hover:bg-base-100 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10'
           }
-          ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-[1.01]'}
+          ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:-translate-y-0.5'}
         `}
       >
-        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
+        <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all duration-200
           ${isDark 
-            ? 'bg-base-700 text-base-400' 
-            : 'bg-base-200 text-base-500'
+            ? 'bg-base-700 text-base-300' 
+            : 'bg-base-100 text-base-400'
           }
         `}>
           {letter}
         </span>
-        <span className="flex-1">{label}</span>
+        <span className="flex-1 ml-3">{label}</span>
       </button>
     );
   }
 
   if (isCorrect && isSelected) {
     return (
-      <button className="w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all duration-200 font-medium text-sm bg-success/20 border-success text-success shadow-lg shadow-success/20 cursor-pointer">
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-success text-success-content">✓</span>
-        <span className="flex-1">{label}</span>
-        <span className="text-xs font-bold">✅</span>
+      <button className="w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 font-medium text-[15px] bg-success/10 border-success text-success shadow-lg shadow-success/20 cursor-pointer hover:scale-[1.01]">
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 bg-success text-white shadow-sm shadow-success/30">✓</span>
+        <span className="flex-1 ml-3">{label}</span>
+        <span className="text-sm font-bold">✅</span>
       </button>
     );
   }
 
   if (isSelected && !isCorrect) {
     return (
-      <button className="w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all duration-200 font-medium text-sm bg-error/20 border-error text-error shadow-lg shadow-error/20 cursor-pointer">
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 bg-error text-error-content">✗</span>
-        <span className="flex-1">{label}</span>
-        <span className="text-xs font-bold">❌</span>
+      <button className="w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 font-medium text-[15px] bg-error/10 border-error text-error shadow-lg shadow-error/20 cursor-pointer hover:scale-[1.01]">
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 bg-error text-white shadow-sm shadow-error/30">✗</span>
+        <span className="flex-1 ml-3">{label}</span>
+        <span className="text-sm font-bold">❌</span>
       </button>
     );
   }
 
   if (isCorrect && !isSelected) {
     return (
-      <button className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
+      <button className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 font-medium text-[15px]
         ${isDark 
-          ? 'bg-success/10 border-success/30 text-success' 
-          : 'bg-success/5 border-success/30 text-success'
-        } cursor-pointer opacity-70`}
+          ? 'bg-success/5 border-success/20 text-success/60 hover:bg-success/10 hover:text-success/80' 
+          : 'bg-success/5 border-success/20 text-success/60 hover:bg-success/10 hover:text-success/80'
+        } cursor-pointer opacity-70 hover:opacity-100`}
       >
-        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
-          ${isDark ? 'bg-success/20 text-success' : 'bg-success/10 text-success'}`}>
+        <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0
+          ${isDark ? 'bg-success/10 text-success/60' : 'bg-success/5 text-success/60'}`}>
           ✓
         </span>
-        <span className="flex-1">{label}</span>
-        <span className="text-xs font-bold">✓</span>
+        <span className="flex-1 ml-3">{label}</span>
+        <span className="text-sm font-bold text-success/40">✓</span>
       </button>
     );
   }
 
   return (
-    <button className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-200 font-medium text-sm
+    <button className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 font-medium text-[15px]
       ${isDark 
-        ? 'bg-base-800 border-base-700 text-base-500' 
-        : 'bg-base-100 border-base-300 text-base-400'
-      } cursor-pointer opacity-50`}
+        ? 'border-base-700/30 bg-base-800/30 text-base-500' 
+        : 'border-base-200/50 bg-base-50/50 text-base-300'
+      } cursor-not-allowed opacity-40`}
     >
-      <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
-        ${isDark ? 'bg-base-700 text-base-500' : 'bg-base-200 text-base-400'}`}>
+      <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0
+        ${isDark ? 'bg-base-700/20 text-base-500' : 'bg-base-100 text-base-300'}`}>
         {letter}
       </span>
-      <span className="flex-1">{label}</span>
+      <span className="flex-1 ml-3">{label}</span>
     </button>
   );
 }

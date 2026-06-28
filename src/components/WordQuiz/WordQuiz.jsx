@@ -109,48 +109,70 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
-        <div className="text-base-content/50">Yükleniyor...</div>
+        <div className="text-base-content/50 font-medium tracking-wider">Yükleniyor...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 bg-base-100">
-        <div className="text-4xl">⚠️</div>
-        <div className="text-error text-sm text-center">{error}</div>
-        <button onClick={onChangeLevel} className="btn btn-primary">Geri Dön</button>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-6 bg-base-100">
+        <div className="text-5xl">⚠️</div>
+        <div className="text-error text-sm text-center font-medium">{error}</div>
+        <button onClick={onChangeLevel} className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
+          Geri Dön
+        </button>
       </div>
     );
   }
 
   if (isFinished) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
-        <div className="text-5xl">🎉</div>
-        <h2 className="text-xl font-extrabold text-base-content">Tebrikler, bitirdiniz!</h2>
-        <p className="text-sm text-base-content/50">
-          Bu oturumda {queue.length} kelime çalıştınız.
-        </p>
-        <button onClick={handleRestart} className="btn btn-primary mt-4">
-          20 Kelime Daha Çalış
-        </button>
-        <button onClick={onChangeLevel} className="btn btn-ghost text-base-content/50">
-          Ana Sayfaya Dön
-        </button>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-8 text-center bg-gradient-to-b from-base-100 to-base-200">
+        <div className="relative">
+          <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
+          <div className="relative text-6xl">🎉</div>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Tebrikler!
+          </h2>
+          <p className="text-base-content/60 text-sm font-medium">
+            Bu oturumda {queue.length} kelime çalıştınız.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
+          <button 
+            onClick={handleRestart} 
+            className="btn btn-primary btn-lg rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
+          >
+            20 Kelime Daha Çalış
+          </button>
+          <button 
+            onClick={onChangeLevel} 
+            className="btn btn-ghost rounded-full text-base-content/50 hover:text-base-content transition-all"
+          >
+            Ana Sayfaya Dön
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!currentQuestion || queue.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center bg-base-100">
-        <div className="text-5xl">🎉</div>
-        <h3 className="text-lg font-bold text-base-content">Tekrarlanacak kelime yok!</h3>
-        <p className="text-sm text-base-content/50">
-          Ana sayfadan yeni kelime ekleyebilirsin.
-        </p>
-        <button onClick={onChangeLevel} className="btn btn-primary mt-4">
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-8 text-center bg-base-100">
+        <div className="text-6xl">📝</div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-bold text-base-content">Tekrarlanacak kelime yok!</h3>
+          <p className="text-sm text-base-content/50 font-medium">
+            Ana sayfadan yeni kelime ekleyebilirsin.
+          </p>
+        </div>
+        <button 
+          onClick={onChangeLevel} 
+          className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+        >
           Ana Sayfaya Dön
         </button>
       </div>
@@ -160,11 +182,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const correctAnswer = currentQuestion.meaning;
 
   return (
-    <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto p-5">
+    <div className="min-h-screen bg-gradient-to-b from-base-100 to-base-200/50 text-base-content font-sans max-w-md mx-auto px-5 py-6">
       {/* Progress */}
-      <div className="flex justify-between text-[11px] mb-1.5">
-        <span className="text-base-content/50">{queueIndex + 1} / {queue.length}</span>
-        <span style={{ color: levelColor }} className="font-bold">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-semibold text-base-content/40 tracking-wider">
+          {queueIndex + 1} / {queue.length}
+        </span>
+        <span style={{ color: levelColor }} className="text-xs font-bold">
           {options.length} şık
         </span>
       </div>
@@ -173,20 +197,21 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
       {/* Word Card */}
       <div 
-        className={`relative rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] bg-base-200 border border-base-300 hover:border-base-400 ${answered ? 'opacity-75 cursor-default' : 'hover:shadow-xl'}`}
+        className={`relative rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${answered ? 'opacity-75 cursor-default' : 'hover:scale-[1.02] hover:border-primary/20'}`}
         onClick={handleCardClick}
-        style={{ marginBottom: 18 }}
+        style={{ marginTop: 20, marginBottom: 20 }}
       >
         {/* Part of Speech */}
         {currentQuestion?.part_of_speech?.length > 0 && (
-          <div className="flex justify-center gap-1.5 mb-2.5">
+          <div className="flex justify-center gap-2 mb-3">
             {currentQuestion.part_of_speech.map(p => (
               <span 
                 key={p} 
-                className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                className="text-[10px] font-semibold px-3 py-1 rounded-full"
                 style={{ 
                   color: '#6366f1', 
-                  background: isDark ? '#6366f122' : '#6366f110' 
+                  background: isDark ? '#6366f122' : '#6366f110',
+                  border: `1px solid ${isDark ? '#6366f133' : '#6366f120'}`
                 }}
               >
                 {p}
@@ -196,19 +221,26 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         )}
 
         {/* Word */}
-        <div className="text-3xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
+        <div className="text-4xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
           {currentQuestion.word}
         </div>
 
         {/* Speaking indicator */}
         {speaking && (
-          <div className="text-[11px] font-medium text-primary">🔊 Dinleniyor...</div>
+          <div className="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-primary">
+            <span className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+            </span>
+            Dinleniyor...
+          </div>
         )}
 
         {/* Menu Button - 3 dots */}
         <div className="absolute top-3 right-3" ref={menuRef}>
           <button
-            className={`p-1.5 rounded-lg transition-colors text-base-content/50 hover:text-base-content hover:bg-base-300/50`}
+            className={`p-2 rounded-xl transition-all duration-200 text-base-content/30 hover:text-base-content hover:bg-base-200/80`}
             onClick={(e) => {
               e.stopPropagation();
               setMenuOpen(!menuOpen);
@@ -222,10 +254,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
           {/* Dropdown Menu */}
           {menuOpen && (
-            <div className={`absolute right-0 top-full mt-1 w-48 rounded-xl shadow-2xl border p-1 z-50 bg-base-200 border-base-300`}>
-              {/* Feedback Button - Everyone can see */}
+            <div className={`absolute right-0 top-full mt-1.5 w-52 rounded-2xl shadow-2xl border p-1.5 z-50 bg-base-100 border-base-200`}>
               <button
-                className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-base-300 text-base-content`}
+                className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-base-200 text-base-content`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedWordForFeedback(currentQuestion);
@@ -237,10 +268,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
                 Geri Bildirim
               </button>
 
-              {/* Add Example Button - Admin only */}
               {isAdmin && (
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-base-300 text-base-content`}
+                  className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-base-200 text-base-content`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedWordForExample(currentQuestion);
@@ -253,11 +283,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
                 </button>
               )}
 
-              {/* Divider */}
-              <div className={`my-1 h-px bg-base-300`} />
+              <div className={`my-1.5 h-px bg-base-200`} />
 
-              {/* Word info */}
-              <div className={`px-3 py-1.5 text-[10px] text-base-content/40`}>
+              <div className={`px-3.5 py-1.5 text-[10px] font-mono text-base-content/30`}>
                 ID: {currentQuestion.id?.slice(0, 8)}
               </div>
             </div>
@@ -266,12 +294,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       </div>
 
       {/* Question */}
-      <div className="text-xs font-semibold mb-2.5 text-base-content/50">
+      <div className="flex items-center gap-2 text-xs font-semibold mb-3 text-base-content/40 tracking-wider">
+        <span className="w-1 h-3 rounded-full bg-primary/60" />
         Türkçe anlamı nedir?
       </div>
 
       {/* Options */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => {
           const isCorrect = opt === correctAnswer;
           const isSelected = opt === selected;
@@ -293,22 +322,43 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
       {/* Answer Feedback */}
       {answered && (
-        <div className={`mt-3.5 p-3.5 rounded-xl border transition-colors duration-300 ${
+        <div className={`mt-4 p-4 rounded-2xl border-2 transition-all duration-300 ${
           selected === correctAnswer
-            ? 'bg-success/20 border-success text-success'
-            : 'bg-error/20 border-error text-error'
+            ? 'bg-success/10 border-success/40 text-success'
+            : 'bg-error/10 border-error/40 text-error'
         }`}>
-          <div className="font-bold text-sm mb-3">
-            {selected === correctAnswer ? "✓ Doğru!" : `✗ Doğru cevap: "${correctAnswer}"`}
+          <div className="flex items-center gap-2 font-bold text-sm mb-3">
+            <span className="text-lg">
+              {selected === correctAnswer ? '✅' : '❌'}
+            </span>
+            {selected === correctAnswer ? "Doğru!" : `Doğru cevap: "${correctAnswer}"`}
           </div>
           
           <button 
             onClick={onNext} 
             disabled={saving} 
-            className="btn btn-primary w-full"
+            className="btn btn-primary w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
           >
-            {saving ? "Kaydediliyor..." : queueIndex + 1 >= queue.length ? "🏁 Bitir" : "Sonraki →"}
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="loading loading-spinner loading-xs" />
+                Kaydediliyor...
+              </span>
+            ) : queueIndex + 1 >= queue.length ? (
+              "🏁 Bitir"
+            ) : (
+              "Sonraki →"
+            )}
           </button>
+        </div>
+      )}
+
+      {/* Bottom Info */}
+      {!answered && !saving && (
+        <div className="mt-6 text-center">
+          <span className="text-[10px] tracking-[0.15em] text-base-content/20 font-medium">
+            DOĞRU ŞIKKI SEÇ VE DEVAM ET
+          </span>
         </div>
       )}
 
