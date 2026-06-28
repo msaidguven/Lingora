@@ -20,7 +20,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   // SADECE BURADA TANIMLA - TEKRAR ETME
   const isAdmin = user?.role === 'admin' || user?.user_metadata?.role === 'admin';
-  
+  console.log('🔍 WordQuiz - User:', user);
+  console.log('🔍 WordQuiz - isAdmin:', isAdmin);
+
+
   const {
     loading,
     error,
