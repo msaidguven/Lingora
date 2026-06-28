@@ -284,11 +284,11 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => (
           <OptionButton
-            key={i}
+            //key={i}
             label={opt}  // ← METİN BURADA
             isAnswered={answered}
-            isCorrect={opt === correctAnswer}
-            isSelected={opt === selected}
+            //isCorrect={opt === correctAnswer}
+            //isSelected={opt === selected}
             onClick={() => onSelect(opt)}
             disabled={answered || saving}
             isDark={isDarkMode}
