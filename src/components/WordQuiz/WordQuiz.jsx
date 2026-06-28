@@ -1,17 +1,22 @@
+// WordQuiz.jsx
 import { useEffect, useState, useRef } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import ExampleModal from "./ExampleModal.jsx";
+import FeedbackModal from "./FeedbackModal.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
 export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
   
   const {
@@ -34,40 +39,44 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   } = useWordQuiz(userLevel);
 
   const [showExampleModal, setShowExampleModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedWordForExample, setSelectedWordForExample] = useState(null);
+  const [selectedWordForFeedback, setSelectedWordForFeedback] = useState(null);
   const [speaking, setSpeaking] = useState(false);
-  const [speakingExample, setSpeakingExample] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
+  const isAdmin = user?.role === 'admin';
+
+  // Click outside menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     setIsFinished(false);
   }, [userLevel]);
 
-  useEffect(() => {
-    if (currentQuestion && !answered && !saving) {
-      setTimeout(() => {
-        speak(currentQuestion.word);
-      }, 100);
+  // Word card click to speak
+  const handleCardClick = () => {
+    if (currentQuestion && !answered) {
+      handleSpeak(currentQuestion.word);
     }
-  }, [currentQuestion, answered, saving]);
+  };
 
-  const handleSpeak = (text, isExample = false, exampleIndex = null) => {
-    if (isExample) {
-      setSpeakingExample(exampleIndex);
-    } else {
-      setSpeaking(true);
-    }
-    
+  const handleSpeak = (text) => {
+    setSpeaking(true);
     speak(text);
-    
     setTimeout(() => {
-      if (isExample) {
-        setSpeakingExample(null);
-      } else {
-        setSpeaking(false);
-      }
+      setSpeaking(false);
     }, 1800);
   };
 
@@ -99,40 +108,57 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const handleRestart = () => {
     setIsFinished(false);
     setShowExampleModal(false);
+    setShowFeedbackModal(false);
     setSelectedWordForExample(null);
+    setSelectedWordForFeedback(null);
     restartQuizSession();
   };
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#64748b" }}>Yükleniyor...</div>
+      <div className={`min-h-screen flex items-center justify-center font-sans transition-colors duration-300 ${
+        isDark ? 'bg-slate-950' : 'bg-slate-50'
+      }`}>
+        <div className={`text-sm font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+          Yükleniyor...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24 }}>
-        <div style={{ fontSize: 36 }}>⚠️</div>
-        <div style={{ color: "#ef4444", fontSize: 14, textAlign: "center" }}>{error}</div>
-        <button onClick={onChangeLevel} style={{ background: "#6366f1", border: "none", borderRadius: 10, padding: "10px 20px", color: "#fff", cursor: "pointer" }}>Geri Dön</button>
+      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 transition-colors duration-300 ${
+        isDark ? 'bg-slate-950' : 'bg-slate-50'
+      }`}>
+        <div className="text-4xl">⚠️</div>
+        <div className={`text-sm text-center ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>
+          {error}
+        </div>
+        <button 
+          onClick={onChangeLevel} 
+          className="btn btn-primary"
+        >
+          Geri Dön
+        </button>
       </div>
     );
   }
 
   if (isFinished) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>🎉</div>
-        <div style={{ fontSize: 20, fontWeight: 800 }}>Tebrikler, bitirdiniz!</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>
+      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center transition-colors duration-300 ${
+        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        <div className="text-5xl">🎉</div>
+        <div className="text-xl font-extrabold">Tebrikler, bitirdiniz!</div>
+        <div className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
           Bu oturumda {queue.length} kelime çalıştınız.
         </div>
-        <button onClick={handleRestart} style={{ background: "#6366f1", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", cursor: "pointer", fontWeight: 700, marginTop: 16 }}>
+        <button onClick={handleRestart} className="btn btn-primary mt-4">
           20 Kelime Daha Çalış
         </button>
-        <button onClick={onChangeLevel} style={{ background: "transparent", border: "1px solid #1e293b", borderRadius: 10, padding: "10px 22px", color: "#64748b", cursor: "pointer", fontWeight: 600 }}>
+        <button onClick={onChangeLevel} className="btn btn-ghost">
           Ana Sayfaya Dön
         </button>
       </div>
@@ -141,104 +167,164 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   if (!currentQuestion || queue.length === 0) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>🎉</div>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Tekrarlanacak kelime yok!</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>Ana sayfadan yeni kelime ekleyebilirsin.</div>
-        <button onClick={onChangeLevel} style={{ background: "#6366f1", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", cursor: "pointer", fontWeight: 600, marginTop: 16 }}>
+      <div className={`min-h-screen flex items-center justify-center flex-col gap-4 p-6 text-center transition-colors duration-300 ${
+        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        <div className="text-5xl">🎉</div>
+        <div className="text-lg font-bold">Tekrarlanacak kelime yok!</div>
+        <div className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+          Ana sayfadan yeni kelime ekleyebilirsin.
+        </div>
+        <button onClick={onChangeLevel} className="btn btn-primary mt-4">
           Ana Sayfaya Dön
         </button>
       </div>
     );
   }
 
-  const cardExamples = examplesMap[currentQuestion.id] || [];
   const correctAnswer = currentQuestion.meaning;
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "#0f0f1a", 
-      color: "#e2e8f0", 
-      fontFamily: "'Inter', system-ui, sans-serif", 
-      maxWidth: 420, 
-      margin: "0 auto", 
-      padding: "20px" 
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginBottom: 6 }}>
-        <span>{queueIndex + 1} / {queue.length}</span>
-        <span style={{ color: levelColor, fontWeight: 700 }}>{options.length} şık</span>
+    <div className={`min-h-screen font-sans max-w-md mx-auto p-5 transition-colors duration-300 ${
+      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {/* Progress */}
+      <div className="flex justify-between text-[11px] mb-1.5">
+        <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>
+          {queueIndex + 1} / {queue.length}
+        </span>
+        <span style={{ color: levelColor }} className="font-bold">
+          {options.length} şık
+        </span>
       </div>
       
       <ProgressBar current={queueIndex} total={queue.length} color={levelColor} />
 
-      <div style={{ 
-        background: "linear-gradient(135deg, #1a1a2e, #16213e)", 
-        border: "1px solid #1e293b", 
-        borderRadius: 20, 
-        padding: "26px 22px", 
-        textAlign: "center", 
-        marginBottom: 18 
-      }}>
+      {/* Word Card */}
+      <div 
+        className={`relative rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+          isDark 
+            ? 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50' 
+            : 'bg-gradient-to-br from-slate-100/80 to-white border border-slate-200'
+        } ${answered ? 'opacity-75 cursor-default' : 'hover:shadow-xl'}`}
+        onClick={handleCardClick}
+        style={{ marginBottom: 18 }}
+      >
+        {/* Part of Speech */}
         {currentQuestion?.part_of_speech?.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
+          <div className="flex justify-center gap-1.5 mb-2.5">
             {currentQuestion.part_of_speech.map(p => (
-              <span key={p} style={{ fontSize: 10, color: "#6366f1", background: "#6366f122", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>{p}</span>
+              <span 
+                key={p} 
+                className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                style={{ 
+                  color: '#6366f1', 
+                  background: isDark ? '#6366f122' : '#6366f110' 
+                }}
+              >
+                {p}
+              </span>
             ))}
           </div>
         )}
-        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.5, marginBottom: 14, lineHeight: 1.4 }}>
+
+        {/* Word */}
+        <div className={`text-3xl font-extrabold tracking-tight mb-2 leading-tight ${
+          isDark ? 'text-slate-100' : 'text-slate-900'
+        }`}>
           {currentQuestion.word}
         </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-          <button 
-            onClick={() => handleSpeak(currentQuestion.word)} 
-            style={{ 
-              background: speaking ? "#6366f1" : "#1e293b", 
-              border: "none", 
-              borderRadius: 10, 
-              padding: "7px 16px", 
-              color: "#e2e8f0", 
-              cursor: "pointer", 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 6, 
-              fontSize: 12, 
-              fontWeight: 600 
+
+        {/* Speaking indicator */}
+        {speaking && (
+          <div className={`text-[11px] font-medium ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>
+            🔊 Dinleniyor...
+          </div>
+        )}
+
+        {/* Menu Button - 3 dots */}
+        <div className="absolute top-3 right-3" ref={menuRef}>
+          <button
+            className={`p-1.5 rounded-lg transition-colors ${
+              isDark 
+                ? 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-200' 
+                : 'hover:bg-slate-200/50 text-slate-500 hover:text-slate-700'
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
             }}
+            aria-label="İşlemler"
           >
-            <SpeakerIcon /> {speaking ? "Çalıyor..." : "Telaffuz"}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
           </button>
-          
-          <button 
-            onClick={() => {
-              setSelectedWordForExample(currentQuestion);
-              setShowExampleModal(true);
-            }} 
-            style={{ 
-              background: "#1e293b", 
-              border: "none", 
-              borderRadius: 10, 
-              padding: "7px 16px", 
-              color: "#64748b", 
-              cursor: "pointer", 
-              display: "inline-flex", 
-              alignItems: "center", 
-              gap: 6, 
-              fontSize: 12, 
-              fontWeight: 600 
-            }}
-          >
-            ✏️ Cümle Ekle
-          </button>
+
+          {/* Dropdown Menu */}
+          {menuOpen && (
+            <div className={`absolute right-0 top-full mt-1 w-48 rounded-xl shadow-2xl border p-1 z-50 ${
+              isDark 
+                ? 'bg-slate-800 border-slate-700/50' 
+                : 'bg-white border-slate-200'
+            }`}>
+              {/* Feedback Button - Everyone can see */}
+              <button
+                className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDark 
+                    ? 'hover:bg-slate-700 text-slate-200' 
+                    : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedWordForFeedback(currentQuestion);
+                  setShowFeedbackModal(true);
+                  setMenuOpen(false);
+                }}
+              >
+                <span className="text-base">💬</span>
+                Geri Bildirim
+              </button>
+
+              {/* Add Example Button - Admin only */}
+              {isAdmin && (
+                <button
+                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isDark 
+                      ? 'hover:bg-slate-700 text-slate-200' 
+                      : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedWordForExample(currentQuestion);
+                    setShowExampleModal(true);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="text-base">✏️</span>
+                  Cümle Ekle
+                </button>
+              )}
+
+              {/* Divider */}
+              <div className={`my-1 h-px ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+              {/* Word info */}
+              <div className={`px-3 py-1.5 text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                ID: {currentQuestion.id?.slice(0, 8)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10, fontWeight: 600 }}>
+      {/* Question */}
+      <div className={`text-xs font-semibold mb-2.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
         Türkçe anlamı nedir?
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+      {/* Options */}
+      <div className="flex flex-col gap-2">
         {options.map((opt, i) => {
           const isCorrect = opt === correctAnswer;
           const isSelected = opt === selected;
@@ -257,120 +343,36 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         })}
       </div>
 
+      {/* Answer Feedback */}
       {answered && (
-        <div style={{ 
-          marginTop: 14, 
-          padding: "14px 16px", 
-          borderRadius: 14, 
-          background: selected === correctAnswer ? "#0e2d1f" : "#2d0e0e", 
-          border: `1px solid ${selected === correctAnswer ? "#10b981" : "#ef4444"}` 
-        }}>
-          <div style={{ 
-            fontWeight: 700, 
-            fontSize: 13, 
-            color: selected === correctAnswer ? "#10b981" : "#ef4444", 
-            marginBottom: 12 
-          }}>
+        <div className={`mt-3.5 p-3.5 rounded-xl border transition-colors duration-300 ${
+          selected === correctAnswer
+            ? isDark 
+              ? 'bg-emerald-950/30 border-emerald-500/30' 
+              : 'bg-emerald-50 border-emerald-200'
+            : isDark
+              ? 'bg-rose-950/30 border-rose-500/30'
+              : 'bg-rose-50 border-rose-200'
+        }`}>
+          <div className={`font-bold text-sm mb-3 ${
+            selected === correctAnswer
+              ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+              : isDark ? 'text-rose-400' : 'text-rose-600'
+          }`}>
             {selected === correctAnswer ? "✓ Doğru!" : `✗ Doğru cevap: "${correctAnswer}"`}
           </div>
-
-          {cardExamples.length > 0 && (
-            <div style={{ marginTop: 6 }}>
-              <div style={{ 
-                fontSize: 13, 
-                color: "#94a3b8", 
-                marginBottom: 10, 
-                fontWeight: 600 
-              }}>
-                📚 Örnek Cümleler:
-              </div>
-              {cardExamples.slice(0, 3).map((ex, idx) => (
-                <div 
-                  key={idx} 
-                  style={{ 
-                    marginBottom: idx < 2 ? 14 : 0,
-                    padding: "12px 14px",
-                    background: "#1a1a2e",
-                    borderRadius: 10,
-                    border: "1px solid #1e293b"
-                  }}
-                >
-                  <div style={{ 
-                    fontSize: 14, 
-                    color: "#e2e8f0", 
-                    fontStyle: "italic", 
-                    lineHeight: 1.6,
-                    marginBottom: 4
-                  }}>
-                    "{ex.sentence_en}"
-                  </div>
-                  {ex.sentence_tr && (
-                    <div style={{ 
-                      fontSize: 13, 
-                      color: "#94a3b8", 
-                      marginTop: 4,
-                      marginBottom: 8
-                    }}>
-                      "{ex.sentence_tr}"
-                    </div>
-                  )}
-                  <button 
-                    onClick={() => handleSpeak(ex.sentence_en, true, idx)} 
-                    style={{ 
-                      marginTop: 6,
-                      background: speakingExample === idx ? "#6366f1" : "#1e293b", 
-                      border: "none", 
-                      borderRadius: 8, 
-                      padding: "6px 14px",
-                      color: "#e2e8f0", 
-                      cursor: "pointer", 
-                      display: "inline-flex", 
-                      alignItems: "center", 
-                      gap: 6, 
-                      fontSize: 12, 
-                      fontWeight: 500,
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <SpeakerIcon /> 
-                    {speakingExample === idx ? "Çalıyor..." : "Cümleyi dinle"}
-                  </button>
-                </div>
-              ))}
-              {cardExamples.length > 3 && (
-                <div style={{ 
-                  fontSize: 12, 
-                  color: "#64748b", 
-                  textAlign: "center", 
-                  marginTop: 8 
-                }}>
-                  +{cardExamples.length - 3} cümle daha
-                </div>
-              )}
-            </div>
-          )}
           
           <button 
             onClick={onNext} 
             disabled={saving} 
-            style={{ 
-              marginTop: 14, 
-              width: "100%", 
-              padding: 12, 
-              borderRadius: 12, 
-              border: "none", 
-              background: saving ? "#475569" : "#6366f1", 
-              color: "#fff", 
-              fontWeight: 600, 
-              fontSize: 14, 
-              cursor: saving ? "not-allowed" : "pointer" 
-            }}
+            className="btn btn-primary w-full"
           >
             {saving ? "Kaydediliyor..." : queueIndex + 1 >= queue.length ? "🏁 Bitir" : "Sonraki →"}
           </button>
         </div>
       )}
 
+      {/* Modals */}
       {showExampleModal && selectedWordForExample && (
         <ExampleModal
           word={selectedWordForExample}
@@ -384,6 +386,17 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
           }}
           examplesMap={examplesMap}
           setExamplesMap={setExamplesMap}
+        />
+      )}
+
+      {showFeedbackModal && selectedWordForFeedback && (
+        <FeedbackModal
+          word={selectedWordForFeedback}
+          onClose={() => {
+            setShowFeedbackModal(false);
+            setSelectedWordForFeedback(null);
+          }}
+          user={user}
         />
       )}
     </div>
