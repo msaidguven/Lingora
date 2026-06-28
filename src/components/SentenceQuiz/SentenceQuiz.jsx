@@ -4,7 +4,7 @@ import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
-import { useTheme } from "../../contexts/ThemeContext.jsx"; // ← EKLENDI
+import { useTheme } from "../../contexts/ThemeContext.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import SentenceResult from "./SentenceResult.jsx";
@@ -12,10 +12,9 @@ import SentenceResult from "./SentenceResult.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
 
-// isDarkMode prop'u artık dışarıdan gelmiyor — useTheme() ile içeride çekiliyor
 export default function SentenceQuiz({ userLevel, onChangeLevel }) {
-  const { theme } = useTheme();           // ← EKLENDI
-  const isDarkMode = theme === "dark";    // ← EKLENDI — her tema değişiminde güncellenir
+  const { theme } = useTheme();
+  const isDarkMode = theme === "dark";
 
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
@@ -27,7 +26,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     handleSelect, handleNext, restartQuizSession,
   } = useSentenceQuiz(userLevel);
 
-  const [speaking,   setSpeaking]   = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
 
   const levelColor = LEVEL_COLOR[userLevel];
@@ -176,8 +175,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   /* ── QUIZ ── */
   const correctAnswer = currentQuestion.sentence_tr;
-  const currentWord   = currentQuestion.en_words;
-  const isCorrect     = selected === correctAnswer;
+  const currentWord = currentQuestion.en_words;
+  const isCorrect = selected === correctAnswer;
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto px-5 py-6 flex flex-col">
@@ -281,19 +280,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </span>
       </div>
 
-      {/* Options */}
+      {/* Options - HARFLER KALDIRILDI */}
       <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => (
           <OptionButton
             key={i}
-            //index={i}
             label={opt}
             isAnswered={answered}
             isCorrect={opt === correctAnswer}
             isSelected={opt === selected}
             onClick={() => onSelect(opt)}
             disabled={answered || saving}
-            isDark={isDarkMode} // ← artık useTheme()'den gelen gerçek değer
+            isDark={isDarkMode}
           />
         ))}
       </div>
@@ -310,7 +308,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             onSpeak={handleSpeak}
             isSaving={saving}
             isLastQuestion={queueIndex + 1 >= queue.length}
-            isDarkMode={isDarkMode} // ← artık useTheme()'den gelen gerçek değer
+            isDarkMode={isDarkMode}
           />
         </div>
       )}

@@ -1,58 +1,52 @@
-// src/components/QuizOptionButton.jsx
-export default function QuizOptionButton({
-  icon,
+// src/components/common/OptionButton.jsx
+export default function OptionButton({
   label,
-  subLabel,
-  count, // verilirse "X adet" mantığıyla aktif/pasif hesaplanır, verilmezse buton hep aktiftir
-  gradient,
+  isAnswered,
+  isCorrect,
+  isSelected,
   onClick,
+  disabled,
+  isDark,
 }) {
-  const hasCount = typeof count === "number";
-  const active = hasCount ? count > 0 : true;
+  // Stil durumları
+  let bgColor = "bg-base-200";
+  let borderColor = "border-base-300";
+  let textColor = "text-base-content";
+  let shadow = "";
+
+  if (isAnswered) {
+    if (isCorrect) {
+      bgColor = isDark ? "bg-emerald-900/30" : "bg-emerald-50";
+      borderColor = "border-emerald-500";
+      textColor = isDark ? "text-emerald-400" : "text-emerald-700";
+      shadow = "shadow-lg shadow-emerald-500/20";
+    } else if (isSelected && !isCorrect) {
+      bgColor = isDark ? "bg-red-900/30" : "bg-red-50";
+      borderColor = "border-red-500";
+      textColor = isDark ? "text-red-400" : "text-red-700";
+      shadow = "shadow-lg shadow-red-500/20";
+    }
+  } else if (isSelected) {
+    borderColor = "border-primary";
+    bgColor = isDark ? "bg-primary/15" : "bg-primary/8";
+    textColor = "text-primary";
+    shadow = "shadow-lg shadow-primary/20";
+  }
 
   return (
     <button
       onClick={onClick}
-      disabled={hasCount && !active}
-      className={`group flex w-full items-center gap-3.5 rounded-2xl border p-3.5 text-left transition-all duration-200 ${
-        active
-          ? "border-base-300 bg-base-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
-          : "border-base-300/60 bg-base-200/50"
-      }`}
+      disabled={disabled}
+      className={`
+        w-full rounded-2xl border-2 p-4 text-left 
+        transition-all duration-200
+        ${bgColor} ${borderColor} ${textColor} ${shadow}
+        ${!disabled && !isAnswered ? "hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-md" : ""}
+        ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+      `}
     >
-      <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
-          active
-            ? `bg-gradient-to-br ${gradient} text-white shadow-md`
-            : "bg-base-300 text-base-content/30"
-        }`}
-      >
-        {icon}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span
-          className={`block font-display text-[14.5px] font-bold ${
-            active ? "" : "text-base-content/40"
-          }`}
-        >
-          {label}
-        </span>
-        <span className="block text-[12px] text-base-content/45">
-          {hasCount
-            ? active
-              ? `${count} ${subLabel}`
-              : "Şu an çalışılacak yok"
-            : subLabel}
-        </span>
-      </span>
-
-      <span
-        className={`font-display text-lg transition-transform group-hover:translate-x-0.5 ${
-          active ? "text-primary" : "text-base-content/20"
-        }`}
-      >
-        →
+      <span className="text-[15px] font-medium leading-relaxed">
+        {label}
       </span>
     </button>
   );
