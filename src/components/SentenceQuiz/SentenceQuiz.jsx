@@ -280,12 +280,11 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </span>
       </div>
 
-      {/* Options - HARFLER KALDIRILDI */}
-      <div className="flex flex-col gap-2.5">
+      {/* Options - SADECE KARTLAR, HİÇ METİN YOK */}
+      <div className="flex flex-col gap-3">
         {options.map((opt, i) => (
           <OptionButton
             key={i}
-            label={opt}
             isAnswered={answered}
             isCorrect={opt === correctAnswer}
             isSelected={opt === selected}
@@ -317,7 +316,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       {!answered && !saving && (
         <div className="mt-8 text-center pb-1">
           <span className="text-[10px] tracking-[0.22em] font-semibold text-base-content/15">
-            DOĞRU ŞIKKI SEÇ
+            BİR KART SEÇ
           </span>
         </div>
       )}
