@@ -280,20 +280,19 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </span>
       </div>
 
-      {/* Options */}
-      <div className="flex flex-col gap-2.5">
+      {/* Options - SADECE KARTLAR, HİÇ METİN YOK */}
+      <div className="flex flex-col gap-3">
         {options.map((opt, i) => (
-             <OptionButton
-                        key={i}
-                        index={i}
-                        label={opt}
-                        isAnswered={answered}
-                        isCorrect={isCorrect}
-                        isSelected={isSelected}
-                        onClick={() => onSelect(opt)}
-                        disabled={answered || saving}
-                        isDark={isDark}
-                      />
+          <OptionButton
+            key={i}
+            label={opt}  // ← METİN BURADA
+            isAnswered={answered}
+            isCorrect={opt === correctAnswer}
+            isSelected={opt === selected}
+            onClick={() => onSelect(opt)}
+            disabled={answered || saving}
+            isDark={isDarkMode}
+          />
         ))}
       </div>
 
