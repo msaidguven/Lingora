@@ -5,7 +5,6 @@ import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import SpeakerIcon from "../common/SpeakerIcon.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import ExampleModal from "./ExampleModal.jsx";
@@ -33,8 +32,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     handleSelect,
     handleNext,
     restartQuizSession,
-    setSelected,
-    setAnswered,
     setExamplesMap
   } = useWordQuiz(userLevel);
 
@@ -68,16 +65,12 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   // Word card click to speak
   const handleCardClick = () => {
     if (currentQuestion && !answered) {
-      handleSpeak(currentQuestion.word);
+      setSpeaking(true);
+      speak(currentQuestion.word);
+      setTimeout(() => {
+        setSpeaking(false);
+      }, 1800);
     }
-  };
-
-  const handleSpeak = (text) => {
-    setSpeaking(true);
-    speak(text);
-    setTimeout(() => {
-      setSpeaking(false);
-    }, 1800);
   };
 
   const onSelect = async (opt) => {
