@@ -311,7 +311,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
       margin: "0 auto", 
       padding: "20px" 
     }}>
-      {/* Header */}
+      {/* Header - Sadece seviye ve ilerleme bilgisi */}
       <div style={{ 
         display: "flex", 
         justifyContent: "space-between", 
@@ -440,18 +440,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
       {/* Result */}
       {answered && (
-  <SentenceResult
-    isCorrect={isCorrect}
-    correctAnswer={correctAnswer}
-    selectedAnswer={selected}
-    currentWord={currentWord}
-    onNext={onNext}
-    onSpeak={handleSpeak}
-    isSaving={saving}
-    isLastQuestion={queueIndex + 1 >= queue.length}
-    isDarkMode={isDarkMode}  // Bunu ekle
-  />
-)}
+        <SentenceResult
+          isCorrect={isCorrect}
+          correctAnswer={correctAnswer}
+          selectedAnswer={selected}
+          currentWord={currentWord}
+          onNext={onNext}
+          onSpeak={handleSpeak}
+          isSaving={saving}
+          isLastQuestion={queueIndex + 1 >= queue.length}
+          isDarkMode={isDarkMode}
+        />
+      )}
 
       {/* Bottom Info */}
       {!answered && !saving && (
