@@ -11,6 +11,42 @@ import SentenceResult from "./SentenceResult.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
 
+// Tema renkleri
+const THEMES = {
+  dark: {
+    background: "#0f0f1a",
+    cardBg: "linear-gradient(135deg, #1a1a2e, #16213e)",
+    cardBorder: "#1e293b",
+    textPrimary: "#e2e8f0",
+    textSecondary: "#64748b",
+    textMuted: "#475569",
+    buttonBg: "#1e293b",
+    buttonHover: "#2d3a4f",
+    shadow: "0 4px 24px rgba(0,0,0,0.3)",
+    inputBg: "#1e293b",
+    inputBorder: "#334155",
+    successBg: "#10b98120",
+    errorBg: "#ef444420",
+    resultBg: "#1a1a2e",
+  },
+  light: {
+    background: "#f1f5f9",
+    cardBg: "linear-gradient(135deg, #ffffff, #f8fafc)",
+    cardBorder: "#e2e8f0",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    textMuted: "#94a3b8",
+    buttonBg: "#e2e8f0",
+    buttonHover: "#cbd5e1",
+    shadow: "0 4px 24px rgba(0,0,0,0.08)",
+    inputBg: "#ffffff",
+    inputBorder: "#e2e8f0",
+    successBg: "#10b98115",
+    errorBg: "#ef444415",
+    resultBg: "#ffffff",
+  }
+};
+
 export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = true }) {
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
@@ -38,19 +74,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
 
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
-
-  // Tema renkleri
-  const theme = {
-    background: isDarkMode ? "#0f0f1a" : "#f8fafc",
-    cardBg: isDarkMode ? "linear-gradient(135deg, #1a1a2e, #16213e)" : "linear-gradient(135deg, #ffffff, #f1f5f9)",
-    cardBorder: isDarkMode ? "#1e293b" : "#e2e8f0",
-    textPrimary: isDarkMode ? "#e2e8f0" : "#0f172a",
-    textSecondary: isDarkMode ? "#64748b" : "#475569",
-    textMuted: isDarkMode ? "#475569" : "#94a3b8",
-    buttonBg: isDarkMode ? "#1e293b" : "#e2e8f0",
-    buttonHover: isDarkMode ? "#2d3a4f" : "#cbd5e1",
-    shadow: isDarkMode ? "0 4px 24px rgba(0,0,0,0.3)" : "0 4px 24px rgba(0,0,0,0.08)",
-  };
+  const theme = THEMES[isDarkMode ? 'dark' : 'light'];
 
   useEffect(() => {
     setIsFinished(false);
