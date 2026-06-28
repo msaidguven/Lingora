@@ -18,8 +18,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
 
-  // SADECE BURADA TANIMLA - TEKRAR ETME
-  const isAdmin = user?.role === 'admin' || user?.user_metadata?.role === 'admin';
+  const isAdmin = user?.user_metadata?.role === 'admin' || user?.role === 'admin';
+
   console.log('🔍 WordQuiz - User:', user);
   console.log('🔍 WordQuiz - isAdmin:', isAdmin);
 
