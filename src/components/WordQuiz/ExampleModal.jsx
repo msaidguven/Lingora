@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../../config.js";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 
 export default function ExampleModal({ 
   word, 
