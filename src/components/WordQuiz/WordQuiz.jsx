@@ -331,6 +331,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               isSelected={isSelected}
               onClick={() => onSelect(opt)}
               disabled={answered || saving}
+              isDark={isDark} 
             />
           );
         })}
