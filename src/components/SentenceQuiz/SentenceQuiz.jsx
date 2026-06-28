@@ -4,7 +4,7 @@ import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
-import { useTheme } from "../../hooks/useTheme.js"; // ← EKLENDI
+import { useTheme } from "../../contexts/ThemeContext.jsx"; // ← EKLENDI
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import SentenceResult from "./SentenceResult.jsx";
