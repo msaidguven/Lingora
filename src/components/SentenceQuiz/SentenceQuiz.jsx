@@ -280,11 +280,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </span>
       </div>
 
-      {/* Options - SADECE KARTLAR, HİÇ METİN YOK */}
-      <div className="flex flex-col gap-3">
+      {/* Options */}
+      <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => (
           <OptionButton
             key={i}
+            label={opt}  // ← METİN BURADA
             isAnswered={answered}
             isCorrect={opt === correctAnswer}
             isSelected={opt === selected}
