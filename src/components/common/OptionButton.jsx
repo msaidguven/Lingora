@@ -7,50 +7,33 @@ export default function OptionButton({
   isSelected, 
   onClick, 
   disabled,
-  isDark // Prop olarak ekle
+  isDark 
 }) {
-  // Tema bazlı renkler
-  const getColors = () => {
-    if (!isAnswered) {
-      return {
-        bg: isDark ? "#1a1a2e" : "#ffffff",
-        border: isDark ? "#1e293b" : "#e2e8f0",
-        color: isDark ? "#e2e8f0" : "#1e293b",
-        letterBg: isDark ? "#1e293b" : "#f1f5f9",
-        letterColor: isDark ? "#475569" : "#94a3b8"
-      };
+  let bg = isDark ? "#1a1a2e" : "#ffffff";
+  let border = isDark ? "#1e293b" : "#e2e8f0";
+  let color = isDark ? "#e2e8f0" : "#1e293b";
+  let letterBg = isDark ? "#1e293b" : "#f1f5f9";
+  let letterColor = isDark ? "#475569" : "#94a3b8";
+  
+  if (isAnswered) {
+    if (isCorrect) { 
+      bg = isDark ? "#0e2d1f" : "#f0fdf4";
+      border = "#10b981"; 
+      color = "#10b981";
+      letterBg = "#10b981";
+      letterColor = "#ffffff";
+    } else if (isSelected) { 
+      bg = isDark ? "#2d0e0e" : "#fef2f2";
+      border = "#ef4444"; 
+      color = "#ef4444";
+      letterBg = "#ef4444";
+      letterColor = "#ffffff";
+    } else { 
+      color = isDark ? "#2d3748" : "#94a3b8";
+      letterBg = isDark ? "#1e293b" : "#f1f5f9";
+      letterColor = isDark ? "#475569" : "#94a3b8";
     }
-    
-    if (isCorrect) {
-      return {
-        bg: isDark ? "#0e2d1f" : "#f0fdf4",
-        border: "#10b981",
-        color: "#10b981",
-        letterBg: "#10b981",
-        letterColor: "#ffffff"
-      };
-    }
-    
-    if (isSelected && !isCorrect) {
-      return {
-        bg: isDark ? "#2d0e0e" : "#fef2f2",
-        border: "#ef4444",
-        color: "#ef4444",
-        letterBg: "#ef4444",
-        letterColor: "#ffffff"
-      };
-    }
-    
-    return {
-      bg: isDark ? "transparent" : "#f8fafc",
-      border: isDark ? "#1e293b" : "#e2e8f0",
-      color: isDark ? "#2d3748" : "#94a3b8",
-      letterBg: isDark ? "#1e293b" : "#f1f5f9",
-      letterColor: isDark ? "#475569" : "#94a3b8"
-    };
-  };
-
-  const colors = getColors();
+  }
 
   return (
     <button 
@@ -59,9 +42,9 @@ export default function OptionButton({
       style={{ 
         padding: "13px 14px", 
         borderRadius: 13, 
-        border: `1.5px solid ${colors.border}`, 
-        background: colors.bg, 
-        color: colors.color, 
+        border: `1.5px solid ${border}`, 
+        background: bg, 
+        color, 
         cursor: disabled ? "default" : "pointer", 
         fontWeight: 600, 
         fontSize: 14, 
@@ -78,13 +61,13 @@ export default function OptionButton({
         height: 26, 
         borderRadius: 7, 
         flexShrink: 0, 
-        background: isAnswered && isCorrect ? "#10b981" : isAnswered && isSelected && !isCorrect ? "#ef4444" : colors.letterBg, 
+        background: letterBg, 
         display: "flex", 
         alignItems: "center", 
         justifyContent: "center", 
         fontSize: 11, 
         fontWeight: 700, 
-        color: isAnswered && (isCorrect || (isSelected && !isCorrect)) ? "#fff" : colors.letterColor 
+        color: letterColor 
       }}>
         {isAnswered && isCorrect ? "✓" : isAnswered && isSelected && !isCorrect ? "✗" : String.fromCharCode(65 + index)}
       </span>

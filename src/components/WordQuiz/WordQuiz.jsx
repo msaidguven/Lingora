@@ -18,6 +18,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
 
+  // SADECE BURADA TANIMLA - TEKRAR ETME
   const isAdmin = user?.role === 'admin' || user?.user_metadata?.role === 'admin';
   
   const {
@@ -47,7 +48,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const menuRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
-  const isAdmin = user?.role === 'admin';
+  // BURADAKİ isAdmin TANIMINI SİL - yukarıda zaten var
 
   // Click outside menu
   useEffect(() => {
@@ -333,7 +334,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               isSelected={isSelected}
               onClick={() => onSelect(opt)}
               disabled={answered || saving}
-              isDark={isDark} 
+              isDark={isDark}
             />
           );
         })}
