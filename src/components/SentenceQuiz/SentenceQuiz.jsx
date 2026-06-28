@@ -253,7 +253,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
               isSelected={isSelected}
               onClick={() => onSelect(opt)}
               disabled={answered || saving}
-              isDarkMode={isDarkMode}
+              isDark={isDarkMode}
             />
           );
         })}
