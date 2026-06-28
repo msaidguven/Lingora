@@ -4,6 +4,7 @@ import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useTheme } from "../../hooks/useTheme.js"; // ← EKLENDI
 import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import SentenceResult from "./SentenceResult.jsx";
@@ -11,7 +12,11 @@ import SentenceResult from "./SentenceResult.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
 
-export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = true }) {
+// isDarkMode prop'u artık dışarıdan gelmiyor — useTheme() ile içeride çekiliyor
+export default function SentenceQuiz({ userLevel, onChangeLevel }) {
+  const { theme } = useTheme();           // ← EKLENDI
+  const isDarkMode = theme === "dark";    // ← EKLENDI — her tema değişiminde güncellenir
+
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
 
@@ -107,7 +112,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-8 text-center bg-base-100">
         <div className="text-6xl">🎉</div>
-
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-base-content">Harika iş!</h2>
           <p className="text-sm text-base-content/50">
@@ -116,7 +120,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
             cümle tamamladın.
           </p>
         </div>
-
         <div
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border"
           style={{ borderColor: `${levelColor}25`, backgroundColor: `${levelColor}0d` }}
@@ -126,7 +129,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
             {userLevel} — {levelLabel}
           </span>
         </div>
-
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button
             onClick={handleRestart}
@@ -193,7 +195,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-
         <div className="flex items-center gap-3">
           <span
             className="text-xs font-bold px-3 py-1 rounded-full"
@@ -222,13 +223,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
                    transition-all duration-200 select-none group
                    border border-base-300 bg-base-200
                    hover:border-base-content/10 active:scale-[0.99]"
-        style={
-          speaking
-            ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` }
-            : {}
-        }
+        style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
       >
-        {/* Sound icon top-right */}
+        {/* Sound icon */}
         <div
           className={`absolute top-3.5 right-3.5 transition-opacity duration-200 ${
             speaking ? "opacity-100" : "opacity-0 group-hover:opacity-50"
@@ -258,7 +255,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
           "{currentQuestion.sentence_en}"
         </p>
 
-        {/* Speaking dots */}
+        {/* Speaking dots / hint */}
         {speaking ? (
           <div className="mt-4 flex justify-center gap-1.5">
             {[0, 150, 300].map((delay) => (
@@ -271,17 +268,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
           </div>
         ) : (
           <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
-            SESLENDIR
+            SESLENDİR
           </p>
         )}
       </div>
 
       {/* Section label */}
       <div className="flex items-center gap-2 mb-4">
-        <span
-          className="w-1 h-3.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: levelColor }}
-        />
+        <span className="w-1 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: levelColor }} />
         <span className="text-[11px] font-bold tracking-[0.12em] text-base-content/40 uppercase">
           Bu cümlenin Türkçesi nedir?
         </span>
@@ -299,7 +293,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
             isSelected={opt === selected}
             onClick={() => onSelect(opt)}
             disabled={answered || saving}
-            isDark={isDarkMode}
+            isDark={isDarkMode} // ← artık useTheme()'den gelen gerçek değer
           />
         ))}
       </div>
@@ -316,7 +310,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel, isDarkMode = tr
             onSpeak={handleSpeak}
             isSaving={saving}
             isLastQuestion={queueIndex + 1 >= queue.length}
-            isDarkMode={isDarkMode}
+            isDarkMode={isDarkMode} // ← artık useTheme()'den gelen gerçek değer
           />
         </div>
       )}
