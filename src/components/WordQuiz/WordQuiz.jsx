@@ -17,6 +17,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
+
+  const isAdmin = user?.role === 'admin' || user?.user_metadata?.role === 'admin';
   
   const {
     loading,
