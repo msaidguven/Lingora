@@ -11,13 +11,29 @@ import SentenceResult from "./SentenceResult.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
 
+// Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
+const cancelPendingSpeech = () => {
+  try {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  } catch (e) {
+    // no-op
+  }
+};
+
 export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
 
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
-  const hasSpokenRef = useRef(false);
+  // Hangi cümlenin (id'sine göre) zaten seslendirildiğini takip eder.
+  // Boolean bayrak yerine id kullanıyoruz: restart sırasında yeni veri
+  // Supabase'den asenkron geldiği için `currentQuestion`, veri gelene kadar
+  // eski (son) cümlede kalıyor. Id karşılaştırması hem eski cümlenin tekrar
+  // okunmasını hem de yeni ilk cümlenin atlanmasını engelliyor.
+  const lastSpokenIdRef = useRef(null);
 
   const {
     loading, error,
@@ -28,27 +44,48 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  // Yeni: cümle ve şıklar başta gizli, "Göster" butonuna basınca açılıyor.
+  const [revealed, setRevealed] = useState(false);
 
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
 
   useEffect(() => { 
     setIsFinished(false);
-    hasSpokenRef.current = false;
   }, [userLevel]);
 
-  // Auto-speak when new question loads
+  // Yeni bir soru geldiğinde cümle/şıkları tekrar gizle.
   useEffect(() => {
-    if (currentQuestion && !answered && !saving && !hasSpokenRef.current && !speaking) {
-      hasSpokenRef.current = true;
+    if (currentQuestion) {
+      setRevealed(false);
+    }
+  }, [currentQuestion]);
+
+  // Auto-speak when question loads.
+  // `loading` burada kritik: restart sonrası yeni veri asenkron geldiği için,
+  // veri yenilenene kadar (loading true olduğu sürece) hiç konuşmuyoruz.
+  // Bu sayede eski son cümle tekrar okunmuyor ve yeni ilk cümle, veri
+  // geldiğinde (loading false olunca) garanti okunuyor.
+  useEffect(() => {
+    if (
+      !loading &&
+      currentQuestion &&
+      !answered &&
+      !saving &&
+      !speaking &&
+      lastSpokenIdRef.current !== currentQuestion.id
+    ) {
+      lastSpokenIdRef.current = currentQuestion.id;
+      cancelPendingSpeech();
       setSpeaking(true);
       speak(currentQuestion.sentence_en);
       setTimeout(() => setSpeaking(false), 1800);
     }
-  }, [currentQuestion, answered, saving]);
+  }, [currentQuestion, answered, saving, loading]);
 
   const handleSpeak = (text) => {
     if (speaking) return;
+    cancelPendingSpeech();
     setSpeaking(true);
     speak(text);
     setTimeout(() => setSpeaking(false), 1800);
@@ -70,13 +107,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const onNext = () => {
     if (handleNext() === null) {
       setIsFinished(true);
+    } else {
+      setRevealed(false);
     }
-    hasSpokenRef.current = false;
   };
 
   const handleRestart = () => {
     setIsFinished(false);
-    hasSpokenRef.current = false;
+    setRevealed(false);
     restartQuizSession();
   };
 
@@ -223,103 +261,168 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       </div>
 
       {/* Question Card */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSpeak(currentQuestion.sentence_en)}
-        onKeyDown={(e) => e.key === "Enter" && handleSpeak(currentQuestion.sentence_en)}
-        className="relative rounded-2xl p-7 text-center mb-6 cursor-pointer
-                   transition-all duration-200 select-none group
-                   border border-base-300 bg-base-200
-                   hover:border-base-content/10 active:scale-[0.99]"
-        style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
-      >
-        {/* Sound icon */}
+      {revealed ? (
         <div
-          className={`absolute top-3.5 right-3.5 transition-opacity duration-200 ${
-            speaking ? "opacity-100" : "opacity-0 group-hover:opacity-50"
-          }`}
+          role="button"
+          tabIndex={0}
+          onClick={() => handleSpeak(currentQuestion.sentence_en)}
+          onKeyDown={(e) => e.key === "Enter" && handleSpeak(currentQuestion.sentence_en)}
+          className="relative rounded-2xl p-7 text-center mb-6 cursor-pointer
+                     transition-all duration-200 select-none group
+                     border border-base-300 bg-base-200
+                     hover:border-base-content/10 active:scale-[0.99]"
+          style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
         >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            style={{ color: speaking ? levelColor : "currentColor" }}
+          {/* Sound icon */}
+          <div
+            className={`absolute top-3.5 right-3.5 transition-opacity duration-200 ${
+              speaking ? "opacity-100" : "opacity-0 group-hover:opacity-50"
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
-            />
-          </svg>
-        </div>
-
-        {/* Sentence */}
-        <p
-          className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content"
-          style={speaking ? { color: levelColor } : {}}
-        >
-          "{currentQuestion.sentence_en}"
-        </p>
-
-        {/* Speaking dots / hint */}
-        {speaking ? (
-          <div className="mt-4 flex justify-center gap-1.5">
-            {[0, 150, 300].map((delay) => (
-              <span
-                key={delay}
-                className="w-1.5 h-1.5 rounded-full animate-bounce"
-                style={{ backgroundColor: levelColor, animationDelay: `${delay}ms` }}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
-            SESLENDİR
-          </p>
-        )}
-      </div>
-
-      {/* Section label */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="w-1 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: levelColor }} />
-        <span className="text-[11px] font-bold tracking-[0.12em] text-base-content/40 uppercase">
-          Bu cümlenin Türkçesi nedir?
-        </span>
-      </div>
-
-      {/* Options - Sadece kartlar, harf veya işaret yok */}
-      <div className="flex flex-col gap-3">
-        {options.map((opt, i) => {
-          const isCorrectOpt = opt === correctAnswer;
-          const isSelectedOpt = opt === selected;
-          
-          // Buton stilini belirle
-          let buttonStyle = "bg-base-200 border-base-300 hover:border-primary/30 text-base-content";
-          if (answered && isCorrectOpt) {
-            buttonStyle = "bg-success/10 border-success/40 text-success";
-          } else if (answered && isSelectedOpt && !isCorrectOpt) {
-            buttonStyle = "bg-error/10 border-error/40 text-error";
-          } else if (isSelectedOpt && !answered) {
-            buttonStyle = "bg-primary/10 border-primary/40 text-primary";
-          }
-
-          return (
-            <button
-              key={i}
-              onClick={() => onSelect(opt)}
-              disabled={answered || saving}
-              className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
-                !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
-              }`}
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              style={{ color: speaking ? levelColor : "currentColor" }}
             >
-              {opt}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+              />
+            </svg>
+          </div>
+
+          {/* Sentence */}
+          <p
+            className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content"
+            style={speaking ? { color: levelColor } : {}}
+          >
+            "{currentQuestion.sentence_en}"
+          </p>
+
+          {/* Speaking dots / hint */}
+          {speaking ? (
+            <div className="mt-4 flex justify-center gap-1.5">
+              {[0, 150, 300].map((delay) => (
+                <span
+                  key={delay}
+                  className="w-1.5 h-1.5 rounded-full animate-bounce"
+                  style={{ backgroundColor: levelColor, animationDelay: `${delay}ms` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
+              SESLENDİR
+            </p>
+          )}
+        </div>
+      ) : (
+        <div
+          className="relative rounded-2xl p-7 text-center mb-6
+                     border border-base-300 bg-base-200"
+        >
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${levelColor}15` }}
+            >
+              <svg
+                className="w-7 h-7"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                style={{ color: levelColor }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+                />
+              </svg>
+            </div>
+
+            <div className="text-xs font-semibold text-base-content/40 tracking-wider">
+              Önce cümleyi dinle
+            </div>
+
+            {speaking ? (
+              <div className="flex items-center justify-center gap-1.5">
+                {[0, 150, 300].map((delay) => (
+                  <span
+                    key={delay}
+                    className="w-1.5 h-1.5 rounded-full animate-bounce"
+                    style={{ backgroundColor: levelColor, animationDelay: `${delay}ms` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => handleSpeak(currentQuestion.sentence_en)}
+                className="text-xs font-semibold hover:opacity-80 transition-all"
+                style={{ color: levelColor }}
+              >
+                Tekrar dinle
+              </button>
+            )}
+
+            <button
+              onClick={() => setRevealed(true)}
+              className="py-3 px-8 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] mt-1"
+              style={{ backgroundColor: levelColor }}
+            >
+              Göster
             </button>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
+
+      {revealed && (
+        <>
+          {/* Section label */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: levelColor }} />
+            <span className="text-[11px] font-bold tracking-[0.12em] text-base-content/40 uppercase">
+              Bu cümlenin Türkçesi nedir?
+            </span>
+          </div>
+
+          {/* Options - Sadece kartlar, harf veya işaret yok */}
+          <div className="flex flex-col gap-3">
+            {options.map((opt, i) => {
+              const isCorrectOpt = opt === correctAnswer;
+              const isSelectedOpt = opt === selected;
+              
+              // Buton stilini belirle
+              let buttonStyle = "bg-base-200 border-base-300 hover:border-primary/30 text-base-content";
+              if (answered && isCorrectOpt) {
+                buttonStyle = "bg-success/10 border-success/40 text-success";
+              } else if (answered && isSelectedOpt && !isCorrectOpt) {
+                buttonStyle = "bg-error/10 border-error/40 text-error";
+              } else if (isSelectedOpt && !answered) {
+                buttonStyle = "bg-primary/10 border-primary/40 text-primary";
+              }
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSelect(opt)}
+                  disabled={answered || saving}
+                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
+                    !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+                  }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Result */}
       {answered && (
@@ -339,7 +442,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       )}
 
       {/* Bottom hint */}
-      {!answered && !saving && (
+      {revealed && !answered && !saving && (
         <div className="mt-8 text-center pb-1">
           <span className="text-[10px] tracking-[0.22em] font-semibold text-base-content/15">
             BİR KART SEÇ
