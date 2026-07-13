@@ -29,7 +29,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
-  const hasSpokenRef = useRef(false);
 
   const isAdmin = user?.role === 'admin';
 
@@ -49,6 +48,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     restartQuizSession,
     setExamplesMap
   } = useWordQuiz(userLevel);
+
+  // Hangi kelimenin (id'sine göre) zaten seslendirildiğini takip eder.
+  // Boolean bayrak yerine id kullanıyoruz çünkü restart sırasında
+  // `currentQuestion` yeni veri gelene kadar eski (son) kelimede kalıyor;
+  // id karşılaştırması hem eski kelimeyi tekrar okumayı hem de yeni ilk
+  // kelimenin atlanmasını engelliyor.
+  const lastSpokenIdRef = useRef(null);
 
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -74,13 +80,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }, 1800);
   };
 
-  // Auto-speak when new question loads
-  useEffect(() => {
-    if (currentQuestion && !answered && !speaking) {
-      hasSpokenRef.current = false;
-    }
-  }, [currentQuestion, answered]);
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -102,10 +101,20 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion]);
 
-  // Auto-speak when question loads
+  // Auto-speak when question loads.
+  // `loading` burada kritik: restart sonrası yeni veri Supabase'den asenkron
+  // geldiği için, veri yenilenene kadar (loading true olduğu sürece) hiç
+  // konuşmuyoruz. Bu sayede eski son kelime tekrar okunmuyor ve yeni ilk
+  // kelime, veri geldiğinde (loading false olunca) garanti okunuyor.
   useEffect(() => {
-    if (currentQuestion && !answered && !hasSpokenRef.current && !speaking) {
-      hasSpokenRef.current = true;
+    if (
+      !loading &&
+      currentQuestion &&
+      !answered &&
+      !speaking &&
+      lastSpokenIdRef.current !== currentQuestion.id
+    ) {
+      lastSpokenIdRef.current = currentQuestion.id;
       cancelPendingSpeech();
       setSpeaking(true);
       speak(currentQuestion.word);
@@ -113,7 +122,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         setSpeaking(false);
       }, 1800);
     }
-  }, [currentQuestion, answered]);
+  }, [currentQuestion, answered, loading]);
 
   const handleCardClick = () => {
     if (currentQuestion && !answered && !speaking) {
@@ -146,7 +155,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     } else {
       setRevealed(false);
     }
-    hasSpokenRef.current = false;
   };
 
   const handleRestart = () => {
@@ -160,7 +168,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setSelectedWordForExample(null);
     setSelectedWordForFeedback(null);
     setRevealed(false);
-    hasSpokenRef.current = false;
     restartQuizSession();
   };
 
