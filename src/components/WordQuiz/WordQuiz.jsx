@@ -12,6 +12,18 @@ import FeedbackModal from "./FeedbackModal.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
+// Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
+// speak() fonksiyonu farklı bir mekanizma kullansa bile bu çağrı zararsızdır.
+const cancelPendingSpeech = () => {
+  try {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  } catch (e) {
+    // no-op
+  }
+};
+
 export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -45,9 +57,22 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Yeni: kelime ve şıklar başta gizli, "Göster" butonuna basınca açılıyor.
+  const [revealed, setRevealed] = useState(false);
   const menuRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
+
+  // Ortak telaffuz oynatma fonksiyonu (cevaplanmış olsa bile kullanılabilir).
+  const playPronunciation = () => {
+    if (!currentQuestion || speaking) return;
+    cancelPendingSpeech();
+    setSpeaking(true);
+    speak(currentQuestion.word);
+    setTimeout(() => {
+      setSpeaking(false);
+    }, 1800);
+  };
 
   // Auto-speak when new question loads
   useEffect(() => {
@@ -70,10 +95,18 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
+  // Yeni bir soru geldiğinde kelime/şıkları tekrar gizle.
+  useEffect(() => {
+    if (currentQuestion) {
+      setRevealed(false);
+    }
+  }, [currentQuestion]);
+
   // Auto-speak when question loads
   useEffect(() => {
     if (currentQuestion && !answered && !hasSpokenRef.current && !speaking) {
       hasSpokenRef.current = true;
+      cancelPendingSpeech();
       setSpeaking(true);
       speak(currentQuestion.word);
       setTimeout(() => {
@@ -84,11 +117,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   const handleCardClick = () => {
     if (currentQuestion && !answered && !speaking) {
-      setSpeaking(true);
-      speak(currentQuestion.word);
-      setTimeout(() => {
-        setSpeaking(false);
-      }, 1800);
+      playPronunciation();
     }
   };
 
@@ -114,16 +143,23 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     const nextQuestion = handleNext();
     if (nextQuestion === null) {
       setIsFinished(true);
+    } else {
+      setRevealed(false);
     }
     hasSpokenRef.current = false;
   };
 
   const handleRestart = () => {
+    // Bekleyen/çalan eski telaffuzu iptal et ki yeni oturumun ilk kelimesi
+    // yerine önceki oturumun son kelimesi tekrar okunmasın.
+    cancelPendingSpeech();
+    setSpeaking(false);
     setIsFinished(false);
     setShowExampleModal(false);
     setShowFeedbackModal(false);
     setSelectedWordForExample(null);
     setSelectedWordForFeedback(null);
+    setRevealed(false);
     hasSpokenRef.current = false;
     restartQuizSession();
   };
@@ -219,138 +255,196 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
       {/* Word Card */}
       <div 
-        className={`relative rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${answered ? 'opacity-75 cursor-default' : 'hover:scale-[1.02] hover:border-primary/20'}`}
-        onClick={handleCardClick}
+        className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${
+          revealed
+            ? `cursor-pointer ${answered ? 'opacity-75 cursor-default' : 'hover:scale-[1.02] hover:border-primary/20'}`
+            : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
+        }`}
+        onClick={revealed ? handleCardClick : playPronunciation}
         style={{ marginTop: 20, marginBottom: 20 }}
       >
-        {/* Part of Speech */}
-        {currentQuestion?.part_of_speech?.length > 0 && (
-          <div className="flex justify-center gap-2 mb-3">
-            {currentQuestion.part_of_speech.map(p => (
-              <span 
-                key={p} 
-                className="text-[10px] font-semibold px-3 py-1 rounded-full"
-                style={{ 
-                  color: '#6366f1', 
-                  background: isDark ? '#6366f122' : '#6366f110',
-                  border: `1px solid ${isDark ? '#6366f133' : '#6366f120'}`
-                }}
-              >
-                {p}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Menu Button - 3 dots (sadece kelime gösterildiğinde anlamlı) */}
+        {revealed && (
+          <div className="absolute top-3 right-3" ref={menuRef}>
+            <button
+              className={`p-2 rounded-xl transition-all duration-200 text-base-content/30 hover:text-base-content hover:bg-base-200/80`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+              }}
+              aria-label="İşlemler"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
 
-        {/* Word */}
-        <div className="text-4xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
-          {currentQuestion.word}
-        </div>
-
-        {/* Speaking indicator */}
-        {speaking && (
-          <div className="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-primary">
-            <span className="flex gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
-            </span>
-            Dinleniyor...
-          </div>
-        )}
-
-        {/* Menu Button - 3 dots */}
-        <div className="absolute top-3 right-3" ref={menuRef}>
-          <button
-            className={`p-2 rounded-xl transition-all duration-200 text-base-content/30 hover:text-base-content hover:bg-base-200/80`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen(!menuOpen);
-            }}
-            aria-label="İşlemler"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-            </svg>
-          </button>
-
-          {/* Dropdown Menu */}
-          {menuOpen && (
-            <div className={`absolute right-0 top-full mt-1.5 w-52 rounded-2xl shadow-2xl border p-1.5 z-50 bg-base-100 border-base-200`}>
-              <button
-                className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-base-200 text-base-content`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedWordForFeedback(currentQuestion);
-                  setShowFeedbackModal(true);
-                  setMenuOpen(false);
-                }}
-              >
-                <span className="text-base">💬</span>
-                Geri Bildirim
-              </button>
-
-              {isAdmin && (
+            {/* Dropdown Menu */}
+            {menuOpen && (
+              <div className={`absolute right-0 top-full mt-1.5 w-52 rounded-2xl shadow-2xl border p-1.5 z-50 bg-base-100 border-base-200`}>
                 <button
                   className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-base-200 text-base-content`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedWordForExample(currentQuestion);
-                    setShowExampleModal(true);
+                    setSelectedWordForFeedback(currentQuestion);
+                    setShowFeedbackModal(true);
                     setMenuOpen(false);
                   }}
                 >
-                  <span className="text-base">✏️</span>
-                  Cümle Ekle
+                  <span className="text-base">💬</span>
+                  Geri Bildirim
                 </button>
-              )}
 
-              <div className={`my-1.5 h-px bg-base-200`} />
+                {isAdmin && (
+                  <button
+                    className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-base-200 text-base-content`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedWordForExample(currentQuestion);
+                      setShowExampleModal(true);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <span className="text-base">✏️</span>
+                    Cümle Ekle
+                  </button>
+                )}
 
-              <div className={`px-3.5 py-1.5 text-[10px] font-mono text-base-content/30`}>
-                ID: {currentQuestion.id?.slice(0, 8)}
+                <div className={`my-1.5 h-px bg-base-200`} />
+
+                <div className={`px-3.5 py-1.5 text-[10px] font-mono text-base-content/30`}>
+                  ID: {currentQuestion.id?.slice(0, 8)}
+                </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {revealed ? (
+          <>
+            {/* Part of Speech */}
+            {currentQuestion?.part_of_speech?.length > 0 && (
+              <div className="flex justify-center gap-2 mb-3">
+                {currentQuestion.part_of_speech.map(p => (
+                  <span 
+                    key={p} 
+                    className="text-[10px] font-semibold px-3 py-1 rounded-full"
+                    style={{ 
+                      color: '#6366f1', 
+                      background: isDark ? '#6366f122' : '#6366f110',
+                      border: `1px solid ${isDark ? '#6366f133' : '#6366f120'}`
+                    }}
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Word */}
+            <div className="text-4xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
+              {currentQuestion.word}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Question */}
-      <div className="flex items-center gap-2 text-xs font-semibold mb-3 text-base-content/40 tracking-wider">
-        <span className="w-1 h-3 rounded-full bg-primary/60" />
-        Türkçe anlamı nedir?
-      </div>
-
-      {/* Options - Simple buttons without letters and checkmarks */}
-      <div className="flex flex-col gap-2.5">
-        {options.map((opt, i) => {
-          const isCorrect = opt === correctAnswer;
-          const isSelected = opt === selected;
-          
-          // Determine button style based on state
-          let buttonStyle = "bg-base-100 border-base-200 hover:border-primary/30 text-base-content";
-          if (answered && isCorrect) {
-            buttonStyle = "bg-success/10 border-success/40 text-success";
-          } else if (answered && isSelected && !isCorrect) {
-            buttonStyle = "bg-error/10 border-error/40 text-error";
-          } else if (isSelected && !answered) {
-            buttonStyle = "bg-primary/10 border-primary/40 text-primary";
-          }
-
-          return (
-            <button
-              key={i}
-              onClick={() => onSelect(opt)}
-              disabled={answered || saving}
-              className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
-                !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
-              }`}
+            {/* Speaking indicator */}
+            {speaking && (
+              <div className="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-primary">
+                <span className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                </span>
+                Dinleniyor...
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: isDark ? '#6366f122' : '#6366f110' }}
             >
-              {opt}
+              <span className="text-3xl">🔊</span>
+            </div>
+
+            <div className="text-xs font-semibold text-base-content/40 tracking-wider">
+              Önce kelimeyi dinle
+            </div>
+
+            {speaking ? (
+              <div className="flex items-center justify-center gap-2 text-xs font-medium text-primary">
+                <span className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                </span>
+                Dinleniyor...
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playPronunciation();
+                }}
+                className="text-xs font-semibold text-primary/70 hover:text-primary transition-all"
+              >
+                Tekrar dinle
+              </button>
+            )}
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRevealed(true);
+              }}
+              className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all hover:scale-105 font-semibold mt-1"
+            >
+              Göster
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
+
+      {revealed && (
+        <>
+          {/* Question */}
+          <div className="flex items-center gap-2 text-xs font-semibold mb-3 text-base-content/40 tracking-wider">
+            <span className="w-1 h-3 rounded-full bg-primary/60" />
+            Türkçe anlamı nedir?
+          </div>
+
+          {/* Options - Simple buttons without letters and checkmarks */}
+          <div className="flex flex-col gap-2.5">
+            {options.map((opt, i) => {
+              const isCorrect = opt === correctAnswer;
+              const isSelected = opt === selected;
+              
+              // Determine button style based on state
+              let buttonStyle = "bg-base-100 border-base-200 hover:border-primary/30 text-base-content";
+              if (answered && isCorrect) {
+                buttonStyle = "bg-success/10 border-success/40 text-success";
+              } else if (answered && isSelected && !isCorrect) {
+                buttonStyle = "bg-error/10 border-error/40 text-error";
+              } else if (isSelected && !answered) {
+                buttonStyle = "bg-primary/10 border-primary/40 text-primary";
+              }
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSelect(opt)}
+                  disabled={answered || saving}
+                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
+                    !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+                  }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Answer Feedback */}
       {answered && (
@@ -359,11 +453,24 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             ? 'bg-success/10 border-success/40 text-success'
             : 'bg-error/10 border-error/40 text-error'
         }`}>
-          <div className="flex items-center gap-2 font-bold text-sm mb-3">
-            <span className="text-lg">
-              {selected === correctAnswer ? '✅' : '❌'}
-            </span>
-            {selected === correctAnswer ? "Doğru!" : `Doğru cevap: "${correctAnswer}"`}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <span className="text-lg">
+                {selected === correctAnswer ? '✅' : '❌'}
+              </span>
+              {selected === correctAnswer ? "Doğru!" : `Doğru cevap: "${correctAnswer}"`}
+            </div>
+
+            {/* Telaffuzu tekrar dinle */}
+            <button
+              onClick={playPronunciation}
+              disabled={speaking}
+              className="btn btn-circle btn-sm btn-ghost text-current"
+              aria-label="Telaffuzu tekrar dinle"
+              title="Telaffuzu tekrar dinle"
+            >
+              <span className="text-base">🔊</span>
+            </button>
           </div>
           
           <button 
@@ -386,7 +493,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       )}
 
       {/* Bottom Info */}
-      {!answered && !saving && (
+      {revealed && !answered && !saving && (
         <div className="mt-6 text-center">
           <span className="text-[10px] tracking-[0.15em] text-base-content/20 font-medium">
             DOĞRU ŞIKKI SEÇ VE DEVAM ET
