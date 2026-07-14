@@ -20,11 +20,13 @@ const WORD_EXAMPLE_JSON = `[
     "examples": [
       {
         "en": "She felt very happy today.",
-        "tr": "Bugün çok mutlu hissetti."
+        "tr": "Bugün çok mutlu hissetti.",
+        "learning_notes": ["'felt' kullanımı: hissetmek fiilinin geçmiş zamanı", "'very' + sıfat yapısı"]
       },
       {
         "en": "I am happy to see you.",
-        "tr": "Seni gördüğüme mutluyum."
+        "tr": "Seni gördüğüme mutluyum.",
+        "learning_notes": ["'happy to + fiil' kalıbı: bir şey yapmaktan mutlu olmak"]
       }
     ]
   }
@@ -38,6 +40,7 @@ Her kelime için:
 - A1 ise tamamen A1 seviyesinde 5 cümle
 - A2 ise A2 seviyesinde 5 cümle vb.
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
+- Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). Not yoksa boş array [] bırak.
 
 kelimenin diğer anlamlarını virgül ile ayır.
 bu verdiğim kelimeler A1 seviyesinde.
@@ -56,11 +59,11 @@ Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt.
     "synonyms": ["eş1", "eş2"],
     "antonyms": ["zıt1", "zıt2"],
     "examples": [
-      {"en": "English sentence 1", "tr": "Türkçe çeviri 1"},
-      {"en": "English sentence 2", "tr": "Türkçe çeviri 2"},
-      {"en": "English sentence 3", "tr": "Türkçe çeviri 3"},
-      {"en": "English sentence 4", "tr": "Türkçe çeviri 4"},
-      {"en": "English sentence 5", "tr": "Türkçe çeviri 5"}
+      {"en": "English sentence 1", "tr": "Türkçe çeviri 1", "learning_notes": ["not1", "not2"]},
+      {"en": "English sentence 2", "tr": "Türkçe çeviri 2", "learning_notes": []},
+      {"en": "English sentence 3", "tr": "Türkçe çeviri 3", "learning_notes": []},
+      {"en": "English sentence 4", "tr": "Türkçe çeviri 4", "learning_notes": []},
+      {"en": "English sentence 5", "tr": "Türkçe çeviri 5", "learning_notes": []}
     ]
   }
 ]
@@ -181,6 +184,13 @@ function WordAdder() {
         if (item.examples && !Array.isArray(item.examples)) {
           throw new Error(`"${item.word}" için examples bir array olmalı`);
         }
+        if (item.examples) {
+          item.examples.forEach((ex) => {
+            if (ex.learning_notes && !Array.isArray(ex.learning_notes)) {
+              throw new Error(`"${item.word}" için learning_notes bir array olmalı`);
+            }
+          });
+        }
       });
       
       setParsedData(data);
@@ -247,6 +257,7 @@ function WordAdder() {
                       order_index: 0,
                       source: "manual",
                       is_approved: true,
+                      learning_notes: example.learning_notes || [],
                     });
 
                   if (insertExampleError) {
@@ -323,6 +334,7 @@ function WordAdder() {
                     order_index: 0,
                     source: "manual",
                     is_approved: true,
+                    learning_notes: example.learning_notes || [],
                   });
 
                 if (insertExampleError) {
@@ -516,7 +528,7 @@ function WordAdder() {
         <TextArea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
-          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "..." } ] } ]'
+          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "...", "learning_notes": [] } ] } ]'
           rows={10}
         />
         
@@ -631,7 +643,8 @@ function WordEditor() {
             sentence_tr,
             difficulty,
             order_index,
-            is_approved
+            is_approved,
+            learning_notes
           )
         `)
         .or(`word.ilike.%${term}%, meaning.ilike.%${term}%`)
@@ -686,7 +699,10 @@ function WordEditor() {
       difficulty: word.difficulty || 1,
       synonyms: word.synonyms || [],
       antonyms: word.antonyms || [],
-      examples: word.en_example_sentences || [],
+      examples: (word.en_example_sentences || []).map(e => ({
+        ...e,
+        learning_notes: e.learning_notes || [],
+      })),
     });
     setEditing(false);
     setMessage(null);
@@ -699,6 +715,36 @@ function WordEditor() {
   const handleArrayChange = (field, value) => {
     const arr = value.split(",").map(s => s.trim()).filter(s => s);
     setFormData(prev => ({ ...prev, [field]: arr }));
+  };
+
+  const handleExampleNotesChange = (exampleId, value) => {
+    const arr = value.split(",").map(s => s.trim()).filter(s => s);
+    setFormData(prev => ({
+      ...prev,
+      examples: prev.examples.map(e =>
+        e.id === exampleId ? { ...e, learning_notes: arr } : e
+      ),
+    }));
+  };
+
+  const saveExampleNotes = async (exampleId) => {
+    const example = formData.examples.find(e => e.id === exampleId);
+    if (!example) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("en_example_sentences")
+        .update({ learning_notes: example.learning_notes || [] })
+        .eq("id", exampleId);
+
+      if (error) throw error;
+      setMessage({ type: "success", text: "✅ Öğrenme notları güncellendi!" });
+    } catch (error) {
+      setMessage({ type: "error", text: "Notlar kaydedilemedi: " + error.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -999,40 +1045,97 @@ function WordEditor() {
           <div style={{ marginTop: 24, borderTop: `1px solid ${colors.border}`, paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📝 Örnek Cümleler ({formData.examples.length})</div>
             
-            <div style={{ maxHeight: 300, overflowY: "auto" }}>
+            <div style={{ maxHeight: 400, overflowY: "auto" }}>
               {formData.examples.map((example, index) => (
                 <div 
                   key={example.id || index}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 12px",
+                    padding: "10px 12px",
                     background: index % 2 === 0 ? colors.surfaceDark : "transparent",
                     borderRadius: 6,
                     marginBottom: 4
                   }}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: colors.text }}>{example.sentence_en}</div>
-                    <div style={{ fontSize: 12, color: colors.textSecondary }}>{example.sentence_tr}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, color: colors.text }}>{example.sentence_en}</div>
+                      <div style={{ fontSize: 12, color: colors.textSecondary }}>{example.sentence_tr}</div>
+                    </div>
+                    {editing && (
+                      <button
+                        onClick={() => deleteExample(example.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: colors.error,
+                          cursor: "pointer",
+                          fontSize: 16,
+                          padding: "4px 8px"
+                        }}
+                        title="Sil"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                  {editing && (
-                    <button
-                      onClick={() => deleteExample(example.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: colors.error,
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: "4px 8px"
-                      }}
-                      title="Sil"
-                    >
-                      ✕
-                    </button>
-                  )}
+
+                  <div style={{ marginTop: 6 }}>
+                    {!editing ? (
+                      example.learning_notes && example.learning_notes.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                          {example.learning_notes.map((note, ni) => (
+                            <span
+                              key={ni}
+                              style={{
+                                fontSize: 11,
+                                background: colors.surfaceLight,
+                                color: colors.textSecondary,
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                border: `1px solid ${colors.border}`
+                              }}
+                            >
+                              💡 {note}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null
+                    ) : (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}>
+                        <input
+                          type="text"
+                          value={(example.learning_notes || []).join(", ")}
+                          onChange={(e) => handleExampleNotesChange(example.id, e.target.value)}
+                          placeholder="Öğrenme notları (virgülle ayır)"
+                          style={{
+                            flex: 1,
+                            fontSize: 12,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: `1px solid ${colors.border}`,
+                            background: colors.surface,
+                            color: colors.text
+                          }}
+                        />
+                        <button
+                          onClick={() => saveExampleNotes(example.id)}
+                          disabled={loading}
+                          style={{
+                            fontSize: 11,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "none",
+                            background: colors.primary,
+                            color: "#fff",
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.6 : 1
+                          }}
+                        >
+                          💾
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
               {formData.examples.length === 0 && (
