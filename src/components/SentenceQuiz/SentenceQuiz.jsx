@@ -328,8 +328,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       ) : (
         <div
-          className="relative rounded-2xl p-7 text-center mb-6
-                     border border-base-300 bg-base-200"
+          className="relative rounded-2xl p-7 text-center mb-6 cursor-pointer
+                     border border-base-300 bg-base-200
+                     hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
+          onClick={handleCardClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
         >
           <div className="flex flex-col items-center gap-4 py-4">
             <div
@@ -366,18 +371,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   />
                 ))}
               </div>
-            ) : (
-              <button
-                onClick={() => playPronunciation(currentQuestion.sentence_en)}
-                className="text-xs font-semibold hover:opacity-80 transition-all"
-                style={{ color: levelColor }}
-              >
-                Tekrar dinle
-              </button>
-            )}
+            ) : null}
 
             <button
-              onClick={() => setRevealed(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRevealed(true);
+              }}
               className="py-3 px-8 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] mt-1"
               style={{ backgroundColor: levelColor }}
             >
