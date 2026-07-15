@@ -7,6 +7,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useTheme } from "../../contexts/ThemeContext.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import SentenceResult from "./SentenceResult.jsx";
+import { supabase } from "../../config.js";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
@@ -22,17 +23,21 @@ const cancelPendingSpeech = () => {
   }
 };
 
+// Coin sesi çal
+const playCoinSound = () => {
+  try {
+    const audio = new Audio('/sounds/coin.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch (e) {}
+};
+
 export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
 
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
-  // Hangi cümlenin (id'sine göre) zaten seslendirildiğini takip eder.
-  // Boolean bayrak yerine id kullanıyoruz: restart sırasında yeni veri
-  // Supabase'den asenkron geldiği için `currentQuestion`, veri gelene kadar
-  // eski (son) cümlede kalıyor. Id karşılaştırması hem eski cümlenin tekrar
-  // okunmasını hem de yeni ilk cümlenin atlanmasını engelliyor.
   const lastSpokenIdRef = useRef(null);
 
   const {
@@ -44,13 +49,21 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  // Yeni: cümle ve şıklar başta gizli, "Göster" butonuna basınca açılıyor.
   const [revealed, setRevealed] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
 
-  // Ortak telaffuz oynatma fonksiyonu - cevaplanmış olsa bile çalışır
+  // Toast'u otomatik kapat
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = (text) => {
     if (speaking || !text) return;
     cancelPendingSpeech();
@@ -63,18 +76,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
-  // Yeni bir soru geldiğinde cümle/şıkları tekrar gizle.
   useEffect(() => {
     if (currentQuestion) {
       setRevealed(false);
     }
   }, [currentQuestion]);
 
-  // Auto-speak when question loads.
-  // `loading` burada kritik: restart sonrası yeni veri asenkron geldiği için,
-  // veri yenilenene kadar (loading true olduğu sürece) hiç konuşmuyoruz.
-  // Bu sayede eski son cümle tekrar okunmuyor ve yeni ilk cümle, veri
-  // geldiğinde (loading false olunca) garanti okunuyor.
   useEffect(() => {
     if (
       !loading &&
@@ -92,9 +99,40 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const onSelect = async (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
     isUpdatingRef.current = true;
+    
     await handleSelect(opt, async (isCorrect) => {
       try {
-        if (user) await updateDailyStats(user.id, "sentence", isCorrect);
+        if (user) {
+          await updateDailyStats(user.id, "sentence", isCorrect);
+          
+          // Doğruysa coin ekle
+          if (isCorrect) {
+            const { data: currentUser } = await supabase
+              .from("en_users")
+              .select("coins")
+              .eq("id", user.id)
+              .single();
+            
+            const newCoins = (currentUser?.coins || 0) + 1;
+            
+            await supabase
+              .from("en_users")
+              .update({ coins: newCoins })
+              .eq("id", user.id);
+            
+            // Toast göster
+            setToast({
+              message: `🪙 +1 Coin (${newCoins})`,
+              type: 'success'
+            });
+            
+            // Coin sesi çal
+            playCoinSound();
+            
+            // Header'ı güncelle
+            window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+          }
+        }
       } catch (err) {
         console.error("İstatistik güncelleme hatası:", err);
       }
@@ -111,7 +149,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
-    // Bekleyen/çalan eski telaffuzu iptal et
     cancelPendingSpeech();
     setSpeaking(false);
     setIsFinished(false);
@@ -227,7 +264,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const currentWord = currentQuestion.en_words;
   const isCorrect = selected === correctAnswer;
 
-  // Kart tıklama fonksiyonu - cevaplandıktan sonra da çalışır
   const handleCardClick = () => {
     if (currentQuestion && !speaking) {
       playPronunciation(currentQuestion.sentence_en);
@@ -281,7 +317,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
         >
-          {/* Cümle ve Speaker Icon */}
           <div className="flex items-center justify-center gap-3">
             <p
               className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content"
@@ -309,7 +344,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </button>
           </div>
 
-          {/* Speaking dots / hint */}
           {speaking ? (
             <div className="mt-4 flex justify-center gap-1.5">
               {[0, 150, 300].map((delay) => (
@@ -389,7 +423,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
       {revealed && (
         <>
-          {/* Section label */}
           <div className="flex items-center gap-2 mb-4">
             <span className="w-1 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: levelColor }} />
             <span className="text-[11px] font-bold tracking-[0.12em] text-base-content/40 uppercase">
@@ -397,13 +430,11 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </span>
           </div>
 
-          {/* Options - Sadece kartlar, harf veya işaret yok */}
           <div className="flex flex-col gap-3">
             {options.map((opt, i) => {
               const isCorrectOpt = opt === correctAnswer;
               const isSelectedOpt = opt === selected;
               
-              // Buton stilini belirle
               let buttonStyle = "bg-base-200 border-base-300 hover:border-primary/30 text-base-content";
               if (answered && isCorrectOpt) {
                 buttonStyle = "bg-success/10 border-success/40 text-success";
@@ -453,6 +484,16 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
           <span className="text-[10px] tracking-[0.22em] font-semibold text-base-content/15">
             BİR KART SEÇ
           </span>
+        </div>
+      )}
+
+      {/* Toast Mesajı - Sağ Alt */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[9999] animate-slide-in-right">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30 text-sm">
+            <span className="text-base">🪙</span>
+            <span className="font-semibold">{toast.message}</span>
+          </div>
         </div>
       )}
     </div>
