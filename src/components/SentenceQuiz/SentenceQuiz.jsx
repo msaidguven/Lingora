@@ -50,6 +50,15 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
 
+  // Ortak telaffuz oynatma fonksiyonu - cevaplanmış olsa bile çalışır
+  const playPronunciation = (text) => {
+    if (speaking || !text) return;
+    cancelPendingSpeech();
+    setSpeaking(true);
+    speak(text);
+    setTimeout(() => setSpeaking(false), 1800);
+  };
+
   useEffect(() => { 
     setIsFinished(false);
   }, [userLevel]);
@@ -76,20 +85,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       lastSpokenIdRef.current !== currentQuestion.id
     ) {
       lastSpokenIdRef.current = currentQuestion.id;
-      cancelPendingSpeech();
-      setSpeaking(true);
-      speak(currentQuestion.sentence_en);
-      setTimeout(() => setSpeaking(false), 1800);
+      playPronunciation(currentQuestion.sentence_en);
     }
   }, [currentQuestion, answered, saving, loading]);
-
-  const handleSpeak = (text) => {
-    if (speaking) return;
-    cancelPendingSpeech();
-    setSpeaking(true);
-    speak(text);
-    setTimeout(() => setSpeaking(false), 1800);
-  };
 
   const onSelect = async (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
@@ -113,6 +111,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
+    // Bekleyen/çalan eski telaffuzu iptal et
+    cancelPendingSpeech();
+    setSpeaking(false);
     setIsFinished(false);
     setRevealed(false);
     restartQuizSession();
@@ -226,6 +227,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const currentWord = currentQuestion.en_words;
   const isCorrect = selected === correctAnswer;
 
+  // Kart tıklama fonksiyonu - cevaplandıktan sonra da çalışır
+  const handleCardClick = () => {
+    if (currentQuestion && !speaking) {
+      playPronunciation(currentQuestion.sentence_en);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-base-100 text-base-content font-sans max-w-md mx-auto px-5 py-6 flex flex-col">
 
@@ -265,43 +273,41 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => handleSpeak(currentQuestion.sentence_en)}
-          onKeyDown={(e) => e.key === "Enter" && handleSpeak(currentQuestion.sentence_en)}
+          onClick={handleCardClick}
+          onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
           className="relative rounded-2xl p-7 text-center mb-6 cursor-pointer
                      transition-all duration-200 select-none group
                      border border-base-300 bg-base-200
-                     hover:border-base-content/10 active:scale-[0.99]"
+                     hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
         >
-          {/* Sound icon */}
-          <div
-            className={`absolute top-3.5 right-3.5 transition-opacity duration-200 ${
-              speaking ? "opacity-100" : "opacity-0 group-hover:opacity-50"
-            }`}
-          >
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              style={{ color: speaking ? levelColor : "currentColor" }}
+          {/* Cümle ve Speaker Icon */}
+          <div className="flex items-center justify-center gap-3">
+            <p
+              className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content"
+              style={speaking ? { color: levelColor } : {}}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
-              />
-            </svg>
+              "{currentQuestion.sentence_en}"
+            </p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                playPronunciation(currentQuestion.sentence_en);
+              }}
+              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0 ${
+                speaking 
+                  ? 'bg-primary/20 text-primary animate-pulse' 
+                  : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
+              }`}
+              aria-label="Telaffuzu dinle"
+              title="Telaffuzu dinle"
+              disabled={speaking}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            </button>
           </div>
-
-          {/* Sentence */}
-          <p
-            className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content"
-            style={speaking ? { color: levelColor } : {}}
-          >
-            "{currentQuestion.sentence_en}"
-          </p>
 
           {/* Speaking dots / hint */}
           {speaking ? (
@@ -316,7 +322,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </div>
           ) : (
             <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
-              SESLENDİR
+              TIKLA / DOKUN
             </p>
           )}
         </div>
@@ -362,7 +368,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             ) : (
               <button
-                onClick={() => handleSpeak(currentQuestion.sentence_en)}
+                onClick={() => playPronunciation(currentQuestion.sentence_en)}
                 className="text-xs font-semibold hover:opacity-80 transition-all"
                 style={{ color: levelColor }}
               >
@@ -433,7 +439,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             selectedAnswer={selected}
             currentWord={currentWord}
             onNext={onNext}
-            onSpeak={handleSpeak}
+            onSpeak={playPronunciation}
             isSaving={saving}
             isLastQuestion={queueIndex + 1 >= queue.length}
             isDarkMode={isDarkMode}
