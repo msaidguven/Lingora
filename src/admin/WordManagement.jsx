@@ -44,6 +44,7 @@ Her kelime için:
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
 - Her cümle için level belirt (A1, A2, B1, B2, C1)
 - Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). İngilizce öğrenmeye çalışan birisi için yardımcı olacak açıklamalar. kelime ve kullanım alanı ayrıca neden ve niçin böyle kullanıldığı vb.
+- Doğru json formatında ver, parse ederken hata olmasın.
 
 kelimenin diğer anlamlarını virgül ile ayır.
 bu verdiğim kelimeler A1 seviyesinde.
