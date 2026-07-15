@@ -234,8 +234,7 @@ export function useHomeViewModel() {
     setBuying(false);
   };
 
-  // 5 Cümle Satın Al (50 Coin)
-// 5 Cümle Satın Al (50 Coin)
+// 5 Cümle Satın Al (50 Coin) - YENİ (level ile, JOIN yok)
 const handleBuySentences = async () => {
   if (!user) {
     alert("Lütfen giriş yapın!");
@@ -250,60 +249,113 @@ const handleBuySentences = async () => {
   setBuying(true);
 
   try {
-    // Kullanıcının mevcut cümlelerini al
+    // 1. Kullanıcının mevcut cümle ID'lerini al
     const { data: userSentences } = await supabase
       .from("en_user_sentences")
       .select("sentence_id")
       .eq("user_id", user.id);
 
-    const learnedSentenceIds = userSentences?.map((s) => s.sentence_id) || [];
+    const learnedIds = userSentences?.map((s) => s.sentence_id) || [];
 
-    // Önce kullanıcının seviyesine uygun tüm cümleleri bul
+    // 2. Doğrudan level'e göre sorgu (JOIN YOK!)
     let query = supabase
       .from("en_example_sentences")
-      .select("*, en_words(word, meaning, level)")
-      .eq("is_approved", true);
+      .select("*")
+      .eq("is_approved", true)
+      .eq("level", userLevel);
 
-    // Eğer öğrenilmiş cümle varsa onları hariç tut
-    if (learnedSentenceIds.length > 0) {
-      query = query.not("id", "in", `(${learnedSentenceIds.join(",")})`);
+    // Öğrenilmiş cümleleri hariç tut
+    if (learnedIds.length > 0) {
+      // chunk'lara böl (Supabase URL limiti için)
+      const chunkSize = 500;
+      let allSentences = [];
+      
+      for (let i = 0; i < learnedIds.length; i += chunkSize) {
+        const chunk = learnedIds.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("en_example_sentences")
+          .select("*")
+          .eq("is_approved", true)
+          .eq("level", userLevel)
+          .not("id", "in", `(${chunk.join(",")})`);
+        
+        if (error) throw error;
+        if (data) {
+          allSentences = [...allSentences, ...data];
+        }
+      }
+      
+      // Benzersiz yap (aynı cümle farklı chunk'larda gelebilir)
+      const uniqueMap = {};
+      allSentences.forEach(s => uniqueMap[s.id] = s);
+      allSentences = Object.values(uniqueMap);
+      
+      const newSentences = allSentences.slice(0, 5);
+      
+      if (newSentences.length === 0) {
+        alert(`Bu seviyede (${userLevel}) açılacak cümle kalmadı! 🎉`);
+        setBuying(false);
+        return;
+      }
+      
+      // Cümleleri ekle
+      const now = new Date();
+      const today = new Date();
+      
+      const sentenceInserts = newSentences.map((sentence) => ({
+        user_id: user.id,
+        sentence_id: sentence.id,
+        added_at: now.toISOString(),
+        next_review_at: today.toISOString(),
+        review_count: 0,
+        last_score: null,
+        last_reviewed_at: null,
+        ease_factor: 2.5,
+      }));
+      
+      const { error: sentenceError } = await supabase
+        .from("en_user_sentences")
+        .insert(sentenceInserts);
+      
+      if (sentenceError) throw sentenceError;
+      
+    } else {
+      // Hiç cümle öğrenilmemiş, doğrudan çek
+      const { data: newSentences, error } = await supabase
+        .from("en_example_sentences")
+        .select("*")
+        .eq("is_approved", true)
+        .eq("level", userLevel)
+        .limit(5);
+      
+      if (error) throw error;
+      
+      if (!newSentences || newSentences.length === 0) {
+        alert(`Bu seviyede (${userLevel}) açılacak cümle kalmadı! 🎉`);
+        setBuying(false);
+        return;
+      }
+      
+      const now = new Date();
+      const today = new Date();
+      
+      const sentenceInserts = newSentences.map((sentence) => ({
+        user_id: user.id,
+        sentence_id: sentence.id,
+        added_at: now.toISOString(),
+        next_review_at: today.toISOString(),
+        review_count: 0,
+        last_score: null,
+        last_reviewed_at: null,
+        ease_factor: 2.5,
+      }));
+      
+      const { error: sentenceError } = await supabase
+        .from("en_user_sentences")
+        .insert(sentenceInserts);
+      
+      if (sentenceError) throw sentenceError;
     }
-
-    const { data: allSentences } = await query;
-
-    // Seviyeye göre filtrele (en_words.level kontrolü)
-    const filteredSentences = (allSentences || []).filter(
-      (s) => s.en_words?.level === userLevel
-    );
-
-    // 5 tane al
-    const newSentences = filteredSentences.slice(0, 5);
-
-    if (!newSentences || newSentences.length === 0) {
-      alert("Bu seviyede açılacak cümle kalmadı! 🎉");
-      setBuying(false);
-      return;
-    }
-
-    const now = new Date();
-    const today = new Date();
-
-    const sentenceInserts = newSentences.map((sentence) => ({
-      user_id: user.id,
-      sentence_id: sentence.id,
-      added_at: now.toISOString(),
-      next_review_at: today.toISOString(),
-      review_count: 0,
-      last_score: null,
-      last_reviewed_at: null,
-      ease_factor: 2.5,
-    }));
-
-    const { error: sentenceError } = await supabase
-      .from("en_user_sentences")
-      .insert(sentenceInserts);
-
-    if (sentenceError) throw sentenceError;
 
     // 50 coin düş
     const newCoins = coins - 50;
@@ -316,7 +368,8 @@ const handleBuySentences = async () => {
     window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
     await fetchData();
-    alert(`🎉 ${newSentences.length} yeni cümle eklendi! Kalan coin: ${newCoins}`);
+    alert(`🎉 5 yeni cümle eklendi! Kalan coin: ${newCoins}`);
+    
   } catch (error) {
     console.error("Hata:", error);
     alert("Bir hata oluştu! Lütfen tekrar deneyin.");
