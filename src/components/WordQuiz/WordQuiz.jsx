@@ -393,14 +393,34 @@ const onSelect = async (opt) => {
               </div>
             )}
 
-            {/* Word */}
-            <div className="text-4xl font-extrabold tracking-tight mb-2 leading-tight text-base-content">
-              {currentQuestion.word}
+            {/* Word with Speaker Icon */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <span className="text-4xl font-extrabold tracking-tight leading-tight text-base-content">
+                {currentQuestion.word}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playPronunciation();
+                }}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  speaking 
+                    ? 'bg-primary/20 text-primary animate-pulse' 
+                    : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
+                }`}
+                aria-label="Telaffuzu dinle"
+                title="Telaffuzu dinle"
+                disabled={speaking}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+              </button>
             </div>
 
             {/* Speaking indicator */}
             {speaking && (
-              <div className="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-primary">
+              <div className="mt-1 flex items-center justify-center gap-2 text-xs font-medium text-primary">
                 <span className="flex gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
