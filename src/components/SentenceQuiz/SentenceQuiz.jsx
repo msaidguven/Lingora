@@ -8,6 +8,7 @@ import { useTheme } from "../../contexts/ThemeContext.jsx";
 import ProgressBar from "../common/ProgressBar.jsx";
 import SentenceResult from "./SentenceResult.jsx";
 import { supabase } from "../../config.js";
+import Toast from "../common/Toast.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
@@ -21,15 +22,6 @@ const cancelPendingSpeech = () => {
   } catch (e) {
     // no-op
   }
-};
-
-// Coin sesi çal
-const playCoinSound = () => {
-  try {
-    const audio = new Audio('/sounds/coin.mp3');
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
-  } catch (e) {}
 };
 
 export default function SentenceQuiz({ userLevel, onChangeLevel }) {
@@ -50,18 +42,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
   const levelLabel = LEVEL_LABEL[userLevel];
-
-  // Toast'u otomatik kapat
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = (text) => {
@@ -120,16 +103,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               .update({ coins: newCoins })
               .eq("id", user.id);
             
-            // Toast göster
-            setToast({
-              message: `🪙 +1 Coin (${newCoins})`,
-              type: 'success'
-            });
-            
-            // Coin sesi çal
-            playCoinSound();
-            
-            // Header'ı güncelle
+            // Header'ı güncelle (Toast kendi dinleyecek)
             window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
           }
         }
@@ -487,15 +461,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Toast Mesajı - Sağ Alt */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[9999] animate-slide-in-right">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30 text-sm">
-            <span className="text-base">🪙</span>
-            <span className="font-semibold">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      {/* Toast - Tek bir bileşen */}
+      <Toast />
     </div>
   );
 }
