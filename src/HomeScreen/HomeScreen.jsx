@@ -3,20 +3,25 @@ import { useHomeViewModel } from "./viewModel";
 import QuizOptionButton from "../components/Quiz/QuizOptionButton";
 
 // ---------------------------------------------------------------------------
-// Design language: "graded notebook". LINGORA is a vocabulary app, so the
-// home screen borrows the vernacular of a language-learning notebook that's
-// been checked by a teacher — spiral binding, ruled paper, red-pen marks,
-// wax-stamp level badge, dog-eared flashcard corners, ticket-style coin redeem.
+// Design language: "graded notebook" — spiral binding, ruled paper, a red-pen
+// stamp for level, dog-eared flashcard corners, a punch-hole coin ticket.
+// Every color comes from daisyUI's semantic tokens (base-100/200/300,
+// primary, error, success, info, warning, neutral) so the whole page follows
+// whichever daisyUI theme is active (light, dark, or any custom theme) —
+// nothing here is a hardcoded hex value.
 // ---------------------------------------------------------------------------
 
-const INK = "#F0E9D8"; // cream ink on the cover
-const PAPER = "#F1ECDD"; // parchment card face
-const PAPER_INK = "#221B12"; // dark text on paper
-const RED = "#D6303C"; // red pen
-const RED_DARK = "#A82530";
-const GOLD = "#E8B94E"; // highlighter / coins
-const GREEN = "#4C9A6B"; // mastered / correct
-const BLUE = "#6C8EBF"; // sentences
+// Dog-eared corner fold, built from Tailwind's directional border trick so its
+// color is the theme's border token and it flips automatically with theme.
+const DOGEAR =
+  "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
+  "after:border-t-[14px] after:border-l-[14px] after:border-t-base-300 after:border-l-transparent";
+
+// Same fold, but for buttons sitting on a solid daisyUI color (btn-error etc.)
+// where a translucent black reads correctly regardless of theme.
+const DOGEAR_ON_COLOR =
+  "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
+  "after:border-t-[14px] after:border-l-[14px] after:border-t-black/20 after:border-l-transparent";
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   const viewModel = useHomeViewModel();
@@ -43,10 +48,10 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#131B33]">
-        <NotebookStyles />
-        <div className="lg-stamp h-16 w-16 animate-spin rounded-full border-[3px] border-dashed border-[#E8B94E]" />
-        <span className="font-mono text-[12px] font-semibold tracking-[4px] text-[#F0E9D8]/50">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-100">
+        <NotebookFonts />
+        <span className="h-14 w-14 animate-spin rounded-full border-[3px] border-dashed border-primary" />
+        <span className="font-mono text-[12px] font-semibold tracking-[4px] text-base-content/50">
           SAYFA AÇILIYOR…
         </span>
       </div>
@@ -54,15 +59,21 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#131B33] text-[#F0E9D8]">
-      <NotebookStyles />
+    <div className="relative min-h-screen overflow-hidden bg-base-100 text-base-content">
+      <NotebookFonts />
 
-      {/* Ambient study-lamp glow */}
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-[#D6303C]/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-[#E8B94E]/10 blur-3xl" />
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-accent/15 blur-3xl" />
 
       {/* Spiral binding strip */}
-      <div className="lg-spiral relative z-10 h-5 w-full" />
+      <div
+        className="relative z-10 h-5 w-full bg-neutral bg-[length:22px_20px] bg-[position:11px_0]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, rgba(0,0,0,0.35) 3px, transparent 3px)",
+        }}
+      />
 
       <div
         className={`relative z-10 mx-auto max-w-md px-5 pb-8 pt-5 transition-all duration-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
@@ -70,16 +81,19 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
       >
         {/* Header: notebook cover label + level stamp */}
         <div className="mb-6 flex items-center justify-between">
-          <div className="lg-tape inline-flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[3px] text-[#221B12]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#D6303C]" />
+          <div
+            className="inline-flex items-center gap-2 bg-base-200 px-3 py-1.5 font-mono text-[11px] font-bold tracking-[3px] text-base-content shadow-sm"
+            style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
             LINGORA
           </div>
 
-          <div className="lg-stamp-badge flex h-16 w-16 flex-col items-center justify-center rounded-full text-center">
-            <span className="font-serif text-xl font-black leading-none text-[#D6303C]">
+          <div className="flex h-16 w-16 -rotate-6 flex-col items-center justify-center rounded-full border-2 border-dashed border-primary bg-base-200 text-center shadow-sm">
+            <span className="font-serif text-xl font-black leading-none text-primary">
               {userLevel}
             </span>
-            <span className="mt-0.5 font-mono text-[8px] font-bold tracking-[1.5px] text-[#D6303C]/80">
+            <span className="mt-0.5 font-mono text-[8px] font-bold tracking-[1.5px] text-primary/80">
               SEVİYE
             </span>
           </div>
@@ -91,36 +105,36 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 
           {lessonsLoading ? (
             <div className="space-y-2">
-              <div className="h-16 w-full animate-pulse rounded-md bg-[#1C274A]" />
-              <div className="h-16 w-full animate-pulse rounded-md bg-[#1C274A]" />
+              <div className="skeleton h-16 w-full rounded-md" />
+              <div className="skeleton h-16 w-full rounded-md" />
             </div>
           ) : recentLessons.length > 0 ? (
-            <div className="lg-paper lg-dogear rounded-md p-2">
+            <div className={`rounded-md border border-base-300 bg-base-200 p-2 ${DOGEAR}`}>
               {recentLessons.map((lesson, i) => {
                 const isCompleted = lesson.progress?.completed;
                 return (
                   <button
                     key={lesson.id}
                     onClick={() => onGoToLesson?.(lesson.id)}
-                    className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[#221B12]/5 ${i !== recentLessons.length - 1
-                        ? "border-b border-dashed border-[#221B12]/15"
+                    className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-base-300/50 ${i !== recentLessons.length - 1
+                        ? "border-b border-dashed border-base-300"
                         : ""
                       }`}
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${isCompleted
-                          ? "border-2 border-[#4C9A6B] text-[#4C9A6B]"
-                          : "border-2 border-[#D6303C] text-[#D6303C]"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted
+                          ? "border-success text-success"
+                          : "border-error text-error"
                         }`}
                     >
                       {isCompleted ? "✓" : lesson.lesson_number}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#221B12]">
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-base-content">
                       {lesson.title}
                     </span>
-                    <span className="mx-1 h-px flex-1 border-t border-dotted border-[#221B12]/25" />
+                    <span className="mx-1 h-px flex-1 border-t border-dotted border-base-300" />
                     <span
-                      className={`shrink-0 font-mono text-[10px] font-bold tracking-wide ${isCompleted ? "text-[#4C9A6B]" : "text-[#221B12]/45"
+                      className={`shrink-0 font-mono text-[10px] font-bold tracking-wide ${isCompleted ? "text-success" : "text-base-content/45"
                         }`}
                     >
                       {isCompleted ? "BİTTİ" : "DEVAM →"}
@@ -130,7 +144,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
               })}
             </div>
           ) : (
-            <div className="lg-paper flex items-center justify-center gap-2 rounded-md py-6 text-sm text-[#221B12]/55">
+            <div className="flex items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 py-6 text-sm text-base-content/55">
               <span className="text-lg">📖</span>
               Henüz ders eklenmemiş
             </div>
@@ -138,43 +152,49 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
         </div>
 
         {/* Progress — ruled page with red margin line */}
-        <div className="lg-paper lg-ruled lg-dogear mb-4 rounded-md py-4 pl-7 pr-4">
+        <div
+          className={`mb-4 rounded-md border border-base-300 border-l-4 border-l-error bg-base-200 py-4 pl-7 pr-4 ${DOGEAR}`}
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, rgba(120,113,108,0.18) 28px)",
+          }}
+        >
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[#221B12]/50">
+              <div className="font-mono text-[11px] font-bold tracking-[2px] text-base-content/50">
                 KELİME HAZNEN
               </div>
-              <div className="font-serif text-[28px] font-black leading-tight text-[#221B12]">
+              <div className="font-serif text-[28px] font-black leading-tight text-base-content">
                 {myWordsCount}
-                <span className="text-[15px] font-semibold text-[#221B12]/35">
+                <span className="text-[15px] font-semibold text-base-content/35">
                   {" "}
                   / {totalWords}
                 </span>
               </div>
             </div>
-            <div className="lg-stamp-badge flex h-14 w-14 items-center justify-center rounded-full">
-              <span className="font-mono text-[13px] font-black text-[#D6303C]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-error bg-base-100">
+              <span className="font-mono text-[13px] font-black text-error">
                 {Math.round(progress)}%
               </span>
             </div>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[#221B12]/10">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-base-300">
             <div
-              className="h-full rounded-full bg-[#D6303C] transition-all duration-700"
+              className="h-full rounded-full bg-primary transition-all duration-700"
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
         </div>
 
-        {/* Coins — redeemable ticket */}
-        <div className="lg-ticket relative mb-4 flex items-center justify-between rounded-md px-4 py-3">
+        {/* Coins — punch-hole ticket */}
+        <div className="relative mb-4 flex items-center justify-between rounded-md border border-dashed border-base-300 bg-base-200 px-4 py-3 before:absolute before:-left-[7px] before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-y-1/2 before:rounded-full before:bg-base-100 before:content-[''] after:absolute after:-right-[7px] after:top-1/2 after:h-3.5 after:w-3.5 after:-translate-y-1/2 after:rounded-full after:bg-base-100 after:content-['']">
           <div className="flex items-center gap-2">
             <span className="text-xl">🪙</span>
-            <span className="font-mono text-sm font-bold text-[#221B12]">
+            <span className="font-mono text-sm font-bold text-base-content">
               {coins} COIN
             </span>
           </div>
-          <span className="text-right text-[10.5px] leading-tight text-[#221B12]/55">
+          <span className="text-right text-[10.5px] leading-tight text-base-content/55">
             Her 50 Coin
             <br />= 5 kelime / cümle
           </span>
@@ -185,27 +205,31 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           <button
             onClick={handleBuyWords}
             disabled={buying || coins < 50}
-            className={`lg-dogear rounded-md bg-[#D6303C] py-3 text-center font-serif font-bold text-[#F0E9D8] shadow-lg shadow-[#D6303C]/20 transition-transform ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "cursor-not-allowed opacity-40"
+            className={`btn btn-error rounded-md font-serif shadow-lg shadow-error/20 ${DOGEAR_ON_COLOR} ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "opacity-40"
               }`}
           >
-            <span className="block text-lg">📖</span>
-            <span className="block text-sm">5 Kelime Al</span>
-            <span className="block font-mono text-[10px] font-normal opacity-75">50 COIN</span>
+            <span className="flex flex-col items-center normal-case leading-tight">
+              <span className="text-lg">📖</span>
+              <span className="text-sm">5 Kelime Al</span>
+              <span className="font-mono text-[10px] font-normal opacity-75">50 COIN</span>
+            </span>
           </button>
           <button
             onClick={handleBuySentences}
             disabled={buying || coins < 50}
-            className={`lg-dogear rounded-md bg-[#6C8EBF] py-3 text-center font-serif font-bold text-[#F0E9D8] shadow-lg shadow-[#6C8EBF]/20 transition-transform ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "cursor-not-allowed opacity-40"
+            className={`btn btn-info rounded-md font-serif shadow-lg shadow-info/20 ${DOGEAR_ON_COLOR} ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "opacity-40"
               }`}
           >
-            <span className="block text-lg">📝</span>
-            <span className="block text-sm">5 Cümle Al</span>
-            <span className="block font-mono text-[10px] font-normal opacity-75">50 COIN</span>
+            <span className="flex flex-col items-center normal-case leading-tight">
+              <span className="text-lg">📝</span>
+              <span className="text-sm">5 Cümle Al</span>
+              <span className="font-mono text-[10px] font-normal opacity-75">50 COIN</span>
+            </span>
           </button>
         </div>
 
         {coins < 50 && (
-          <div className="mb-4 rounded-md border border-dashed border-[#D6303C]/50 bg-[#D6303C]/10 px-4 py-2.5 text-center text-sm text-[#F5C6CA]">
+          <div className="mb-4 rounded-md border border-dashed border-error/50 bg-error/10 px-4 py-2.5 text-center text-sm text-error">
             ⚡ Yetersiz coin. Ders çalışarak coin kazanabilirsin!
           </div>
         )}
@@ -234,30 +258,36 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
         </div>
 
         {/* Stat tiles — stamped figures */}
-        <div className="lg-paper lg-dogear mb-4 grid grid-cols-2 divide-x divide-dashed divide-[#221B12]/15 rounded-md py-3">
+        <div
+          className={`mb-4 grid grid-cols-2 divide-x divide-dashed divide-base-300 rounded-md border border-base-300 bg-base-200 py-3 ${DOGEAR}`}
+        >
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-lg opacity-80">📊</span>
-            <span className="font-mono text-xl font-black text-[#221B12]">
+            <span className="font-mono text-xl font-black text-base-content">
               {Math.round(progress)}%
             </span>
-            <span className="text-[11px] text-[#221B12]/50">Tamamlanma</span>
+            <span className="text-[11px] text-base-content/50">Tamamlanma</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-lg opacity-80">⏳</span>
-            <span className="font-mono text-xl font-black text-[#221B12]">
+            <span className="font-mono text-xl font-black text-base-content">
               {remainingWords}
             </span>
-            <span className="text-[11px] text-[#221B12]/50">Kalan Kelime</span>
+            <span className="text-[11px] text-base-content/50">Kalan Kelime</span>
           </div>
         </div>
 
         {/* Summary bar */}
-        <div className="flex items-center justify-around rounded-md border border-[#F0E9D8]/10 bg-[#1C274A] px-3 py-3">
-          <SummaryItem color={GREEN} label="Kelime" value={dueCount} />
-          <span className="h-6 w-px bg-[#F0E9D8]/10" />
-          <SummaryItem color={BLUE} label="Cümle" value={dueSentenceCount} />
-          <span className="h-6 w-px bg-[#F0E9D8]/10" />
-          <SummaryItem color={GOLD} label="Toplam" value={dueCount + dueSentenceCount} />
+        <div className="flex items-center justify-around rounded-md border border-base-300 bg-base-200 px-3 py-3">
+          <SummaryItem colorClass="bg-success" label="Kelime" value={dueCount} />
+          <span className="h-6 w-px bg-base-300" />
+          <SummaryItem colorClass="bg-info" label="Cümle" value={dueSentenceCount} />
+          <span className="h-6 w-px bg-base-300" />
+          <SummaryItem
+            colorClass="bg-warning"
+            label="Toplam"
+            value={dueCount + dueSentenceCount}
+          />
         </div>
       </div>
     </div>
@@ -270,11 +300,11 @@ function SectionTitle({ emoji, title }) {
   return (
     <div className="mb-2.5 flex items-center gap-2">
       <span className="text-[15px]">{emoji}</span>
-      <span className="font-serif text-[15px] font-bold text-[#F0E9D8]">{title}</span>
-      <svg width="46" height="10" viewBox="0 0 46 10" className="mt-1 opacity-70">
+      <span className="font-serif text-[15px] font-bold text-base-content">{title}</span>
+      <svg width="46" height="10" viewBox="0 0 46 10" className="mt-1 text-error opacity-70">
         <path
           d="M1 6 C 8 2, 14 9, 21 5 S 34 2, 45 6"
-          stroke="#D6303C"
+          stroke="currentColor"
           strokeWidth="2"
           fill="none"
           strokeLinecap="round"
@@ -284,93 +314,24 @@ function SectionTitle({ emoji, title }) {
   );
 }
 
-function SummaryItem({ color, label, value }) {
+function SummaryItem({ colorClass, label, value }) {
   return (
     <div className="flex items-center gap-1.5 text-xs">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-      <span className="text-[#F0E9D8]/55">{label}</span>
-      <span className="font-mono font-bold text-[#F0E9D8]">{value}</span>
+      <span className={`h-1.5 w-1.5 rounded-full ${colorClass}`} />
+      <span className="text-base-content/55">{label}</span>
+      <span className="font-mono font-bold text-base-content">{value}</span>
     </div>
   );
 }
 
-// Shared styles: fonts, spiral binding, paper texture, dog-ear fold, stamp badge.
-function NotebookStyles() {
+// Only typography is custom here — every color still comes from daisyUI's
+// theme tokens above, so this never needs to change between light/dark.
+function NotebookFonts() {
   return (
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=JetBrains+Mono:wght@500;600;700&display=swap');
-
       .font-serif { font-family: 'Fraunces', ui-serif, Georgia, serif; }
       .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-
-      .lg-spiral {
-        background-image: radial-gradient(circle, #0B1024 3px, transparent 3px);
-        background-size: 22px 20px;
-        background-position: 11px 0;
-        background-color: #0F1526;
-      }
-
-      .lg-tape {
-        background: #F0E9D8;
-        clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
-      }
-
-      .lg-paper {
-        background-color: ${PAPER};
-        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-      }
-
-      .lg-ruled {
-        border-left: 3px solid ${RED};
-        background-image: repeating-linear-gradient(
-          to bottom,
-          transparent 0,
-          transparent 27px,
-          rgba(34,27,18,0.08) 28px
-        );
-      }
-
-      .lg-dogear {
-        position: relative;
-      }
-      .lg-dogear::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 0;
-        height: 0;
-        border-style: solid;
-        border-width: 0 16px 16px 0;
-        border-color: transparent rgba(19,27,51,0.18) transparent transparent;
-        border-top-right-radius: 2px;
-      }
-
-      .lg-stamp-badge {
-        border: 2px dashed ${RED};
-        background: ${PAPER};
-        transform: rotate(-6deg);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      }
-
-      .lg-ticket {
-        background-color: ${PAPER};
-        border: 1px dashed rgba(34,27,18,0.35);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-      }
-      .lg-ticket::before,
-      .lg-ticket::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        width: 14px;
-        height: 14px;
-        background: #131B33;
-        border-radius: 50%;
-        transform: translateY(-50%);
-      }
-      .lg-ticket::before { left: -7px; }
-      .lg-ticket::after { right: -7px; }
     `}</style>
   );
 }
