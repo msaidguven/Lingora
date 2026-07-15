@@ -1,4 +1,4 @@
-// src/components/Header/components/UserMenu.jsx
+
 export default function UserMenu({
   menuOpen,
   setMenuOpen,
@@ -16,7 +16,8 @@ export default function UserMenu({
   handleLogout,
 }) {
   return (
-    <div className="relative flex shrink-0 items-center" ref={menuRef}>
+    <div className="relative flex shrink-0 items-center gap-2" ref={menuRef}>
+      {/* COIN GÖSTERİMİ */}
       <button
         className="flex h-9 items-center gap-2 rounded-xl border border-base-300 bg-base-200 px-2 text-base-content/70 transition-colors hover:bg-base-300 hover:text-base-content"
         onClick={() => setMenuOpen(!menuOpen)}
@@ -141,14 +142,12 @@ export default function UserMenu({
             )}
           </button>
 
-          {/* TODO: Profil sayfası route'u hazır olduğunda gerçek onClick ekle */}
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-transform hover:translate-x-1 hover:bg-base-300">
             <i className="ti ti-user w-5 text-center opacity-70" />
             <span>Profil</span>
             <i className="ti ti-chevron-right ml-auto text-sm opacity-40" />
           </button>
 
-          {/* TODO: Ayarlar sayfası route'u hazır olduğunda gerçek onClick ekle */}
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-transform hover:translate-x-1 hover:bg-base-300">
             <i className="ti ti-settings w-5 text-center opacity-70" />
             <span>Ayarlar</span>

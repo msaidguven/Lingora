@@ -6,6 +6,7 @@ import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
 import StreakPill from "./components/StreakPill";
 import UserMenu from "./components/UserMenu";
+import CoinDisplay from "./components/CoinDisplay"; // YENİ
 
 export default function Header(props) {
   const vm = useHeaderViewModel(props);
@@ -22,6 +23,9 @@ export default function Header(props) {
         />
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* COIN GÖSTERİMİ - EKLENDİ */}
+          <CoinDisplay />
+          
           <StreakPill days={vm.streakDays} />
 
           <UserMenu
