@@ -1,7 +1,6 @@
 // src/components/Header/Header.jsx
 import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
-import StreakPill from "./components/StreakPill";
 import UserMenu from "./components/UserMenu";
 import CoinDisplay from "./components/CoinDisplay";
 
@@ -21,7 +20,6 @@ export default function Header(props) {
 
         <div className="flex shrink-0 items-center gap-2">
           <CoinDisplay userId={vm.user?.id} />
-          <StreakPill days={vm.streakDays} />
           <UserMenu
             menuOpen={vm.menuOpen}
             setMenuOpen={vm.setMenuOpen}
