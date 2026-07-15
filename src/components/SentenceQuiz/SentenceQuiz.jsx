@@ -1,5 +1,5 @@
 // pages/SentenceQuiz.jsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useSentenceQuiz } from "../../hooks/useSentenceQuiz.js";
 import { speak } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
@@ -65,35 +65,26 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
   const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
 
-  // Google Translate API ile çeviri (mevcut, değişmedi)
-  const translateText = async (text) => {
-    if (translating) return;
-
-    setTranslating(true);
-    setTranslation('');
-
-    try {
-      const response = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(text)}`
-      );
-      const data = await response.json();
-      if (data && data[0]) {
-        const translated = data[0].map(item => item[0]).join('');
-        setTranslation(translated);
-      } else {
-        setTranslation('Çeviri bulunamadı');
-      }
-    } catch (error) {
-      console.error('Çeviri hatası:', error);
-      setTranslation('Çeviri yüklenemedi');
-    } finally {
-      setTranslating(false);
-    }
+  // Cümleyi kelimelere ayırma (noktalama işaretlerini koruyarak)
+  const splitSentenceIntoWords = (sentence) => {
+    if (!sentence) return [];
+    // Kelimeleri ve noktalama işaretlerini ayır
+    const parts = sentence.match(/[\w']+|[.,!?;:]/g);
+    return parts || [];
   };
 
-  // Tek kelime çevirisi - SESLENDİRMEYİ KALDIRDIK
+  // Kelime listesini oluştur
+  const wordParts = useMemo(() => {
+    if (!currentQuestion?.sentence_en) return [];
+    return splitSentenceIntoWords(currentQuestion.sentence_en);
+  }, [currentQuestion]);
+
+  // Tek kelime çevirisi
   const translateWord = async (word) => {
-    if (!word || word.trim().length === 0) return;
+    if (!word || word.trim().length === 0 || translating) return;
+
+    // Noktalama işaretlerini kontrol et
+    if (/^[.,!?;:]$/.test(word)) return;
 
     setSelectedWord(word);
     setTranslating(true);
@@ -121,16 +112,35 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-  // Çift tıklama handler'ı
-  const handleDoubleClick = (e) => {
-    const selection = window.getSelection();
-    const word = selection.toString().trim();
+  // Kelimeye tıklama handler'ı
+  const handleWordClick = (word, e) => {
+    e.stopPropagation(); // Kart tıklamasını engelle
+    translateWord(word);
+  };
 
-    if (word && word.length > 0 && word.length < 30) {
-      const wordRegex = /^[a-zA-ZğüşıöçĞÜŞİÖÇ\s\-']+$/;
-      if (wordRegex.test(word) && !word.includes(' ')) {
-        translateWord(word);
+  // Google Translate API ile çeviri
+  const translateText = async (text) => {
+    if (translating) return;
+
+    setTranslating(true);
+    setTranslation('');
+
+    try {
+      const response = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(text)}`
+      );
+      const data = await response.json();
+      if (data && data[0]) {
+        const translated = data[0].map(item => item[0]).join('');
+        setTranslation(translated);
+      } else {
+        setTranslation('Çeviri bulunamadı');
       }
+    } catch (error) {
+      console.error('Çeviri hatası:', error);
+      setTranslation('Çeviri yüklenemedi');
+    } finally {
+      setTranslating(false);
     }
   };
 
@@ -141,7 +151,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   }, [showTranslationModal, currentQuestion]);
 
-  // Google Translate'i yeni pencerede aç (alternatif yöntem)
+  // Google Translate'i yeni pencerede aç
   const openGoogleTranslate = (text) => {
     const encodedText = encodeURIComponent(text);
     const url = `https://translate.google.com/?sl=en&tl=tr&text=${encodedText}`;
@@ -221,7 +231,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion, answered, saving, loading]);
 
-  // ✅ YENİDEN YAZILAN onSelect - ANINDA GERİ BİLDİRİM
+  // onSelect
   const onSelect = (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
 
@@ -448,15 +458,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       {/* Question Card */}
       {revealed ? (
         <div
-          className="relative rounded-2xl p-7 text-center mb-6 cursor-pointer
+          className="relative rounded-2xl p-7 text-center mb-6
                      transition-all duration-200 select-none group
                      border border-base-300 bg-base-200
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
-          onClick={handleCardClick}
-          onDoubleClick={handleDoubleClick}
         >
-          {/* Sağ üst: Kopyala butonu - HER ZAMAN GÖRÜNÜR */}
+          {/* Sağ üst: Kopyala butonu */}
           <button
             onClick={(e) => copyToClipboard(currentQuestion.sentence_en, e)}
             className="absolute top-3 right-3 p-1.5 rounded-lg 
@@ -472,7 +480,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </svg>
           </button>
 
-          {/* Sol alt: Google Translate butonu - HER ZAMAN GÖRÜNÜR */}
+          {/* Sol alt: Google Translate butonu */}
           <button
             onClick={(e) => openTranslationModal(e)}
             className="absolute bottom-3 left-3 p-1.5 rounded-lg 
@@ -489,25 +497,57 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </svg>
           </button>
 
-          {/* Çift tıklama ipucu */}
+          {/* Kelime tıklama ipucu */}
           <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <span className="text-[10px] font-medium text-base-content/20 bg-base-300/50 px-2 py-0.5 rounded-full">
-              Çift tıkla
+              Kelimeye tıkla
             </span>
           </div>
 
-          {/* Cümle içeriği */}
-          <div className="flex items-center justify-center gap-3">
-            <p
-              className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content select-text"
-              style={speaking ? { color: levelColor } : {}}
-              onDoubleClick={handleDoubleClick}
-            >
-              "{currentQuestion.sentence_en}"
-            </p>
+          {/* Cümle içeriği - Her kelime ayrı ayrı tıklanabilir */}
+          <div className="flex flex-wrap items-center justify-center gap-0.5">
+            {wordParts.map((part, index) => {
+              // Noktalama işaretleri mi kontrol et
+              const isPunctuation = /^[.,!?;:]$/.test(part);
+
+              if (isPunctuation) {
+                return (
+                  <span
+                    key={index}
+                    className="text-lg font-medium leading-relaxed text-base-content select-text"
+                    style={speaking ? { color: levelColor } : {}}
+                  >
+                    {part}
+                  </span>
+                );
+              }
+
+              return (
+                <span
+                  key={index}
+                  onClick={(e) => handleWordClick(part, e)}
+                  className="text-lg font-medium leading-relaxed text-base-content select-text
+                             hover:text-blue-500 dark:hover:text-blue-400
+                             hover:bg-blue-50/50 dark:hover:bg-blue-900/20
+                             cursor-pointer transition-all duration-200
+                             px-1 rounded-lg"
+                  style={speaking ? { color: levelColor } : {}}
+                  title={`"${part}" kelimesinin çevirisine bak`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && handleWordClick(part, e)}
+                >
+                  {part}
+                </span>
+              );
+            })}
+          </div>
+
+          {/* Seslendirme butonu */}
+          <div className="mt-4 flex items-center justify-center gap-3">
             <button
               onClick={(e) => playPronunciation(currentQuestion.sentence_en, e)}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0 ${speaking
+              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${speaking
                 ? 'bg-primary/20 text-primary animate-pulse'
                 : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
                 }`}
@@ -519,23 +559,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
               </svg>
             </button>
+            {speaking && (
+              <div className="flex items-center gap-1.5">
+                {[0, 150, 300].map((delay) => (
+                  <span
+                    key={delay}
+                    className="w-1.5 h-1.5 rounded-full animate-bounce"
+                    style={{ backgroundColor: levelColor, animationDelay: `${delay}ms` }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-
-          {speaking ? (
-            <div className="mt-4 flex justify-center gap-1.5">
-              {[0, 150, 300].map((delay) => (
-                <span
-                  key={delay}
-                  className="w-1.5 h-1.5 rounded-full animate-bounce"
-                  style={{ backgroundColor: levelColor, animationDelay: `${delay}ms` }}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
-              TIKLA / DOKUN • METNİ SEÇ • ÇİFT TIKLA KELİME ÇEVİRİSİ
-            </p>
-          )}
         </div>
       ) : (
         <div
@@ -663,7 +698,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Google Translate Modal - DARK MODE DÜZELTİLDİ & İNGİLİZCE SESLENDİRME */}
+      {/* Google Translate Modal - TAM DARK MODE DESTEĞİ */}
       {showTranslationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -676,12 +711,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-100">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-base-content">
                     Türkçe Çeviri
                   </h3>
@@ -690,7 +725,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => openGoogleTranslate(currentQuestion.sentence_en)}
                   className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-blue-500"
@@ -713,7 +748,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             </div>
 
-            {/* Modal Content - DARK MODE DÜZELTİLDİ */}
+            {/* Modal Content - DARK MODE TAM DESTEK */}
             <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
               {translating ? (
                 <div className="flex flex-col items-center gap-4">
@@ -728,17 +763,22 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   <p className="text-xl font-medium text-base-content text-center leading-relaxed">
                     {translation}
                   </p>
-                  <div className="mt-4 flex justify-center gap-3">
+                  <div className="mt-4 flex justify-center gap-3 flex-wrap">
                     <button
                       onClick={() => copyToClipboard(translation)}
-                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 dark:bg-base-300 hover:bg-base-300 dark:hover:bg-base-400 transition-colors text-base-content/80"
+                      className="px-4 py-2 rounded-lg text-xs font-medium 
+                                 bg-base-200 dark:bg-base-300 
+                                 hover:bg-base-300 dark:hover:bg-base-400 
+                                 transition-colors text-base-content/80"
                     >
                       📋 Kopyala
                     </button>
-                    {/* İngilizce seslendirme - DEĞİŞTİ */}
                     <button
                       onClick={() => playPronunciation(currentQuestion.sentence_en)}
-                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 dark:bg-base-300 hover:bg-base-300 dark:hover:bg-base-400 transition-colors text-base-content/80"
+                      className="px-4 py-2 rounded-lg text-xs font-medium 
+                                 bg-base-200 dark:bg-base-300 
+                                 hover:bg-base-300 dark:hover:bg-base-400 
+                                 transition-colors text-base-content/80"
                     >
                       🔊 İngilizce Dinle
                     </button>
@@ -750,18 +790,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between">
+            <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-xs text-base-content/40">
-                <span className="px-2 py-0.5 rounded-full bg-base-200 dark:bg-base-300">
+                <span className="px-2 py-0.5 rounded-full bg-base-200 dark:bg-base-300 text-base-content/60">
                   EN → TR
                 </span>
-                <span>•</span>
-                <span className="truncate max-w-[150px]">
+                <span className="text-base-content/30">•</span>
+                <span className="truncate max-w-[150px] text-base-content/50">
                   {currentQuestion.sentence_en}
                 </span>
               </div>
               <span
-                className="px-2 py-0.5 rounded-full text-xs font-medium"
+                className="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
                 style={{ color: levelColor, backgroundColor: `${levelColor}15` }}
               >
                 {userLevel}
@@ -771,7 +811,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Kelime Çeviri Modal - SESLENDİRME YOK */}
+      {/* Kelime Çeviri Modal - TAM DARK MODE DESTEĞİ */}
       {showWordModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -783,13 +823,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-100">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-base-content">
                     Kelime Çevirisi
                   </h3>
@@ -800,7 +840,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
               <button
                 onClick={() => setShowWordModal(false)}
-                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/50 hover:text-base-content"
+                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/50 hover:text-base-content flex-shrink-0"
                 aria-label="Kapat"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -809,7 +849,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </button>
             </div>
 
-            {/* Modal Content - DARK MODE DÜZELTİLDİ */}
+            {/* Modal Content - DARK MODE TAM DESTEK */}
             <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
               {translating ? (
                 <div className="flex flex-col items-center gap-4 py-8">
@@ -843,24 +883,22 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               )}
             </div>
 
-            {/* Modal Footer - SESLENDİRME YOK, SADECE KOPYALA */}
+            {/* Modal Footer */}
             <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (selectedWord) {
-                      copyToClipboard(selectedWord);
-                    }
-                  }}
-                  className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-base-content"
-                  aria-label="Kopyala"
-                  title="Kopyala"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                  </svg>
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  if (selectedWord) {
+                    copyToClipboard(selectedWord);
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-base-content"
+                aria-label="Kopyala"
+                title="Kopyala"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+              </button>
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-medium"
                 style={{ color: levelColor, backgroundColor: `${levelColor}15` }}
