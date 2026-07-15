@@ -1,5 +1,3 @@
-import SpeakerIcon from "../common/SpeakerIcon.jsx";
-
 export default function SentenceResult({
   isCorrect,
   correctAnswer,
@@ -62,27 +60,6 @@ export default function SentenceResult({
             </div>
           )}
         </div>
-      )}
-
-      {currentWord && (
-        <button
-          onClick={() => onSpeak(currentWord.word)}
-          style={{
-            border: "none",
-            color: colors.textSecondary,
-            cursor: "pointer",
-            fontSize: 11,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "4px 8px",
-            borderRadius: 6,
-            background: colors.buttonBg,
-            marginBottom: 12
-          }}
-        >
-          <SpeakerIcon /> {currentWord.word} telaffuzunu dinle
-        </button>
       )}
 
       <button
