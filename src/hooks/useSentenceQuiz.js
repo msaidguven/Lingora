@@ -1,5 +1,5 @@
+// useSentenceQuiz.js
 import { useState, useEffect } from "react";
-// ✅ updateDailyStats import'u KALDIRILDI
 import { supabase } from "../config.js";
 import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,7 +23,7 @@ export function useSentenceQuiz(userLevel) {
   const [saving, setSaving] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
 
-  const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
+  const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4, C1: 4 }[userLevel] || 3;
 
   // Verileri yükle
   useEffect(() => {
@@ -43,9 +43,9 @@ export function useSentenceQuiz(userLevel) {
           .lt("next_review_at", new Date().toISOString())
           .order("next_review_at", { ascending: true })
           .limit(SESSION_SENTENCE_LIMIT);
-        
+
         if (usError) throw usError;
-        
+
         if (!userSentences || userSentences.length === 0) {
           setAllSentences([]);
           setQueue([]);
@@ -54,20 +54,22 @@ export function useSentenceQuiz(userLevel) {
           setLoading(false);
           return;
         }
-        
+
         const sentenceIds = shuffle(userSentences.map(s => s.sentence_id));
-        
+
+        // ✅ DÜZELTİLDİ: en_words join'i KALDIRILDI
         const { data: sentences, error: sError } = await supabase
           .from("en_example_sentences")
-          .select("*, en_words(word, meaning, level, part_of_speech)")
+          .select("*")
           .in("id", sentenceIds)
           .eq("is_approved", true);
-        
+
         if (sError) throw sError;
-        
+
+        // ✅ DÜZELTİLDİ: s.en_words kontrolü KALDIRILDI
         const sentencesById = new Map(
           (sentences || [])
-            .filter(s => s.sentence_en && s.sentence_tr && s.en_words)
+            .filter(s => s.sentence_en && s.sentence_tr)
             .map(sentence => [sentence.id, sentence])
         );
         const sessionQueue = sentenceIds.map(id => sentencesById.get(id)).filter(Boolean);
@@ -76,7 +78,7 @@ export function useSentenceQuiz(userLevel) {
         setQueue(sessionQueue);
         setCurrentQuestion(sessionQueue[0] || null);
         setQueueIndex(0);
-        
+
         const { data: words } = await supabase
           .from("en_words")
           .select("*")
@@ -96,7 +98,8 @@ export function useSentenceQuiz(userLevel) {
   // Şıkları oluştur
   useEffect(() => {
     if (!currentQuestion) return;
-    setOptions(buildSentenceOptions(currentQuestion, allSentences, currentQuestion.word_id, choiceCount));
+    // ✅ DÜZELTİLDİ: currentQuestion.id kullanıldı (word_id yok)
+    setOptions(buildSentenceOptions(currentQuestion, allSentences, currentQuestion.id, choiceCount));
     setSelected(null);
     setAnswered(false);
   }, [currentQuestion, allSentences, choiceCount]);
@@ -110,24 +113,24 @@ export function useSentenceQuiz(userLevel) {
 
     const now = new Date();
     let nextReviewDate = new Date();
-    
+
     const { data: existing } = await supabase
       .from("en_user_sentences")
       .select("id, review_count, total_correct, total_wrong")
       .eq("user_id", userId)
       .eq("sentence_id", sentenceId)
       .maybeSingle();
-    
+
     if (isCorrect) {
       const newReviewCount = (existing?.review_count || 0) + 1;
       const newTotalCorrect = (existing?.total_correct || 0) + 1;
-      
+
       // Tekrar aralığını hesapla
       if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
       else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
       else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
       else nextReviewDate.setDate(now.getDate() + 14);
-      
+
       await supabase
         .from("en_user_sentences")
         .update({
@@ -141,7 +144,7 @@ export function useSentenceQuiz(userLevel) {
     } else {
       const newTotalWrong = (existing?.total_wrong || 0) + 1;
       nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-      
+
       await supabase
         .from("en_user_sentences")
         .update({
@@ -155,19 +158,18 @@ export function useSentenceQuiz(userLevel) {
     }
   };
 
-  // Cevap seçildiğinde - ✅ GÜNCELLENDİ (updateDailyStats KALDIRILDI)
+  // Cevap seçildiğinde
   const handleSelect = async (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
-    
+
     const isCorrect = opt === currentQuestion.sentence_tr;
-    
+
     setSelected(opt);
     setAnswered(true);
     setSaving(true);
-    
-    // SADECE cümle sonucunu kaydet
+
     await saveSentenceResult(currentQuestion.id, isCorrect);
-    
+
     setSaving(false);
     onComplete(isCorrect);
   };
@@ -176,7 +178,7 @@ export function useSentenceQuiz(userLevel) {
     if (saving) return;
     const nextIndex = queueIndex + 1;
     if (nextIndex >= queue.length) {
-      return null; // Kuyruk bitti
+      return null;
     } else {
       setQueueIndex(nextIndex);
       setCurrentQuestion(queue[nextIndex]);

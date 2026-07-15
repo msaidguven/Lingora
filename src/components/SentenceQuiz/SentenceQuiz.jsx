@@ -10,8 +10,8 @@ import SentenceResult from "./SentenceResult.jsx";
 import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
 
-const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
-const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta" };
+const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b", C1: "#a855f7" };
+const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta", C1: "İleri" };
 
 // Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
 const cancelPendingSpeech = () => {
@@ -43,8 +43,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const [isFinished, setIsFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
-  const levelColor = LEVEL_COLOR[userLevel];
-  const levelLabel = LEVEL_LABEL[userLevel];
+  const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
+  const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
 
   // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = (text) => {
@@ -55,7 +55,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     setTimeout(() => setSpeaking(false), 1800);
   };
 
-  useEffect(() => { 
+  useEffect(() => {
     setIsFinished(false);
   }, [userLevel]);
 
@@ -82,28 +82,26 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const onSelect = async (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
     isUpdatingRef.current = true;
-    
+
     await handleSelect(opt, async (isCorrect) => {
       try {
         if (user) {
           await updateDailyStats(user.id, "sentence", isCorrect);
-          
-          // Doğruysa coin ekle
+
           if (isCorrect) {
             const { data: currentUser } = await supabase
               .from("en_users")
               .select("coins")
               .eq("id", user.id)
               .single();
-            
+
             const newCoins = (currentUser?.coins || 0) + 1;
-            
+
             await supabase
               .from("en_users")
               .update({ coins: newCoins })
               .eq("id", user.id);
-            
-            // Header'ı güncelle (Toast kendi dinleyecek)
+
             window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
           }
         }
@@ -235,7 +233,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   /* ── QUIZ ── */
   const correctAnswer = currentQuestion.sentence_tr;
-  const currentWord = currentQuestion.en_words;
+  // ✅ DÜZELTİLDİ: en_words yok, doğrudan currentQuestion'dan al
+  const currentWord = {
+    word: currentQuestion.sentence_en?.split(' ')[0] || 'Cümle',
+    meaning: currentQuestion.sentence_tr,
+    level: currentQuestion.level || 'A1'
+  };
   const isCorrect = selected === correctAnswer;
 
   const handleCardClick = () => {
@@ -303,11 +306,10 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                 e.stopPropagation();
                 playPronunciation(currentQuestion.sentence_en);
               }}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0 ${
-                speaking 
-                  ? 'bg-primary/20 text-primary animate-pulse' 
+              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0 ${speaking
+                  ? 'bg-primary/20 text-primary animate-pulse'
                   : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
-              }`}
+                }`}
               aria-label="Telaffuzu dinle"
               title="Telaffuzu dinle"
               disabled={speaking}
@@ -408,7 +410,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             {options.map((opt, i) => {
               const isCorrectOpt = opt === correctAnswer;
               const isSelectedOpt = opt === selected;
-              
+
               let buttonStyle = "bg-base-200 border-base-300 hover:border-primary/30 text-base-content";
               if (answered && isCorrectOpt) {
                 buttonStyle = "bg-success/10 border-success/40 text-success";
@@ -423,9 +425,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   key={i}
                   onClick={() => onSelect(opt)}
                   disabled={answered || saving}
-                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
-                    !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
-                  }`}
+                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${!answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+                    }`}
                 >
                   {opt}
                 </button>
