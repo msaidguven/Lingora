@@ -68,6 +68,17 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [revealed, setRevealed] = useState(false);
   const menuRef = useRef(null);
 
+  // state'lerin olduğu yere ekle
+  const [toast, setToast] = useState(null);
+  // Toast'u otomatik kapat
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+
   const levelColor = LEVEL_COLOR[userLevel];
 
   // Ortak telaffuz oynatma fonksiyonu (cevaplanmış olsa bile kullanılabilir).
@@ -131,7 +142,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-  const onSelect = async (opt) => {
+const onSelect = async (opt) => {
   if (answered || saving || isUpdatingRef.current) return;
   
   isUpdatingRef.current = true;
@@ -157,10 +168,21 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             .update({ coins: newCoins })
             .eq("id", user.id);
           
+          // Toast göster
+          setToast({
+            message: `🪙 +1 Coin (${newCoins})`,
+            type: 'success'
+          });
+          
+          // Coin sesi çal
+          try {
+            const audio = new Audio('/sounds/coin.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+          } catch (e) {}
+          
           // Header'ı güncellemek için event gönder
           window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
-          
-          console.log(`🪙 +1 Coin! Toplam: ${newCoins}`);
         }
       }
     } catch (error) {
@@ -558,6 +580,16 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
           user={user}
         />
       )}
+
+     {/* Toast Mesajı */}
+    {toast && (
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-fade-in-down">
+        <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30">
+          <span className="text-xl animate-bounce">🪙</span>
+          <span className="font-bold text-sm">{toast.message}</span>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
