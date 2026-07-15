@@ -680,14 +680,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Bottom hint */}
-      {revealed && !answered && !saving && (
-        <div className="mt-8 text-center pb-1">
-          <span className="text-[10px] tracking-[0.22em] font-semibold text-base-content/15">
-            BİR KART SEÇ
-          </span>
-        </div>
-      )}
+
 
       {/* Google Translate Modal - TAM DARK MODE DESTEĞİ */}
       {showTranslationModal && (
