@@ -45,6 +45,12 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     handleOpenNewWords,
     handleBuyWords,
     handleBuySentences,
+    dailyWordCorrect = 0,
+    dailyWordWrong = 0,
+    dailySentenceCorrect = 0,
+    dailySentenceWrong = 0,
+    dailyWordGoal = 100,
+    dailySentenceGoal = 100,
   } = viewModel;
 
   if (loading) {
@@ -97,6 +103,32 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             <span className="mt-0.5 font-mono text-[8px] font-bold tracking-[1.5px] text-[var(--lg-red)]/80">
               SEVİYE
             </span>
+          </div>
+        </div>
+
+        {/* Günlük Hedef — today's word/sentence attempt goal */}
+        <div className={`mb-5 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
+          <div className="flex items-center gap-2 border-b border-dashed border-[var(--lg-border)] px-3 py-2">
+            <span className="text-[15px]">🎯</span>
+            <span className="font-serif text-[14px] font-bold text-[var(--lg-ink)]">
+              Günlük Hedef
+            </span>
+          </div>
+          <div className="flex divide-x divide-dashed divide-[var(--lg-border)]">
+            <DailyGoalRow
+              icon="📖"
+              label="Kelime"
+              correct={dailyWordCorrect}
+              wrong={dailyWordWrong}
+              goal={dailyWordGoal}
+            />
+            <DailyGoalRow
+              icon="📝"
+              label="Cümle"
+              correct={dailySentenceCorrect}
+              wrong={dailySentenceWrong}
+              goal={dailySentenceGoal}
+            />
           </div>
         </div>
 
@@ -309,6 +341,67 @@ function SectionTitle({ emoji, title }) {
           strokeLinecap="round"
         />
       </svg>
+    </div>
+  );
+}
+
+// Today's attempt count toward the daily goal. Total is the headline number
+// (the thing that matters most); correct/wrong is the smaller supporting
+// detail, shown both as a two-color bar segment and as a ✓/✗ readout.
+function DailyGoalRow({ icon, label, correct, wrong, goal }) {
+  const total = correct + wrong;
+  const filledPct = Math.min((total / goal) * 100, 100);
+  const correctPct = total > 0 ? (correct / total) * filledPct : 0;
+  const wrongPct = total > 0 ? (wrong / total) * filledPct : 0;
+  const goalMet = total >= goal;
+  const overflow = total - goal;
+
+  return (
+    <div className="flex-1 px-3 py-2.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--lg-ink)]">
+          <span>{icon}</span>
+          {label}
+        </span>
+        {goalMet && (
+          <span className="-rotate-3 rounded-full border border-dashed border-[var(--lg-green)] px-1.5 py-0.5 font-mono text-[8px] font-bold tracking-wide text-[var(--lg-green)]">
+            HEDEF ✓
+          </span>
+        )}
+      </div>
+
+      <div className="mb-1.5 flex items-baseline gap-1">
+        <span
+          className={`font-mono text-[26px] font-black leading-none ${goalMet ? "text-[var(--lg-green)]" : "text-[var(--lg-ink)]"
+            }`}
+        >
+          {total}
+        </span>
+        <span className="font-mono text-xs font-semibold text-[var(--lg-ink-muted)]">
+          / {goal}
+        </span>
+        {overflow > 0 && (
+          <span className="ml-0.5 font-mono text-[10px] font-bold text-[var(--lg-gold)]">
+            +{overflow} 🔥
+          </span>
+        )}
+      </div>
+
+      <div className="mb-1.5 flex h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+        <div
+          className="h-full bg-[var(--lg-green)] transition-all duration-500"
+          style={{ width: `${correctPct}%` }}
+        />
+        <div
+          className="h-full bg-[var(--lg-red)] transition-all duration-500"
+          style={{ width: `${wrongPct}%` }}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 font-mono text-[10.5px]">
+        <span className="text-[var(--lg-green)]">✓ {correct}</span>
+        <span className="text-[var(--lg-red)]">✗ {wrong}</span>
+      </div>
     </div>
   );
 }
