@@ -123,6 +123,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Kelimeye tıklama handler'ı - kart tıklamasını (telaffuzu) KESİNLİKLE tetiklemez.
   // Dropdown'ın açık/kapalı durumu artık CSS focus'a değil, React state'ine bağlı.
   const handleWordClick = (index, word, e) => {
+    console.log('[WORD CLICK] fired for word:', word, 'index:', index, 'target:', e.target);
     e.preventDefault();
     e.stopPropagation();
     const key = word.trim();
@@ -482,6 +483,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
           onClick={(e) => {
+            console.log('[CARD CLICK] target:', e.target, 'closest data-card-ignore:', e.target.closest('[data-card-ignore]'));
             // Tıklama bir kelimenin veya kart üzerindeki bir butonun (kopyala/çevir/hoparlör/dropdown)
             // üzerinde gerçekleştiyse kartın kendi telaffuz/kapatma davranışı ÇALIŞMASIN.
             // stopPropagation'a güvenmek yerine doğrudan gerçek tıklama hedefine bakıyoruz,
