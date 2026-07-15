@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../config.js";
-import { useAuth } from "../../../contexts/AuthContext.js";
 
-export default function CoinDisplay() {
-  const { user } = useAuth();
+// AuthContext'i kaldırdık, doğrudan user'ı props olarak alalım
+export default function CoinDisplay({ userId }) {
   const [coins, setCoins] = useState(0);
 
   const fetchCoins = async () => {
-    if (!user) return;
+    if (!userId) return;
     const { data } = await supabase
       .from("en_users")
       .select("coins")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
     if (data) setCoins(data.coins || 0);
   };
@@ -19,7 +18,6 @@ export default function CoinDisplay() {
   useEffect(() => {
     fetchCoins();
     
-    // Coin güncellendiğinde yakala
     const handleCoinUpdate = (e) => {
       if (e.detail?.coins !== undefined) {
         setCoins(e.detail.coins);
@@ -30,7 +28,7 @@ export default function CoinDisplay() {
     
     window.addEventListener('coinUpdated', handleCoinUpdate);
     return () => window.removeEventListener('coinUpdated', handleCoinUpdate);
-  }, [user]);
+  }, [userId]);
 
   return (
     <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-warning/25 bg-warning/10 px-2.5 py-2 transition-colors hover:bg-warning/15">

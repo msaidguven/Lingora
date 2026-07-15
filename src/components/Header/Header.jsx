@@ -1,12 +1,9 @@
 // src/components/Header/Header.jsx
-// View katmanı: state/mantık burada YOK. Sadece useHeaderViewModel'den
-// gelen verileri alt component'lere dağıtıp ekrana basıyor.
-
 import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
 import StreakPill from "./components/StreakPill";
 import UserMenu from "./components/UserMenu";
-import CoinDisplay from "./components/CoinDisplay"; // YENİ
+import CoinDisplay from "./components/CoinDisplay";
 
 export default function Header(props) {
   const vm = useHeaderViewModel(props);
@@ -23,11 +20,8 @@ export default function Header(props) {
         />
 
         <div className="flex shrink-0 items-center gap-2">
-          {/* COIN GÖSTERİMİ - EKLENDİ */}
-          <CoinDisplay />
-          
+          <CoinDisplay userId={vm.user?.id} />
           <StreakPill days={vm.streakDays} />
-
           <UserMenu
             menuOpen={vm.menuOpen}
             setMenuOpen={vm.setMenuOpen}
