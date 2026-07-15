@@ -481,7 +481,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      border border-base-300 bg-base-200
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
-          onClick={() => {
+          onClick={(e) => {
+            // Tıklama bir kelimenin veya kart üzerindeki bir butonun (kopyala/çevir/hoparlör/dropdown)
+            // üzerinde gerçekleştiyse kartın kendi telaffuz/kapatma davranışı ÇALIŞMASIN.
+            // stopPropagation'a güvenmek yerine doğrudan gerçek tıklama hedefine bakıyoruz,
+            // bu yüzden bubbling sırasından tamamen bağımsız ve garantili çalışır.
+            if (e.target.closest('[data-card-ignore]')) return;
+
             if (openWord !== null) {
               setOpenWord(null);
               return;
@@ -495,6 +501,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         >
           {/* Sağ üst: Kopyala butonu */}
           <button
+            data-card-ignore
             onClick={(e) => copyToClipboard(currentQuestion.sentence_en, e)}
             className="absolute top-3 right-3 p-1.5 rounded-lg 
                        text-base-content/40 hover:text-base-content/80 
@@ -511,6 +518,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
           {/* Sol alt: Google Translate butonu */}
           <button
+            data-card-ignore
             onClick={(e) => openTranslationModal(e)}
             className="absolute bottom-3 left-3 p-1.5 rounded-lg 
                        text-base-content/40 hover:text-blue-500 
@@ -560,6 +568,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   className={`dropdown dropdown-top inline-block ${isOpen ? 'dropdown-open' : ''}`}
                 >
                   <div
+                    data-card-ignore
                     tabIndex={0}
                     role="button"
                     onClick={(e) => handleWordClick(index, part, e)}
@@ -579,8 +588,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                       Görünürlük artık focus'a değil, yukarıdaki "dropdown-open" class'ına bağlı. */}
                   {isOpen && (
                     <div
+                      data-card-ignore
                       className="dropdown-content card card-sm bg-base-100 z-30 w-32 shadow-md border border-base-300"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="card-body p-3 items-center text-center gap-1">
                         {wordState?.loading || !wordState ? (
@@ -604,8 +613,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
           {/* Telaffuz butonu + seslendirme göstergesi */}
           <div className="mt-4 flex items-center justify-center gap-3">
             <button
+              data-card-ignore
               onClick={(e) => {
-                e.stopPropagation();
                 if (!speaking) playPronunciation(currentQuestion.sentence_en);
               }}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
