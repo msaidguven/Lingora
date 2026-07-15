@@ -13,6 +13,17 @@ import Toast from "../common/Toast.jsx";
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b", C1: "#a855f7" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta", C1: "İleri" };
 
+// Coin sesi
+const playCoinSound = () => {
+  try {
+    const audio = new Audio('/sounds/coin.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(err => console.log('Ses çalınamadı:', err));
+  } catch (error) {
+    console.log('Ses hatası:', error);
+  }
+};
+
 // Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
 const cancelPendingSpeech = () => {
   try {
@@ -79,15 +90,53 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion, answered, saving, loading]);
 
-  const onSelect = async (opt) => {
+  // ✅ YENİDEN YAZILAN onSelect - ANINDA GERİ BİLDİRİM
+  const onSelect = (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
+
     isUpdatingRef.current = true;
 
-    await handleSelect(opt, async (isCorrect) => {
+    // 1️⃣ HEMEN doğru/yanlış kontrolü
+    const isCorrect = opt === currentQuestion.sentence_tr;
+    const correctAnswer = currentQuestion.sentence_tr;
+
+    // 2️⃣ HEMEN UI'ı güncelle (handleSelect senkron çalışır)
+    handleSelect(opt, (isCorrectResult) => {
+      // Bu callback UI güncellendikten sonra çalışır
+      // Artık burada sadece ekstra işlemler yapılır
+    });
+
+    // 3️⃣ HEMEN Toast mesajını göster (async beklemeden)
+    if (isCorrect) {
+      // Doğru cevap için toast
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: '✅ Doğru cevap! +1 coin kazandın!',
+          type: 'success'
+        }
+      }));
+
+      // Coin sesini HEMEN çal (async beklemeden)
+      playCoinSound();
+
+    } else {
+      // Yanlış cevap için toast
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: `❌ Yanlış cevap. Doğrusu: "${correctAnswer}"`,
+          type: 'error'
+        }
+      }));
+    }
+
+    // 4️⃣ ARKA PLANDA istatistik ve coin güncelle
+    (async () => {
       try {
         if (user) {
+          // İstatistik güncelle
           await updateDailyStats(user.id, "sentence", isCorrect);
 
+          // Doğruysa coin ekle
           if (isCorrect) {
             const { data: currentUser } = await supabase
               .from("en_users")
@@ -102,13 +151,17 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               .update({ coins: newCoins })
               .eq("id", user.id);
 
-            window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+            // Header'daki coin sayısını güncelle
+            window.dispatchEvent(new CustomEvent('coinUpdated', {
+              detail: { coins: newCoins }
+            }));
           }
         }
-      } catch (err) {
-        console.error("İstatistik güncelleme hatası:", err);
+      } catch (error) {
+        console.error('İstatistik güncelleme hatası:', error);
       }
-    });
+    })();
+
     isUpdatingRef.current = false;
   };
 
@@ -233,7 +286,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   /* ── QUIZ ── */
   const correctAnswer = currentQuestion.sentence_tr;
-  // ✅ DÜZELTİLDİ: en_words yok, doğrudan currentQuestion'dan al
   const currentWord = {
     word: currentQuestion.sentence_en?.split(' ')[0] || 'Cümle',
     meaning: currentQuestion.sentence_tr,
@@ -307,8 +359,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                 playPronunciation(currentQuestion.sentence_en);
               }}
               className={`p-2 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0 ${speaking
-                  ? 'bg-primary/20 text-primary animate-pulse'
-                  : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
+                ? 'bg-primary/20 text-primary animate-pulse'
+                : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
                 }`}
               aria-label="Telaffuzu dinle"
               title="Telaffuzu dinle"
