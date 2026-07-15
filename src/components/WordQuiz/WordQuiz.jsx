@@ -582,14 +582,14 @@ const onSelect = async (opt) => {
       )}
 
      {/* Toast Mesajı */}
-    {toast && (
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-fade-in-down">
-        <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30">
-          <span className="text-xl animate-bounce">🪙</span>
-          <span className="font-bold text-sm">{toast.message}</span>
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-fade-in-down">
+          <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30">
+            <span className="text-xl animate-bounce">🪙</span>
+            <span className="font-bold text-sm">{toast.message}</span>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }
