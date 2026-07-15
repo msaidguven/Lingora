@@ -1,50 +1,46 @@
-// src/components/common/Toast.jsx
+// components/common/Toast.jsx
 import { useEffect, useState } from 'react';
 
-// Coin sesi çal
-const playCoinSound = () => {
-  try {
-    const audio = new Audio('/sounds/coin.mp3');
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
-  } catch (e) {}
-};
-
 export default function Toast() {
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    const handleCoinUpdate = (e) => {
-      const newCoins = e.detail?.coins;
-      if (newCoins !== undefined) {
-        setToast({
-          message: `🪙 +1 Coin (${newCoins})`,
-          type: 'success'
-        });
-        playCoinSound();
-      }
+    const handleShowToast = (event) => {
+      const { message, type = 'info', duration = 3000 } = event.detail;
+
+      const id = Date.now() + Math.random();
+      setToasts(prev => [...prev, { id, message, type }]);
+
+      // Otomatik kaldır
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, duration);
     };
 
-    window.addEventListener('coinUpdated', handleCoinUpdate);
-    return () => window.removeEventListener('coinUpdated', handleCoinUpdate);
+    window.addEventListener('showToast', handleShowToast);
+
+    return () => {
+      window.removeEventListener('showToast', handleShowToast);
+    };
   }, []);
 
-  // Toast'u otomatik kapat
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
-  if (!toast) return null;
+  if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] animate-slide-in-right">
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/95 text-white shadow-2xl backdrop-blur-sm border border-success/30 text-sm">
-        <span className="text-base">🪙</span>
-        <span className="font-semibold">{toast.message}</span>
-      </div>
+    <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          className={`px-4 py-3 rounded-xl shadow-2xl border-2 backdrop-blur-sm animate-slide-in-right ${toast.type === 'success'
+              ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
+              : toast.type === 'error'
+                ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400'
+                : 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+            }`}
+        >
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+      ))}
     </div>
   );
 }

@@ -14,8 +14,18 @@ import Toast from "../common/Toast.jsx";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
+// Coin sesi
+const playCoinSound = () => {
+  try {
+    const audio = new Audio('/sounds/coin.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(err => console.log('Ses çalınamadı:', err));
+  } catch (error) {
+    console.log('Ses hatası:', error);
+  }
+};
+
 // Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
-// speak() fonksiyonu farklı bir mekanizma kullansa bile bu çağrı zararsızdır.
 const cancelPendingSpeech = () => {
   try {
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -51,11 +61,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setExamplesMap
   } = useWordQuiz(userLevel);
 
-  // Hangi kelimenin (id'sine göre) zaten seslendirildiğini takip eder.
-  // Boolean bayrak yerine id kullanıyoruz çünkü restart sırasında
-  // `currentQuestion` yeni veri gelene kadar eski (son) kelimede kalıyor;
-  // id karşılaştırması hem eski kelimeyi tekrar okumayı hem de yeni ilk
-  // kelimenin atlanmasını engelliyor.
   const lastSpokenIdRef = useRef(null);
 
   const [showExampleModal, setShowExampleModal] = useState(false);
@@ -65,13 +70,12 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Yeni: kelime ve şıklar başta gizli, "Göster" butonuna basınca açılıyor.
   const [revealed, setRevealed] = useState(false);
   const menuRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
 
-  // Ortak telaffuz oynatma fonksiyonu - cevaplanmış olsa bile çalışır
+  // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = () => {
     if (!currentQuestion || speaking) return;
     cancelPendingSpeech();
@@ -96,7 +100,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     setIsFinished(false);
   }, [userLevel]);
 
-  // Yeni bir soru geldiğinde kelime/şıkları tekrar gizle.
   useEffect(() => {
     if (currentQuestion) {
       setRevealed(false);
@@ -104,10 +107,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   }, [currentQuestion]);
 
   // Auto-speak when question loads.
-  // `loading` burada kritik: restart sonrası yeni veri Supabase'den asenkron
-  // geldiği için, veri yenilenene kadar (loading true olduğu sürece) hiç
-  // konuşmuyoruz. Bu sayede eski son kelime tekrar okunmuyor ve yeni ilk
-  // kelime, veri geldiğinde (loading false olunca) garanti okunuyor.
   useEffect(() => {
     if (
       !loading &&
@@ -132,51 +131,77 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-  // WordQuiz.jsx - Güncellenmiş onSelect
-
+  // ✅ YENİDEN YAZILAN onSelect - ANINDA GERİ BİLDİRİM
   const onSelect = (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
 
     isUpdatingRef.current = true;
 
-    // 🚀 handleSelect UI'ı anında günceller, kaydetme arka planda yapılır
-    handleSelect(opt, (isCorrect) => {
-      // Bu callback UI güncellendikten HEMEN SONRA çalışır
-      // İstatistik ve coin işlemlerini burada yapabiliriz
-      // Ama bunlar da arka planda yapılmalı
+    // 1️⃣ HEMEN doğru/yanlış kontrolü
+    const isCorrect = opt === currentQuestion.meaning;
+    const correctAnswer = currentQuestion.meaning;
 
-      // ✅ İstatistik ve coin işlemlerini ASYNC olarak başlat
-      (async () => {
-        try {
-          if (user) {
-            // 1. İstatistik güncelle (arka planda)
-            await updateDailyStats(user.id, 'word', isCorrect);
-
-            // 2. Doğruysa coin ekle (arka planda)
-            if (isCorrect) {
-              const { data: currentUser } = await supabase
-                .from("en_users")
-                .select("coins")
-                .eq("id", user.id)
-                .single();
-
-              const newCoins = (currentUser?.coins || 0) + 1;
-
-              await supabase
-                .from("en_users")
-                .update({ coins: newCoins })
-                .eq("id", user.id);
-
-              // Header'ı güncellemek için event gönder
-              window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
-            }
-          }
-        } catch (error) {
-          console.error('İstatistik güncelleme hatası:', error);
-          // Hata olsa bile kullanıcıya gösterme
-        }
-      })();
+    // 2️⃣ HEMEN UI'ı güncelle (handleSelect senkron çalışır)
+    handleSelect(opt, (isCorrectResult) => {
+      // Bu callback UI güncellendikten sonra çalışır
+      // Artık burada sadece ekstra işlemler yapılır
     });
+
+    // 3️⃣ HEMEN Toast mesajını göster (async beklemeden)
+    if (isCorrect) {
+      // Doğru cevap için toast
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: '✅ Doğru cevap! +1 coin kazandın!',
+          type: 'success'
+        }
+      }));
+
+      // Coin sesini HEMEN çal (async beklemeden)
+      playCoinSound();
+
+    } else {
+      // Yanlış cevap için toast
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: `❌ Yanlış cevap. Doğrusu: "${correctAnswer}"`,
+          type: 'error'
+        }
+      }));
+    }
+
+    // 4️⃣ ARKA PLANDA istatistik ve coin güncelle
+    (async () => {
+      try {
+        if (user) {
+          // İstatistik güncelle
+          await updateDailyStats(user.id, 'word', isCorrect);
+
+          // Doğruysa coin ekle
+          if (isCorrect) {
+            const { data: currentUser } = await supabase
+              .from("en_users")
+              .select("coins")
+              .eq("id", user.id)
+              .single();
+
+            const newCoins = (currentUser?.coins || 0) + 1;
+
+            await supabase
+              .from("en_users")
+              .update({ coins: newCoins })
+              .eq("id", user.id);
+
+            // Header'daki coin sayısını güncelle
+            window.dispatchEvent(new CustomEvent('coinUpdated', {
+              detail: { coins: newCoins }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('İstatistik güncelleme hatası:', error);
+      }
+    })();
 
     isUpdatingRef.current = false;
   };
@@ -191,8 +216,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
-    // Bekleyen/çalan eski telaffuzu iptal et ki yeni oturumun ilk kelimesi
-    // yerine önceki oturumun son kelimesi tekrar okunmasın.
     cancelPendingSpeech();
     setSpeaking(false);
     setIsFinished(false);
@@ -302,7 +325,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         onClick={handleCardClick}
         style={{ marginTop: 20, marginBottom: 20 }}
       >
-        {/* Menu Button - 3 dots (sadece kelime gösterildiğinde anlamlı) */}
+        {/* Menu Button - 3 dots */}
         {revealed && (
           <div className="absolute top-3 right-3" ref={menuRef}>
             <button
@@ -471,13 +494,12 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             Türkçe anlamı nedir?
           </div>
 
-          {/* Options - Simple buttons without letters and checkmarks */}
+          {/* Options */}
           <div className="flex flex-col gap-2.5">
             {options.map((opt, i) => {
               const isCorrect = opt === correctAnswer;
               const isSelected = opt === selected;
 
-              // Determine button style based on state
               let buttonStyle = "bg-base-100 border-base-200 hover:border-primary/30 text-base-content";
               if (answered && isCorrect) {
                 buttonStyle = "bg-success/10 border-success/40 text-success";
@@ -574,7 +596,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         />
       )}
 
-      {/* Toast - Tek bir bileşen */}
+      {/* Toast */}
       <Toast />
     </div>
   );

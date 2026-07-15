@@ -22,7 +22,6 @@ export function useWordQuiz(userLevel) {
   const [answered, setAnswered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
-  const [pendingSave, setPendingSave] = useState(null); // Arka planda kaydedilecek veri
 
   const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
 
@@ -98,10 +97,9 @@ export function useWordQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-    setPendingSave(null);
   }, [userLevel, sessionKey, userId]);
 
-  // Şıkları oluştur - HER SEFERİNDE FARKLI!
+  // Şıkları oluştur
   useEffect(() => {
     if (!currentQuestion) return;
     setOptions(buildWordOptions(currentQuestion, allCards, choiceCount));
@@ -109,106 +107,90 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allCards, choiceCount]);
 
-  // 🔥 ARKA PLANDA KAYDETME İŞLEMİ
-  useEffect(() => {
-    if (!pendingSave) return;
-
-    const saveInBackground = async () => {
-      const { wordId, isCorrect, userId } = pendingSave;
-
-      try {
-        const now = new Date();
-        let nextReviewDate = new Date();
-
-        const { data: existing, error: findError } = await supabase
-          .from("en_user_words")
-          .select("id, review_count, total_correct, total_wrong")
-          .eq("user_id", userId)
-          .eq("word_id", wordId)
-          .maybeSingle();
-
-        if (findError) throw findError;
-
-        if (isCorrect) {
-          const newReviewCount = (existing?.review_count || 0) + 1;
-          const newTotalCorrect = (existing?.total_correct || 0) + 1;
-
-          // Tekrar aralığını hesapla
-          if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-          else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-          else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-          else nextReviewDate.setDate(now.getDate() + 14);
-
-          const { error: updateError } = await supabase
-            .from("en_user_words")
-            .update({
-              next_review_at: nextReviewDate.toISOString(),
-              review_count: newReviewCount,
-              total_correct: newTotalCorrect,
-              last_score: 100,
-              last_reviewed_at: now.toISOString(),
-              mastery_level: Math.min(newReviewCount, 9),
-              is_mastered: newReviewCount >= 9
-            })
-            .eq("id", existing.id);
-
-          if (updateError) throw updateError;
-        } else {
-          const newTotalWrong = (existing?.total_wrong || 0) + 1;
-          nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-
-          const { error: updateError } = await supabase
-            .from("en_user_words")
-            .update({
-              next_review_at: nextReviewDate.toISOString(),
-              review_count: 0,
-              total_wrong: newTotalWrong,
-              last_score: 0,
-              last_reviewed_at: now.toISOString(),
-              mastery_level: 0,
-              is_mastered: false
-            })
-            .eq("id", existing.id);
-
-          if (updateError) throw updateError;
-        }
-
-        console.log(`✅ Kelime ${wordId} arka planda kaydedildi (${isCorrect ? 'doğru' : 'yanlış'})`);
-      } catch (err) {
-        console.error("❌ Arka plan kaydetme hatası:", err);
-        // Hata olsa bile kullanıcıya göstermiyoruz, çünkü UI zaten güncellendi
-      } finally {
-        setPendingSave(null);
-      }
-    };
-
-    saveInBackground();
-  }, [pendingSave]);
-
-  // Kelime sonucunu arka plana gönder
-  const queueSaveWordResult = (wordId, isCorrect) => {
+  // 🔥 ARKA PLANDA KELİME KAYDETME
+  const saveWordInBackground = async (wordId, isCorrect) => {
     if (!userId) {
       console.error("❌ userId gereklidir!");
       return;
     }
 
-    setPendingSave({ wordId, isCorrect, userId });
+    try {
+      const now = new Date();
+      let nextReviewDate = new Date();
+
+      const { data: existing, error: findError } = await supabase
+        .from("en_user_words")
+        .select("id, review_count, total_correct, total_wrong")
+        .eq("user_id", userId)
+        .eq("word_id", wordId)
+        .maybeSingle();
+
+      if (findError) throw findError;
+
+      if (!existing) {
+        console.error("❌ Kelime bulunamadı:", wordId);
+        return;
+      }
+
+      if (isCorrect) {
+        const newReviewCount = (existing?.review_count || 0) + 1;
+        const newTotalCorrect = (existing?.total_correct || 0) + 1;
+
+        if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
+        else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
+        else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
+        else nextReviewDate.setDate(now.getDate() + 14);
+
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: newReviewCount,
+            total_correct: newTotalCorrect,
+            last_score: 100,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: Math.min(newReviewCount, 9),
+            is_mastered: newReviewCount >= 9
+          })
+          .eq("id", existing.id);
+      } else {
+        const newTotalWrong = (existing?.total_wrong || 0) + 1;
+        nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
+
+        await supabase
+          .from("en_user_words")
+          .update({
+            next_review_at: nextReviewDate.toISOString(),
+            review_count: 0,
+            total_wrong: newTotalWrong,
+            last_score: 0,
+            last_reviewed_at: now.toISOString(),
+            mastery_level: 0,
+            is_mastered: false
+          })
+          .eq("id", existing.id);
+      }
+
+      console.log(`✅ Kelime ${wordId} arka planda kaydedildi (${isCorrect ? 'doğru' : 'yanlış'})`);
+    } catch (err) {
+      console.error("❌ Arka plan kaydetme hatası:", err);
+    }
   };
 
-  // ✅ Cevap seçildiğinde - ANINDA UI GÜNCELLEME + ARKA PLAN KAYDETME
-  const handleSelect = async (opt, onComplete) => {
+  // ✅ Cevap seçildiğinde - SADECE UI GÜNCELLEME (SENKRON)
+  const handleSelect = (opt, onComplete) => {
     if (answered || saving || !currentQuestion) return;
 
     const isCorrect = opt === currentQuestion.meaning;
 
-    // 1️⃣ HEMEN UI'ı güncelle (SENKRON)
+    // 1️⃣ UI'ı HEMEN güncelle (SENKRON)
     setSelected(opt);
     setAnswered(true);
 
-    // 2️⃣ Kaydetme işlemini ARKA PLANDA başlat
-    queueSaveWordResult(currentQuestion.id, isCorrect);
+    // 2️⃣ Kelime kaydını ARKA PLANDA başlat (async - beklenmez)
+    saveWordInBackground(currentQuestion.id, isCorrect);
 
-    // 3️⃣ Callback'i çağır (UI güncellemesi tamamlandı)
+    // 3️⃣ Callback'i çağır
     if (onComplete) {
       onComplete(isCorrect);
     }
@@ -219,7 +201,7 @@ export function useWordQuiz(userLevel) {
     if (saving) return;
     const nextIndex = queueIndex + 1;
     if (nextIndex >= queue.length) {
-      return null; // Kuyruk bitti
+      return null;
     } else {
       setQueueIndex(nextIndex);
       setCurrentQuestion(queue[nextIndex]);
@@ -232,11 +214,9 @@ export function useWordQuiz(userLevel) {
   const restartQuizSession = () => {
     setSelected(null);
     setAnswered(false);
-    setPendingSave(null);
     setSessionKey(key => key + 1);
   };
 
-  // Hook'tan dönen değerler
   return {
     loading,
     error,
