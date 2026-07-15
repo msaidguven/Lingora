@@ -22,7 +22,7 @@ export function useHomeViewModel() {
   const checkDailyBonus = async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
 
     const { data: userData } = await supabase
       .from("en_users")
@@ -35,7 +35,6 @@ export function useHomeViewModel() {
     const lastBonusDate = userData.last_daily_bonus_at?.split('T')[0] || null;
 
     if (lastBonusDate !== today) {
-      // Günlük bonusu ver (100 coin)
       const newCoins = (userData.coins || 0) + 100;
 
       await supabase
@@ -69,7 +68,6 @@ export function useHomeViewModel() {
       setUserLevel(level);
       setCoins(userData?.coins || 0);
 
-      // Günlük bonus kontrolü
       await checkDailyBonus();
 
       const [
@@ -153,7 +151,7 @@ export function useHomeViewModel() {
     }
   };
 
-  // 5 Kelime Satın Al (50 Coin)
+  // 5 Kelime Satın Al (50 Coin) - SADECE KELİME, CÜMLE YOK
   const handleBuyWords = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
@@ -168,7 +166,6 @@ export function useHomeViewModel() {
     setBuying(true);
 
     try {
-      // Kullanıcının mevcut kelimelerini al
       const { data: userWords } = await supabase
         .from("en_user_words")
         .select("word_id")
@@ -196,9 +193,8 @@ export function useHomeViewModel() {
 
       const now = new Date();
       const today = new Date();
-      const newWordIds = newWords.map((w) => w.id);
 
-      // Kelimeleri ekle
+      // SADECE KELİMELERİ EKLE (cümle ekleme yok)
       const wordInserts = newWords.map((word) => ({
         user_id: user.id,
         word_id: word.id,
@@ -218,30 +214,6 @@ export function useHomeViewModel() {
 
       if (wordError) throw wordError;
 
-      // Cümleleri ekle
-      const { data: sentences } = await supabase
-        .from("en_example_sentences")
-        .select("*")
-        .in("word_id", newWordIds)
-        .eq("is_approved", true);
-
-      if (sentences && sentences.length > 0) {
-        const sentenceInserts = sentences.map((sentence) => ({
-          user_id: user.id,
-          sentence_id: sentence.id,
-          added_at: now.toISOString(),
-          next_review_at: today.toISOString(),
-          review_count: 0,
-          last_score: null,
-          last_reviewed_at: null,
-          ease_factor: 2.5,
-        }));
-
-        await supabase
-          .from("en_user_sentences")
-          .insert(sentenceInserts);
-      }
-
       // 50 coin düş
       const newCoins = coins - 50;
       await supabase
@@ -250,8 +222,6 @@ export function useHomeViewModel() {
         .eq("id", user.id);
 
       setCoins(newCoins);
-
-      // Header'ı güncelle
       window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
       await fetchData();
@@ -279,7 +249,6 @@ export function useHomeViewModel() {
     setBuying(true);
 
     try {
-      // Kullanıcının mevcut cümlelerini al
       const { data: userSentences } = await supabase
         .from("en_user_sentences")
         .select("sentence_id")
@@ -308,7 +277,6 @@ export function useHomeViewModel() {
       const now = new Date();
       const today = new Date();
 
-      // Cümleleri ekle
       const sentenceInserts = newSentences.map((sentence) => ({
         user_id: user.id,
         sentence_id: sentence.id,
@@ -326,7 +294,6 @@ export function useHomeViewModel() {
 
       if (sentenceError) throw sentenceError;
 
-      // 50 coin düş
       const newCoins = coins - 50;
       await supabase
         .from("en_users")
@@ -334,8 +301,6 @@ export function useHomeViewModel() {
         .eq("id", user.id);
 
       setCoins(newCoins);
-
-      // Header'ı güncelle
       window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
       await fetchData();
