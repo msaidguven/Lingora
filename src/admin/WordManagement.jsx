@@ -21,11 +21,13 @@ const WORD_EXAMPLE_JSON = `[
       {
         "en": "She felt very happy today.",
         "tr": "Bugün çok mutlu hissetti.",
+        "level": "A1",
         "learning_notes": ["'felt' kullanımı: hissetmek fiilinin geçmiş zamanı", "'very' + sıfat yapısı"]
       },
       {
         "en": "I am happy to see you.",
         "tr": "Seni gördüğüme mutluyum.",
+        "level": "A1",
         "learning_notes": ["'happy to + fiil' kalıbı: bir şey yapmaktan mutlu olmak"]
       }
     ]
@@ -36,10 +38,11 @@ const PROMPT_TEXT = `Aşağıdaki kelimeleri analiz et. SADECE JSON array dönd�
 
 Her kelime için:
 - 5 adet örnek cümle üret (examples array'i içinde)
-- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2) uygun olsun
+- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2, C1) uygun olsun
 - A1 ise tamamen A1 seviyesinde 5 cümle
 - A2 ise A2 seviyesinde 5 cümle vb.
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
+- Her cümle için level belirt (A1, A2, B1, B2, C1)
 - Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). İngilizce öğrenmeye çalışan birisi için yardımcı olacak açıklamalar. kelime ve kullanım alanı ayrıca neden ve niçin böyle kullanıldığı vb.
 
 kelimenin diğer anlamlarını virgül ile ayır.
@@ -59,11 +62,11 @@ Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt.
     "synonyms": ["eş1", "eş2"],
     "antonyms": ["zıt1", "zıt2"],
     "examples": [
-      {"en": "English sentence 1", "tr": "Türkçe çeviri 1", "learning_notes": ["not1", "not2"]},
-      {"en": "English sentence 2", "tr": "Türkçe çeviri 2", "learning_notes": []},
-      {"en": "English sentence 3", "tr": "Türkçe çeviri 3", "learning_notes": []},
-      {"en": "English sentence 4", "tr": "Türkçe çeviri 4", "learning_notes": []},
-      {"en": "English sentence 5", "tr": "Türkçe çeviri 5", "learning_notes": []}
+      {"en": "English sentence 1", "tr": "Türkçe çeviri 1", "level": "A1", "learning_notes": ["not1", "not2"]},
+      {"en": "English sentence 2", "tr": "Türkçe çeviri 2", "level": "A1", "learning_notes": []},
+      {"en": "English sentence 3", "tr": "Türkçe çeviri 3", "level": "A1", "learning_notes": []},
+      {"en": "English sentence 4", "tr": "Türkçe çeviri 4", "level": "A1", "learning_notes": []},
+      {"en": "English sentence 5", "tr": "Türkçe çeviri 5", "level": "A1", "learning_notes": []}
     ]
   }
 ]
@@ -186,6 +189,9 @@ function WordAdder() {
         }
         if (item.examples) {
           item.examples.forEach((ex) => {
+            if (!ex.level) {
+              throw new Error(`"${item.word}" örneğinde level eksik (A1, A2, B1, B2, C1)`);
+            }
             if (ex.learning_notes && !Array.isArray(ex.learning_notes)) {
               throw new Error(`"${item.word}" için learning_notes bir array olmalı`);
             }
@@ -253,7 +259,7 @@ function WordAdder() {
                       word_id: wordId,
                       sentence_en: example.en,
                       sentence_tr: example.tr,
-                      difficulty: item.difficulty || 1,
+                      level: example.level || item.level || "A1",
                       order_index: 0,
                       source: "manual",
                       is_approved: true,
@@ -330,7 +336,7 @@ function WordAdder() {
                     word_id: wordId,
                     sentence_en: example.en,
                     sentence_tr: example.tr,
-                    difficulty: item.difficulty || 1,
+                    level: example.level || item.level || "A1",
                     order_index: 0,
                     source: "manual",
                     is_approved: true,
@@ -528,7 +534,7 @@ function WordAdder() {
         <TextArea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
-          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "...", "learning_notes": [] } ] } ]'
+          placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "...", "level": "A1", "learning_notes": [] } ] } ]'
           rows={10}
         />
         
@@ -641,7 +647,7 @@ function WordEditor() {
             id,
             sentence_en,
             sentence_tr,
-            difficulty,
+            level,
             order_index,
             is_approved,
             learning_notes
@@ -717,6 +723,15 @@ function WordEditor() {
     setFormData(prev => ({ ...prev, [field]: arr }));
   };
 
+  const handleExampleLevelChange = (exampleId, value) => {
+    setFormData(prev => ({
+      ...prev,
+      examples: prev.examples.map(e =>
+        e.id === exampleId ? { ...e, level: value } : e
+      ),
+    }));
+  };
+
   const handleExampleNotesChange = (exampleId, value) => {
     const arr = value.split(",").map(s => s.trim()).filter(s => s);
     setFormData(prev => ({
@@ -725,6 +740,26 @@ function WordEditor() {
         e.id === exampleId ? { ...e, learning_notes: arr } : e
       ),
     }));
+  };
+
+  const saveExampleLevel = async (exampleId) => {
+    const example = formData.examples.find(e => e.id === exampleId);
+    if (!example) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("en_example_sentences")
+        .update({ level: example.level || "A1" })
+        .eq("id", exampleId);
+
+      if (error) throw error;
+      setMessage({ type: "success", text: "✅ Cümle seviyesi güncellendi!" });
+    } catch (error) {
+      setMessage({ type: "error", text: "Seviye kaydedilemedi: " + error.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveExampleNotes = async (exampleId) => {
@@ -1001,6 +1036,7 @@ function WordEditor() {
                 <option value="A2">A2</option>
                 <option value="B1">B1</option>
                 <option value="B2">B2</option>
+                <option value="C1">C1</option>
               </select>
             </div>
             <Input
@@ -1079,6 +1115,53 @@ function WordEditor() {
                     )}
                   </div>
 
+                  {/* Seviye Alanı */}
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
+                    {!editing ? (
+                      example.level && (
+                        <Badge text={example.level} />
+                      )
+                    ) : (
+                      <>
+                        <select
+                          value={example.level || "A1"}
+                          onChange={(e) => handleExampleLevelChange(example.id, e.target.value)}
+                          style={{
+                            fontSize: 11,
+                            padding: "4px 8px",
+                            borderRadius: 4,
+                            border: `1px solid ${colors.border}`,
+                            background: colors.surface,
+                            color: colors.text
+                          }}
+                        >
+                          <option value="A1">A1</option>
+                          <option value="A2">A2</option>
+                          <option value="B1">B1</option>
+                          <option value="B2">B2</option>
+                          <option value="C1">C1</option>
+                        </select>
+                        <button
+                          onClick={() => saveExampleLevel(example.id)}
+                          disabled={loading}
+                          style={{
+                            fontSize: 10,
+                            padding: "4px 10px",
+                            borderRadius: 4,
+                            border: "none",
+                            background: colors.primary,
+                            color: "#fff",
+                            cursor: loading ? "not-allowed" : "pointer",
+                            opacity: loading ? 0.6 : 1
+                          }}
+                        >
+                          💾 Seviye
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Learning Notes */}
                   <div style={{ marginTop: 6 }}>
                     {!editing ? (
                       example.learning_notes && example.learning_notes.length > 0 ? (
@@ -1131,7 +1214,7 @@ function WordEditor() {
                             opacity: loading ? 0.6 : 1
                           }}
                         >
-                          💾
+                          💾 Notlar
                         </button>
                       </div>
                     )}
