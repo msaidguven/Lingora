@@ -40,7 +40,7 @@ Her kelime için:
 - A1 ise tamamen A1 seviyesinde 5 cümle
 - A2 ise A2 seviyesinde 5 cümle vb.
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
-- Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). Not yoksa boş array [] bırak.
+- Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). İngilizce öğrenmeye çalışan birisi için yardımcı olacak açıklamalar. kelime ve kullanım alanı ayrıca neden ve niçin böyle kullanıldığı vb.
 
 kelimenin diğer anlamlarını virgül ile ayır.
 bu verdiğim kelimeler A1 seviyesinde.
