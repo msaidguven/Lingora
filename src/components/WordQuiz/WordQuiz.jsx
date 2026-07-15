@@ -81,7 +81,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   const levelColor = LEVEL_COLOR[userLevel];
 
-  // Ortak telaffuz oynatma fonksiyonu (cevaplanmış olsa bile kullanılabilir).
+  // Ortak telaffuz oynatma fonksiyonu - cevaplanmış olsa bile çalışır
   const playPronunciation = () => {
     if (!currentQuestion || speaking) return;
     cancelPendingSpeech();
@@ -137,7 +137,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   }, [currentQuestion, answered, loading]);
 
   const handleCardClick = () => {
-    if (currentQuestion && !answered && !speaking) {
+    if (currentQuestion && !speaking) {
       playPronunciation();
     }
   };
@@ -309,10 +309,10 @@ const onSelect = async (opt) => {
       <div 
         className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${
           revealed
-            ? `cursor-pointer ${answered ? 'opacity-75 cursor-default' : 'hover:scale-[1.02] hover:border-primary/20'}`
+            ? 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
             : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
         }`}
-        onClick={revealed ? handleCardClick : playPronunciation}
+        onClick={handleCardClick}
         style={{ marginTop: 20, marginBottom: 20 }}
       >
         {/* Menu Button - 3 dots (sadece kelime gösterildiğinde anlamlı) */}
@@ -512,17 +512,6 @@ const onSelect = async (opt) => {
               </span>
               {selected === correctAnswer ? "Doğru!" : `Doğru cevap: "${correctAnswer}"`}
             </div>
-
-            {/* Telaffuzu tekrar dinle */}
-            <button
-              onClick={playPronunciation}
-              disabled={speaking}
-              className="btn btn-circle btn-sm btn-ghost text-current"
-              aria-label="Telaffuzu tekrar dinle"
-              title="Telaffuzu tekrar dinle"
-            >
-              <span className="text-base">🔊</span>
-            </button>
           </div>
           
           <button 
