@@ -1,9 +1,9 @@
 // admin/WordManagement.jsx
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../config.js";
-import { 
-  styles, colors, PageHeader, Tabs, Card, Message, 
-  Input, TextArea, Badge, JsonDisplay, SearchInput 
+import {
+  styles, colors, PageHeader, Tabs, Card, Message,
+  Input, TextArea, Badge, JsonDisplay, SearchInput
 } from "./adminStyles.jsx";
 
 const WORD_EXAMPLE_JSON = `[
@@ -84,7 +84,7 @@ export default function WordManagement({ onBack }) {
 
   return (
     <div style={styles.container}>
-      <PageHeader 
+      <PageHeader
         title="📝 Kelime Yönetimi"
         subtitle="Kelime ekle, düzenle veya sil"
         onBack={onBack}
@@ -149,7 +149,7 @@ function WordAdder() {
     cleaned = cleaned.replace(/^```\s*/i, '');
     cleaned = cleaned.replace(/\s*```$/i, '');
     cleaned = cleaned.trim();
-    
+
     if (!cleaned.startsWith('[') && !cleaned.startsWith('{')) {
       const firstBracket = cleaned.indexOf('[');
       const lastBracket = cleaned.lastIndexOf(']');
@@ -164,23 +164,23 @@ function WordAdder() {
     setMessage(null);
     setParsedData(null);
     setResults([]);
-    
+
     try {
       const cleanedJson = cleanJsonInput(jsonInput);
-      
+
       if (!cleanedJson) {
         throw new Error("JSON verisi boş.");
       }
-      
+
       const data = JSON.parse(cleanedJson);
-      
+
       if (!Array.isArray(data)) {
         throw new Error("JSON bir array olmalı: [ ... ]");
       }
       if (data.length === 0) {
         throw new Error("Array boş.");
       }
-      
+
       data.forEach((item, index) => {
         if (!item.word || !item.meaning) {
           throw new Error(`"${item.word || index}" kelimesi için word veya meaning eksik`);
@@ -199,7 +199,7 @@ function WordAdder() {
           });
         }
       });
-      
+
       setParsedData(data);
       setMessage({ type: "success", text: `✅ ${data.length} kelime hazır!` });
     } catch (e) {
@@ -209,11 +209,11 @@ function WordAdder() {
 
   const handleInsert = async () => {
     if (!parsedData) return;
-    
+
     setLoading(true);
     setMessage(null);
     const resultList = [];
-    
+
     for (const item of parsedData) {
       try {
         const { data: existing, error: checkError } = await supabase
@@ -232,7 +232,7 @@ function WordAdder() {
         if (existing) {
           wordId = existing.id;
           wordStatus = "zaten var";
-          
+
           let addedExampleCount = 0;
           let existingExampleCount = 0;
           let errorExampleCount = 0;
@@ -240,11 +240,12 @@ function WordAdder() {
           if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
             for (const example of item.examples) {
               if (example.en && example.tr) {
+                // ✅ word_id kontrolü KALDIRILDI
                 const { data: existingExample, error: exampleCheckError } = await supabase
                   .from("en_example_sentences")
                   .select("id")
-                  .eq("word_id", wordId)
                   .eq("sentence_en", example.en)
+                  .eq("level", example.level || item.level || "A1")
                   .maybeSingle();
 
                 if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
@@ -254,17 +255,17 @@ function WordAdder() {
                 }
 
                 if (!existingExample) {
-                const { error: insertExampleError } = await supabase
-  .from("en_example_sentences")
-  .insert({
-    sentence_en: example.en,
-    sentence_tr: example.tr,
-    level: example.level || item.level || "A1",
-    order_index: 0,
-    source: "manual",
-    is_approved: true,
-    learning_notes: example.learning_notes || [],
-  });
+                  const { error: insertExampleError } = await supabase
+                    .from("en_example_sentences")
+                    .insert({
+                      sentence_en: example.en,
+                      sentence_tr: example.tr,
+                      level: example.level || item.level || "A1",
+                      order_index: 0,
+                      source: "manual",
+                      is_approved: true,
+                      learning_notes: example.learning_notes || [],
+                    });
 
                   if (insertExampleError) {
                     console.error("Cümle eklenemedi:", insertExampleError);
@@ -294,9 +295,9 @@ function WordAdder() {
             messageText = "Cümle işlemi tamamlandı";
           }
 
-          resultList.push({ 
-            word: item.word, 
-            ok: true, 
+          resultList.push({
+            word: item.word,
+            ok: true,
             status: wordStatus,
             message: messageText,
             addedExampleCount,
@@ -322,7 +323,7 @@ function WordAdder() {
             .maybeSingle();
 
           if (insertError) throw insertError;
-          
+
           wordId = inserted.id;
           wordStatus = "eklendi";
 
@@ -330,17 +331,17 @@ function WordAdder() {
           if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
             for (const example of item.examples) {
               if (example.en && example.tr) {
-              const { error: insertExampleError } = await supabase
-  .from("en_example_sentences")
-  .insert({
-    sentence_en: example.en,
-    sentence_tr: example.tr,
-    level: example.level || item.level || "A1",
-    order_index: 0,
-    source: "manual",
-    is_approved: true,
-    learning_notes: example.learning_notes || [],
-  });
+                const { error: insertExampleError } = await supabase
+                  .from("en_example_sentences")
+                  .insert({
+                    sentence_en: example.en,
+                    sentence_tr: example.tr,
+                    level: example.level || item.level || "A1",
+                    order_index: 0,
+                    source: "manual",
+                    is_approved: true,
+                    learning_notes: example.learning_notes || [],
+                  });
 
                 if (insertExampleError) {
                   console.error("Cümle eklenemedi:", insertExampleError);
@@ -351,9 +352,9 @@ function WordAdder() {
             }
           }
 
-          resultList.push({ 
-            word: item.word, 
-            ok: true, 
+          resultList.push({
+            word: item.word,
+            ok: true,
             status: wordStatus,
             message: addedExampleCount > 0 ? `${addedExampleCount} cümle eklendi` : "Cümle eklenmedi",
             addedExampleCount,
@@ -363,25 +364,25 @@ function WordAdder() {
         }
 
       } catch (error) {
-        resultList.push({ 
-          word: item.word, 
-          ok: false, 
+        resultList.push({
+          word: item.word,
+          ok: false,
           status: "hata",
           message: error.message
         });
       }
     }
-    
+
     setResults(resultList);
     setLoading(false);
-    
+
     const successCount = resultList.filter(r => r.ok).length;
     const failCount = resultList.filter(r => !r.ok).length;
     const addedCount = resultList.filter(r => r.status === "eklendi").length;
     const existsCount = resultList.filter(r => r.status === "zaten var").length;
     const totalAddedExamples = resultList.reduce((sum, r) => sum + (r.addedExampleCount || 0), 0);
     const totalExistingExamples = resultList.reduce((sum, r) => sum + (r.existingExampleCount || 0), 0);
-    
+
     let successMessage = "";
     if (addedCount > 0 && existsCount === 0) {
       successMessage = `✅ ${addedCount} kelime eklendi`;
@@ -390,14 +391,14 @@ function WordAdder() {
     } else if (addedCount > 0 && existsCount > 0) {
       successMessage = `✅ ${addedCount} kelime eklendi, ⏭️ ${existsCount} kelime zaten mevcut`;
     }
-    
+
     if (totalAddedExamples > 0 || totalExistingExamples > 0) {
       successMessage += `\n📝 ${totalAddedExamples} yeni cümle eklendi`;
       if (totalExistingExamples > 0) {
         successMessage += `, ⏭️ ${totalExistingExamples} cümle zaten mevcut`;
       }
     }
-    
+
     if (failCount === 0) {
       setMessage({ type: "success", text: successMessage });
       setJsonInput("");
@@ -529,14 +530,14 @@ function WordAdder() {
             </button>
           </div>
         </div>
-        
+
         <TextArea
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
           placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "...", "level": "A1", "learning_notes": [] } ] } ]'
           rows={10}
         />
-        
+
         {showExample && (
           <div style={{ marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -567,7 +568,7 @@ function WordAdder() {
             {results.map((r, i) => (
               <div key={i} style={styles.resultItem}>
                 <span style={{ fontWeight: 600 }}>{r.word}</span>
-                <span style={{ 
+                <span style={{
                   color: r.ok ? (r.status === "eklendi" ? colors.success : colors.textSecondary) : colors.error
                 }}>
                   {r.ok ? (r.status === "eklendi" ? "✅ Eklendi" : "⏭️ Mevcut") : "❌ Hata"}
@@ -587,7 +588,7 @@ function WordAdder() {
         >
           🔍 JSON Kontrol Et
         </button>
-        
+
         {parsedData && (
           <button
             onClick={handleInsert}
@@ -638,9 +639,9 @@ function WordEditor() {
     setSelectedWord(null);
 
     try {
-const { data, error } = await supabase
-  .from("en_words")
-  .select(`
+      const { data, error } = await supabase
+        .from("en_words")
+        .select(`
     *,
     en_example_sentences (
       id,
@@ -811,7 +812,7 @@ const { data, error } = await supabase
       const updatedWord = { ...selectedWord, ...formData };
       setSelectedWord(updatedWord);
 
-      setSearchResults(prev => 
+      setSearchResults(prev =>
         prev.map(w => w.id === updatedWord.id ? updatedWord : w)
       );
 
@@ -845,7 +846,7 @@ const { data, error } = await supabase
       if (wordError) throw wordError;
 
       setMessage({ type: "success", text: "🗑️ Kelime başarıyla silindi!" });
-      
+
       setSearchResults(prev => prev.filter(w => w.id !== selectedWord.id));
       setSelectedWord(null);
       setFormData({
@@ -919,7 +920,7 @@ const { data, error } = await supabase
         <Card>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {searchResults.map((word, index) => (
-              <div 
+              <div
                 key={word.id}
                 onClick={() => selectWord(word)}
                 style={styles.listItem}
@@ -930,9 +931,9 @@ const { data, error } = await supabase
                   <span style={{ fontWeight: 700, fontSize: 16 }}>{word.word}</span>
                   <span style={{ color: colors.textSecondary, marginLeft: 12, fontSize: 14 }}>{word.meaning}</span>
                   {word.en_example_sentences && (
-                    <span style={{ 
-                      fontSize: 10, 
-                      color: colors.textMuted, 
+                    <span style={{
+                      fontSize: 10,
+                      color: colors.textMuted,
                       marginLeft: 8,
                       background: colors.surfaceDark,
                       padding: "2px 8px",
@@ -944,11 +945,11 @@ const { data, error } = await supabase
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Badge text={word.level || "A1"} />
-                  <span style={{ 
-                    fontSize: 10, 
-                    background: colors.surfaceLight, 
-                    color: colors.textSecondary, 
-                    padding: "2px 10px", 
+                  <span style={{
+                    fontSize: 10,
+                    background: colors.surfaceLight,
+                    color: colors.textSecondary,
+                    padding: "2px 10px",
                     borderRadius: 4
                   }}>
                     ⭐ {word.difficulty || 1}
@@ -968,13 +969,13 @@ const { data, error } = await supabase
               <span style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 12 }}>#{selectedWord.id.slice(0, 8)}</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button 
+              <button
                 onClick={() => setSelectedWord(null)}
                 style={styles.backButton}
               >
                 ← Listeye Dön
               </button>
-              <button 
+              <button
                 onClick={() => setEditing(!editing)}
                 style={styles.editButton(editing)}
               >
@@ -982,7 +983,7 @@ const { data, error } = await supabase
               </button>
               {editing && (
                 <>
-                  <button 
+                  <button
                     onClick={handleSave}
                     disabled={loading}
                     style={{
@@ -998,7 +999,7 @@ const { data, error } = await supabase
                   >
                     💾 Kaydet
                   </button>
-                  <button 
+                  <button
                     onClick={deleteWord}
                     disabled={loading}
                     style={styles.dangerButton(loading)}
@@ -1079,10 +1080,10 @@ const { data, error } = await supabase
 
           <div style={{ marginTop: 24, borderTop: `1px solid ${colors.border}`, paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📝 Örnek Cümleler ({formData.examples.length})</div>
-            
+
             <div style={{ maxHeight: 400, overflowY: "auto" }}>
               {formData.examples.map((example, index) => (
-                <div 
+                <div
                   key={example.id || index}
                   style={{
                     padding: "10px 12px",
