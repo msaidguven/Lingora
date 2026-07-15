@@ -58,6 +58,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [translation, setTranslation] = useState('');
   const [translating, setTranslating] = useState(false);
+  const [wordTranslation, setWordTranslation] = useState('');
+  const [selectedWord, setSelectedWord] = useState('');
+  const [showWordModal, setShowWordModal] = useState(false);
 
   const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
   const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
@@ -88,6 +91,50 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
+  // Tek kelime çevirisi
+  const translateWord = async (word) => {
+    if (!word || word.trim().length === 0) return;
+
+    setSelectedWord(word);
+    setTranslating(true);
+    setWordTranslation('');
+
+    try {
+      const response = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(word.trim())}`
+      );
+      const data = await response.json();
+      if (data && data[0]) {
+        const translated = data[0].map(item => item[0]).join('');
+        setWordTranslation(translated);
+        setShowWordModal(true);
+      } else {
+        setWordTranslation('Çeviri bulunamadı');
+        setShowWordModal(true);
+      }
+    } catch (error) {
+      console.error('Kelime çeviri hatası:', error);
+      setWordTranslation('Çeviri yüklenemedi');
+      setShowWordModal(true);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  // Çift tıklama handler'ı
+  const handleDoubleClick = (e) => {
+    const selection = window.getSelection();
+    const word = selection.toString().trim();
+
+    if (word && word.length > 0 && word.length < 30) {
+      // Sadece tek kelime seçilmişse çeviri yap
+      const wordRegex = /^[a-zA-ZğüşıöçĞÜŞİÖÇ\s\-']+$/;
+      if (wordRegex.test(word) && !word.includes(' ')) {
+        translateWord(word);
+      }
+    }
+  };
+
   // Modal açıldığında otomatik çeviri yap
   useEffect(() => {
     if (showTranslationModal && currentQuestion) {
@@ -105,7 +152,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = (text, event) => {
     if (event) {
-      event.stopPropagation(); // Kart tıklamasını engelle
+      event.stopPropagation();
     }
     if (speaking || !text) return;
     cancelPendingSpeech();
@@ -117,18 +164,17 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Kopyalama fonksiyonu
   const copyToClipboard = (text, event) => {
     if (event) {
-      event.stopPropagation(); // Kart tıklamasını engelle
+      event.stopPropagation();
     }
     navigator.clipboard.writeText(text).then(() => {
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
-          message: '📋 Cümle kopyalandı!',
+          message: '📋 Kopyalandı!',
           type: 'success'
         }
       }));
     }).catch(err => {
       console.error('Kopyalama hatası:', err);
-      // Fallback yöntem
       const textarea = document.createElement('textarea');
       textarea.value = text;
       document.body.appendChild(textarea);
@@ -137,7 +183,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       document.body.removeChild(textarea);
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
-          message: '📋 Cümle kopyalandı!',
+          message: '📋 Kopyalandı!',
           type: 'success'
         }
       }));
@@ -147,7 +193,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Google Translate modal'ını açma
   const openTranslationModal = (event) => {
     if (event) {
-      event.stopPropagation(); // Kart tıklamasını engelle
+      event.stopPropagation();
     }
     setShowTranslationModal(true);
   };
@@ -182,31 +228,20 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
     isUpdatingRef.current = true;
 
-    // 1️⃣ HEMEN doğru/yanlış kontrolü
     const isCorrect = opt === currentQuestion.sentence_tr;
     const correctAnswer = currentQuestion.sentence_tr;
 
-    // 2️⃣ HEMEN UI'ı güncelle (handleSelect senkron çalışır)
-    handleSelect(opt, (isCorrectResult) => {
-      // Bu callback UI güncellendikten sonra çalışır
-      // Artık burada sadece ekstra işlemler yapılır
-    });
+    handleSelect(opt, (isCorrectResult) => { });
 
-    // 3️⃣ HEMEN Toast mesajını göster (async beklemeden)
     if (isCorrect) {
-      // Doğru cevap için toast
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
           message: '✅ Doğru cevap! +1 coin kazandın!',
           type: 'success'
         }
       }));
-
-      // Coin sesini HEMEN çal (async beklemeden)
       playCoinSound();
-
     } else {
-      // Yanlış cevap için toast
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
           message: `❌ Yanlış cevap. Doğrusu: "${correctAnswer}"`,
@@ -215,29 +250,21 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       }));
     }
 
-    // 4️⃣ ARKA PLANDA istatistik ve coin güncelle
     (async () => {
       try {
         if (user) {
-          // İstatistik güncelle
           await updateDailyStats(user.id, "sentence", isCorrect);
-
-          // Doğruysa coin ekle
           if (isCorrect) {
             const { data: currentUser } = await supabase
               .from("en_users")
               .select("coins")
               .eq("id", user.id)
               .single();
-
             const newCoins = (currentUser?.coins || 0) + 1;
-
             await supabase
               .from("en_users")
               .update({ coins: newCoins })
               .eq("id", user.id);
-
-            // Header'daki coin sayısını güncelle
             window.dispatchEvent(new CustomEvent('coinUpdated', {
               detail: { coins: newCoins }
             }));
@@ -428,6 +455,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
           onClick={handleCardClick}
+          onDoubleClick={handleDoubleClick}
         >
           {/* Sağ üst: Kopyala butonu */}
           <button
@@ -462,11 +490,19 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </svg>
           </button>
 
+          {/* Çift tıklama ipucu */}
+          <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <span className="text-[10px] font-medium text-base-content/20 bg-base-300/50 px-2 py-0.5 rounded-full">
+              Çift tıkla
+            </span>
+          </div>
+
           {/* Cümle içeriği */}
           <div className="flex items-center justify-center gap-3">
             <p
               className="text-lg font-medium leading-relaxed transition-colors duration-200 text-base-content select-text"
               style={speaking ? { color: levelColor } : {}}
+              onDoubleClick={handleDoubleClick}
             >
               "{currentQuestion.sentence_en}"
             </p>
@@ -498,7 +534,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </div>
           ) : (
             <p className="mt-3 text-[11px] font-semibold tracking-[0.2em] text-base-content/20">
-              TIKLA / DOKUN • METNİ SEÇ
+              TIKLA / DOKUN • METNİ SEÇ • ÇİFT TIKLA KELİME ÇEVİRİSİ
             </p>
           )}
         </div>
@@ -628,7 +664,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Google Translate Modal - DÜZELTİLDİ */}
+      {/* Google Translate Modal - DARK MODE DÜZELTİLDİ */}
       {showTranslationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -656,7 +692,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Google Translate'de aç butonu */}
                 <button
                   onClick={() => openGoogleTranslate(currentQuestion.sentence_en)}
                   className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-blue-500"
@@ -679,16 +714,16 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             </div>
 
-            {/* Modal Content - Çeviri Sonucu */}
-            <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900/30">
+            {/* Modal Content - DARK MODE DÜZELTİLDİ */}
+            <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
               {translating ? (
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${levelColor}30`, borderTopColor: levelColor }} />
-                  <p className="text-sm text-base-content/40">Çeviri yapılıyor...</p>
+                  <p className="text-sm text-base-content/60">Çeviri yapılıyor...</p>
                 </div>
               ) : translation ? (
                 <div className="w-full">
-                  <div className="mb-2 text-xs font-semibold text-base-content/30 uppercase tracking-wider">
+                  <div className="mb-2 text-xs font-semibold text-base-content/40 uppercase tracking-wider">
                     🇹🇷 Türkçe Çeviri
                   </div>
                   <p className="text-xl font-medium text-base-content text-center leading-relaxed">
@@ -697,13 +732,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   <div className="mt-4 flex justify-center gap-3">
                     <button
                       onClick={() => copyToClipboard(translation)}
-                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 hover:bg-base-300 transition-colors text-base-content/70"
+                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 dark:bg-base-300 hover:bg-base-300 dark:hover:bg-base-400 transition-colors text-base-content/80"
                     >
                       📋 Kopyala
                     </button>
                     <button
                       onClick={() => playPronunciation(translation)}
-                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 hover:bg-base-300 transition-colors text-base-content/70"
+                      className="px-4 py-2 rounded-lg text-xs font-medium bg-base-200 dark:bg-base-300 hover:bg-base-300 dark:hover:bg-base-400 transition-colors text-base-content/80"
                     >
                       🔊 Dinle
                     </button>
@@ -717,13 +752,128 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             {/* Modal Footer */}
             <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-base-content/40">
-                <span className="px-2 py-0.5 rounded-full bg-base-200">
+                <span className="px-2 py-0.5 rounded-full bg-base-200 dark:bg-base-300">
                   EN → TR
                 </span>
                 <span>•</span>
                 <span className="truncate max-w-[150px]">
                   {currentQuestion.sentence_en}
                 </span>
+              </div>
+              <span
+                className="px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ color: levelColor, backgroundColor: `${levelColor}15` }}
+              >
+                {userLevel}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kelime Çeviri Modal - YENİ ÖZELLİK */}
+      {showWordModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowWordModal(false)}
+        >
+          <div
+            className="relative w-full max-w-sm bg-base-100 rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-base-content">
+                    Kelime Çevirisi
+                  </h3>
+                  <p className="text-xs text-base-content/40">
+                    İngilizce → Türkçe
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWordModal(false)}
+                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/50 hover:text-base-content"
+                aria-label="Kapat"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
+              {translating ? (
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${levelColor}30`, borderTopColor: levelColor }} />
+                  <p className="text-sm text-base-content/60">Çeviri yapılıyor...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-xs font-semibold text-base-content/30 uppercase tracking-wider mb-1">
+                      İngilizce
+                    </div>
+                    <p className="text-xl font-bold text-base-content">
+                      {selectedWord}
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <svg className="w-6 h-6 text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs font-semibold text-base-content/30 uppercase tracking-wider mb-1">
+                      Türkçe
+                    </div>
+                    <p className="text-xl font-bold text-base-content">
+                      {wordTranslation || 'Çeviri bulunamadı'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (selectedWord) {
+                      copyToClipboard(selectedWord);
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-base-content"
+                  aria-label="Kopyala"
+                  title="Kopyala"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedWord) {
+                      playPronunciation(selectedWord);
+                    }
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-base-content"
+                  aria-label="Dinle"
+                  title="Telaffuzu dinle"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                </button>
               </div>
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-medium"
