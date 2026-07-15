@@ -9,7 +9,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     loading,
     totalWords,
     myWordsCount,
-    dailyRemaining,
     dueCount,
     dueSentenceCount,
     userLevel,
@@ -19,7 +18,11 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     lessonsLoading,
     progress,
     remainingWords,
+    coins,
+    buying,
     handleOpenNewWords,
+    handleBuyWords,
+    handleBuySentences,
   } = viewModel;
 
   // Loading durumu
@@ -164,36 +167,60 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           <progress className="progress progress-primary w-full" value={progress} max="100" />
         </div>
 
-        {/* CTA Button */}
-        {dailyRemaining > 0 && myWordsCount < totalWords && (
+        {/* Coin Gösterimi */}
+        <div className="animate-fade-up mb-4 flex items-center justify-between rounded-2xl border border-warning/25 bg-warning/10 px-4 py-3" style={{ animationDelay: "0.10s" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🪙</span>
+            <span className="text-sm font-bold">{coins} Coin</span>
+          </div>
+          <span className="text-xs text-base-content/40">Her 50 Coin = 5 kelime/cümle</span>
+        </div>
+
+        {/* EXTRA ALIM BUTONLARI - Coin ile */}
+        <div className="animate-fade-up mb-4 grid grid-cols-2 gap-3" style={{ animationDelay: "0.12s" }}>
           <button
-            onClick={handleOpenNewWords}
-            disabled={opening}
-            className="btn btn-success btn-lg relative mb-3.5 w-full overflow-hidden border-0 font-display text-[15.5px] shadow-lg shadow-success/40"
+            onClick={handleBuyWords}
+            disabled={buying || coins < 50}
+            className={`btn btn-primary btn-md rounded-2xl font-display text-sm shadow-lg transition-all ${
+              coins >= 50
+                ? "shadow-primary/30 hover:scale-[1.02]"
+                : "opacity-50 cursor-not-allowed"
+            }`}
           >
-            {!opening && (
-              <span className="animate-shimmer absolute inset-y-0 left-0 w-2/5 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-            )}
-            <span className="relative flex items-center gap-2">
-              {opening ? (
-                <>
-                  <span className="loading loading-spinner loading-xs" />
-                  Açılıyor
-                </>
-              ) : (
-                <>
-                  <span>✦</span>
-                  {dailyRemaining} Yeni Kelime Aç
-                </>
-              )}
+            <span className="flex flex-col items-center">
+              <span className="text-lg">📖</span>
+              <span>5 Kelime Al</span>
+              <span className="text-[10px] font-normal opacity-75">50 Coin</span>
             </span>
           </button>
+          <button
+            onClick={handleBuySentences}
+            disabled={buying || coins < 50}
+            className={`btn btn-secondary btn-md rounded-2xl font-display text-sm shadow-lg transition-all ${
+              coins >= 50
+                ? "shadow-secondary/30 hover:scale-[1.02]"
+                : "opacity-50 cursor-not-allowed"
+            }`}
+          >
+            <span className="flex flex-col items-center">
+              <span className="text-lg">📝</span>
+              <span>5 Cümle Al</span>
+              <span className="text-[10px] font-normal opacity-75">50 Coin</span>
+            </span>
+          </button>
+        </div>
+
+        {/* Yetersiz Coin Uyarısı */}
+        {coins < 50 && (
+          <div className="animate-fade-up mb-4 rounded-2xl border border-error/25 bg-error/10 px-4 py-2.5 text-center text-sm text-error" style={{ animationDelay: "0.14s" }}>
+            ⚡ Yetersiz coin. Ders çalışarak coin kazanabilirsin!
+          </div>
         )}
 
         {/* Quiz Buttons */}
         <div
           className="animate-fade-up mb-4 flex flex-col gap-2.5"
-          style={{ animationDelay: "0.14s" }}
+          style={{ animationDelay: "0.16s" }}
         >
           <QuizOptionButton
             icon="📖"
