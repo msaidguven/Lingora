@@ -132,43 +132,54 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-const onSelect = async (opt) => {
-  if (answered || saving || isUpdatingRef.current) return;
-  
-  isUpdatingRef.current = true;
+  // WordQuiz.jsx - Güncellenmiş onSelect
 
-  await handleSelect(opt, async (isCorrect) => {
-    try {
-      if (user) {
-        // 1. İstatistik güncelle
-        await updateDailyStats(user.id, 'word', isCorrect);
-        
-        // 2. Doğruysa coin ekle
-        if (isCorrect) {
-          const { data: currentUser } = await supabase
-            .from("en_users")
-            .select("coins")
-            .eq("id", user.id)
-            .single();
-          
-          const newCoins = (currentUser?.coins || 0) + 1;
-          
-          await supabase
-            .from("en_users")
-            .update({ coins: newCoins })
-            .eq("id", user.id);
-          
-          // Header'ı güncellemek için event gönder (Toast kendi dinleyecek)
-          window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+  const onSelect = (opt) => {
+    if (answered || saving || isUpdatingRef.current) return;
+
+    isUpdatingRef.current = true;
+
+    // 🚀 handleSelect UI'ı anında günceller, kaydetme arka planda yapılır
+    handleSelect(opt, (isCorrect) => {
+      // Bu callback UI güncellendikten HEMEN SONRA çalışır
+      // İstatistik ve coin işlemlerini burada yapabiliriz
+      // Ama bunlar da arka planda yapılmalı
+
+      // ✅ İstatistik ve coin işlemlerini ASYNC olarak başlat
+      (async () => {
+        try {
+          if (user) {
+            // 1. İstatistik güncelle (arka planda)
+            await updateDailyStats(user.id, 'word', isCorrect);
+
+            // 2. Doğruysa coin ekle (arka planda)
+            if (isCorrect) {
+              const { data: currentUser } = await supabase
+                .from("en_users")
+                .select("coins")
+                .eq("id", user.id)
+                .single();
+
+              const newCoins = (currentUser?.coins || 0) + 1;
+
+              await supabase
+                .from("en_users")
+                .update({ coins: newCoins })
+                .eq("id", user.id);
+
+              // Header'ı güncellemek için event gönder
+              window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+            }
+          }
+        } catch (error) {
+          console.error('İstatistik güncelleme hatası:', error);
+          // Hata olsa bile kullanıcıya gösterme
         }
-      }
-    } catch (error) {
-      console.error('İstatistik güncelleme hatası:', error);
-    }
-  });
+      })();
+    });
 
-  isUpdatingRef.current = false;
-};
+    isUpdatingRef.current = false;
+  };
 
   const onNext = () => {
     const nextQuestion = handleNext();
@@ -229,14 +240,14 @@ const onSelect = async (opt) => {
           </p>
         </div>
         <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
-          <button 
-            onClick={handleRestart} 
+          <button
+            onClick={handleRestart}
             className="btn btn-primary btn-lg rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
           >
             20 Kelime Daha Çalış
           </button>
-          <button 
-            onClick={onChangeLevel} 
+          <button
+            onClick={onChangeLevel}
             className="btn btn-ghost rounded-full text-base-content/50 hover:text-base-content transition-all"
           >
             Ana Sayfaya Dön
@@ -256,8 +267,8 @@ const onSelect = async (opt) => {
             Ana sayfadan yeni kelime ekleyebilirsin.
           </p>
         </div>
-        <button 
-          onClick={onChangeLevel} 
+        <button
+          onClick={onChangeLevel}
           className="btn btn-primary btn-md px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
         >
           Ana Sayfaya Dön
@@ -279,16 +290,15 @@ const onSelect = async (opt) => {
           {options.length} şık
         </span>
       </div>
-      
+
       <ProgressBar current={queueIndex} total={queue.length} color={levelColor} />
 
       {/* Word Card */}
-      <div 
-        className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${
-          revealed
+      <div
+        className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${revealed
             ? 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
             : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
-        }`}
+          }`}
         onClick={handleCardClick}
         style={{ marginTop: 20, marginBottom: 20 }}
       >
@@ -355,11 +365,11 @@ const onSelect = async (opt) => {
             {currentQuestion?.part_of_speech?.length > 0 && (
               <div className="flex justify-center gap-2 mb-3">
                 {currentQuestion.part_of_speech.map(p => (
-                  <span 
-                    key={p} 
+                  <span
+                    key={p}
                     className="text-[10px] font-semibold px-3 py-1 rounded-full"
-                    style={{ 
-                      color: '#6366f1', 
+                    style={{
+                      color: '#6366f1',
                       background: isDark ? '#6366f122' : '#6366f110',
                       border: `1px solid ${isDark ? '#6366f133' : '#6366f120'}`
                     }}
@@ -380,11 +390,10 @@ const onSelect = async (opt) => {
                   e.stopPropagation();
                   playPronunciation();
                 }}
-                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                  speaking 
-                    ? 'bg-primary/20 text-primary animate-pulse' 
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${speaking
+                    ? 'bg-primary/20 text-primary animate-pulse'
                     : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
-                }`}
+                  }`}
                 aria-label="Telaffuzu dinle"
                 title="Telaffuzu dinle"
                 disabled={speaking}
@@ -467,7 +476,7 @@ const onSelect = async (opt) => {
             {options.map((opt, i) => {
               const isCorrect = opt === correctAnswer;
               const isSelected = opt === selected;
-              
+
               // Determine button style based on state
               let buttonStyle = "bg-base-100 border-base-200 hover:border-primary/30 text-base-content";
               if (answered && isCorrect) {
@@ -483,9 +492,8 @@ const onSelect = async (opt) => {
                   key={i}
                   onClick={() => onSelect(opt)}
                   disabled={answered || saving}
-                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${
-                    !answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
-                  }`}
+                  className={`w-full py-3.5 px-5 rounded-xl border-2 text-sm font-medium transition-all duration-200 text-left ${buttonStyle} ${!answered && !saving ? 'hover:scale-[1.02] active:scale-[0.98]' : ''
+                    }`}
                 >
                   {opt}
                 </button>
@@ -497,11 +505,10 @@ const onSelect = async (opt) => {
 
       {/* Answer Feedback */}
       {answered && (
-        <div className={`mt-4 p-4 rounded-2xl border-2 transition-all duration-300 ${
-          selected === correctAnswer
+        <div className={`mt-4 p-4 rounded-2xl border-2 transition-all duration-300 ${selected === correctAnswer
             ? 'bg-success/10 border-success/40 text-success'
             : 'bg-error/10 border-error/40 text-error'
-        }`}>
+          }`}>
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 font-bold text-sm">
               <span className="text-lg">
@@ -510,10 +517,10 @@ const onSelect = async (opt) => {
               {selected === correctAnswer ? "Doğru!" : `Doğru cevap: "${correctAnswer}"`}
             </div>
           </div>
-          
-          <button 
-            onClick={onNext} 
-            disabled={saving} 
+
+          <button
+            onClick={onNext}
+            disabled={saving}
             className="btn btn-primary w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
           >
             {saving ? (
