@@ -120,14 +120,14 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
                     key={lesson.id}
                     onClick={() => onGoToLesson?.(lesson.id)}
                     className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[var(--lg-border)] ${i !== recentLessons.length - 1
-                      ? "border-b border-dashed border-[var(--lg-border)]"
-                      : ""
+                        ? "border-b border-dashed border-[var(--lg-border)]"
+                        : ""
                       }`}
                   >
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted
-                        ? "border-[var(--lg-green)] text-[var(--lg-green)]"
-                        : "border-[var(--lg-red)] text-[var(--lg-red)]"
+                          ? "border-[var(--lg-green)] text-[var(--lg-green)]"
+                          : "border-[var(--lg-red)] text-[var(--lg-red)]"
                         }`}
                     >
                       {isCompleted ? "✓" : lesson.lesson_number}
@@ -342,7 +342,7 @@ function NotebookTheme() {
         --lg-border: light-dark(rgba(36,29,18,0.14), rgba(240,233,216,0.12));
         --lg-border-strong: light-dark(rgba(36,29,18,0.28), rgba(240,233,216,0.22));
         --lg-rule: light-dark(rgba(36,29,18,0.09), rgba(240,233,216,0.09));
- /* fixed brand accents — same in both themes, like a logo color */
+
         /* fixed brand accents — same in both themes, like a logo color */
         --lg-cover: #1B2A4A;
         --lg-red: #D6303C;
