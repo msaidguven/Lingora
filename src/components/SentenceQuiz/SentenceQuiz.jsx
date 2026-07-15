@@ -534,8 +534,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </svg>
           </button>
 
-          {/* Kelime tıklama ipucu */}
-          <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {/* Kelime tıklama ipucu - sadece görsel, tıklamaları asla yutmamalı */}
+          <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
             <span className="text-[10px] font-medium text-base-content/20 bg-base-300/50 px-2 py-0.5 rounded-full">
               Kelimeye tıkla
             </span>
