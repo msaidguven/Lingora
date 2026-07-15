@@ -459,10 +459,15 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       {revealed ? (
         <div
           className="relative rounded-2xl p-7 text-center mb-6
-                     transition-all duration-200 select-none group
+                     transition-all duration-200 select-none group cursor-pointer
                      border border-base-300 bg-base-200
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
+          onClick={() => !speaking && playPronunciation(currentQuestion.sentence_en)}
+          role="button"
+          tabIndex={0}
+          aria-label="Cümlenin telaffuzunu dinle"
+          onKeyDown={(e) => e.key === "Enter" && !speaking && playPronunciation(currentQuestion.sentence_en)}
         >
           {/* Sağ üst: Kopyala butonu */}
           <button
@@ -543,22 +548,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             })}
           </div>
 
-          {/* Seslendirme butonu */}
+          {/* Seslendirme göstergesi */}
           <div className="mt-4 flex items-center justify-center gap-3">
-            <button
-              onClick={(e) => playPronunciation(currentQuestion.sentence_en, e)}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${speaking
-                ? 'bg-primary/20 text-primary animate-pulse'
-                : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
-                }`}
-              aria-label="Telaffuzu dinle"
-              title="Telaffuzu dinle"
-              disabled={speaking}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-              </svg>
-            </button>
             {speaking && (
               <div className="flex items-center gap-1.5">
                 {[0, 150, 300].map((delay) => (
@@ -748,8 +739,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             </div>
 
-            {/* Modal Content - DARK MODE TAM DESTEK */}
-            <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
+            {/* Modal Content - daisyUI tema token'ları ile tam dark mode desteği */}
+            <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-base-200">
               {translating ? (
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${levelColor}30`, borderTopColor: levelColor }} />
@@ -767,8 +758,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                     <button
                       onClick={() => copyToClipboard(translation)}
                       className="px-4 py-2 rounded-lg text-xs font-medium 
-                                 bg-base-200 dark:bg-base-300 
-                                 hover:bg-base-300 dark:hover:bg-base-400 
+                                 bg-base-300 
+                                 hover:bg-base-content/10 
                                  transition-colors text-base-content/80"
                     >
                       📋 Kopyala
@@ -776,8 +767,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                     <button
                       onClick={() => playPronunciation(currentQuestion.sentence_en)}
                       className="px-4 py-2 rounded-lg text-xs font-medium 
-                                 bg-base-200 dark:bg-base-300 
-                                 hover:bg-base-300 dark:hover:bg-base-400 
+                                 bg-base-300 
+                                 hover:bg-base-content/10 
                                  transition-colors text-base-content/80"
                     >
                       🔊 İngilizce Dinle
@@ -792,7 +783,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             {/* Modal Footer */}
             <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-xs text-base-content/40">
-                <span className="px-2 py-0.5 rounded-full bg-base-200 dark:bg-base-300 text-base-content/60">
+                <span className="px-2 py-0.5 rounded-full bg-base-200 text-base-content/60">
                   EN → TR
                 </span>
                 <span className="text-base-content/30">•</span>
@@ -811,7 +802,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         </div>
       )}
 
-      {/* Kelime Çeviri Modal - TAM DARK MODE DESTEĞİ */}
+      {/* Kelime Çeviri Modal - daisyUI tema token'ları ile tam dark mode desteği */}
       {showWordModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -849,8 +840,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </button>
             </div>
 
-            {/* Modal Content - DARK MODE TAM DESTEK */}
-            <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
+            {/* Modal Content - daisyUI tema token'ları ile tam dark mode desteği */}
+            <div className="p-6 bg-base-200">
               {translating ? (
                 <div className="flex flex-col items-center gap-4 py-8">
                   <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${levelColor}30`, borderTopColor: levelColor }} />
