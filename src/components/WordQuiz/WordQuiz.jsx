@@ -9,6 +9,7 @@ import ProgressBar from "../common/ProgressBar.jsx";
 import OptionButton from "../common/OptionButton.jsx";
 import ExampleModal from "./ExampleModal.jsx";
 import FeedbackModal from "./FeedbackModal.jsx";
+import { supabase } from "../../config.js";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
@@ -131,22 +132,44 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   };
 
   const onSelect = async (opt) => {
-    if (answered || saving || isUpdatingRef.current) return;
-    
-    isUpdatingRef.current = true;
+  if (answered || saving || isUpdatingRef.current) return;
+  
+  isUpdatingRef.current = true;
 
-    await handleSelect(opt, async (isCorrect) => {
-      try {
-        if (user) {
-          await updateDailyStats(user.id, 'word', isCorrect);
+  await handleSelect(opt, async (isCorrect) => {
+    try {
+      if (user) {
+        // 1. İstatistik güncelle
+        await updateDailyStats(user.id, 'word', isCorrect);
+        
+        // 2. Doğruysa coin ekle
+        if (isCorrect) {
+          const { data: currentUser } = await supabase
+            .from("en_users")
+            .select("coins")
+            .eq("id", user.id)
+            .single();
+          
+          const newCoins = (currentUser?.coins || 0) + 1;
+          
+          await supabase
+            .from("en_users")
+            .update({ coins: newCoins })
+            .eq("id", user.id);
+          
+          // Header'ı güncellemek için event gönder
+          window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+          
+          console.log(`🪙 +1 Coin! Toplam: ${newCoins}`);
         }
-      } catch (error) {
-        console.error('İstatistik güncelleme hatası:', error);
       }
-    });
+    } catch (error) {
+      console.error('İstatistik güncelleme hatası:', error);
+    }
+  });
 
-    isUpdatingRef.current = false;
-  };
+  isUpdatingRef.current = false;
+};
 
   const onNext = () => {
     const nextQuestion = handleNext();
