@@ -54,13 +54,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const [isFinished, setIsFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
-  // Yeni state'ler
+  // Cümle çevirisi (Google Translate modalı)
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const [translation, setTranslation] = useState('');
   const [translating, setTranslating] = useState(false);
-  const [wordTranslation, setWordTranslation] = useState('');
-  const [selectedWord, setSelectedWord] = useState('');
-  const [showWordModal, setShowWordModal] = useState(false);
+
+  // Kelime çevirisi (artık modal değil, daisyUI dropdown kullanıyor)
+  // { [word]: { loading: boolean, text: string } }
+  const [wordTranslations, setWordTranslations] = useState({});
 
   const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
   const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
@@ -68,7 +69,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Cümleyi kelimelere ayırma (noktalama işaretlerini koruyarak)
   const splitSentenceIntoWords = (sentence) => {
     if (!sentence) return [];
-    // Kelimeleri ve noktalama işaretlerini ayır
     const parts = sentence.match(/[\w']+|[.,!?;:]/g);
     return parts || [];
   };
@@ -79,46 +79,49 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     return splitSentenceIntoWords(currentQuestion.sentence_en);
   }, [currentQuestion]);
 
-  // Tek kelime çevirisi
+  // Tek kelime çevirisi - artık wordTranslations state'ine yazıyor (modal yok)
   const translateWord = async (word) => {
-    if (!word || word.trim().length === 0 || translating) return;
+    const key = word.trim();
+    if (!key || /^[.,!?;:]$/.test(key)) return;
 
-    // Noktalama işaretlerini kontrol et
-    if (/^[.,!?;:]$/.test(word)) return;
-
-    setSelectedWord(word);
-    setTranslating(true);
-    setWordTranslation('');
+    setWordTranslations((prev) => ({
+      ...prev,
+      [key]: { loading: true, text: prev[key]?.text || '' },
+    }));
 
     try {
       const response = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(word.trim())}`
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(key)}`
       );
       const data = await response.json();
-      if (data && data[0]) {
-        const translated = data[0].map(item => item[0]).join('');
-        setWordTranslation(translated);
-        setShowWordModal(true);
-      } else {
-        setWordTranslation('Çeviri bulunamadı');
-        setShowWordModal(true);
-      }
+      const translated =
+        data && data[0] ? data[0].map((item) => item[0]).join('') : 'Çeviri bulunamadı';
+
+      setWordTranslations((prev) => ({
+        ...prev,
+        [key]: { loading: false, text: translated },
+      }));
     } catch (error) {
       console.error('Kelime çeviri hatası:', error);
-      setWordTranslation('Çeviri yüklenemedi');
-      setShowWordModal(true);
-    } finally {
-      setTranslating(false);
+      setWordTranslations((prev) => ({
+        ...prev,
+        [key]: { loading: false, text: 'Çeviri yüklenemedi' },
+      }));
     }
   };
 
-  // Kelimeye tıklama handler'ı
+  // Kelimeye tıklama handler'ı - kart tıklamasını (telaffuzu) tetiklemez
   const handleWordClick = (word, e) => {
-    e.stopPropagation(); // Kart tıklamasını engelle
-    translateWord(word);
+    e.stopPropagation();
+    const key = word.trim();
+    if (/^[.,!?;:]$/.test(key)) return;
+    // Zaten çevrilmişse tekrar istek atma, sadece dropdown açılır (focus ile)
+    if (!wordTranslations[key]) {
+      translateWord(key);
+    }
   };
 
-  // Google Translate API ile çeviri
+  // Google Translate API ile cümle çevirisi
   const translateText = async (text) => {
     if (translating) return;
 
@@ -509,10 +512,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </span>
           </div>
 
-          {/* Cümle içeriği - Her kelime ayrı ayrı tıklanabilir */}
+          {/* Cümle içeriği - Her kelime ayrı ayrı tıklanabilir, çeviri daisyUI dropdown ile gösterilir */}
           <div className="flex flex-wrap items-center justify-center gap-0.5">
             {wordParts.map((part, index) => {
-              // Noktalama işaretleri mi kontrol et
               const isPunctuation = /^[.,!?;:]$/.test(part);
 
               if (isPunctuation) {
@@ -527,29 +529,71 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                 );
               }
 
+              const key = part.trim();
+              const wordState = wordTranslations[key];
+
               return (
-                <span
-                  key={index}
-                  onClick={(e) => handleWordClick(part, e)}
-                  className="text-lg font-medium leading-relaxed text-base-content select-text
-                             hover:text-blue-500 dark:hover:text-blue-400
-                             hover:bg-blue-50/50 dark:hover:bg-blue-900/20
-                             cursor-pointer transition-all duration-200
-                             px-1 rounded-lg"
-                  style={speaking ? { color: levelColor } : {}}
-                  title={`"${part}" kelimesinin çevirisine bak`}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && handleWordClick(part, e)}
-                >
-                  {part}
-                </span>
+                <div key={index} className="dropdown dropdown-top dropdown-hover-none inline-block">
+                  <div
+                    tabIndex={0}
+                    role="button"
+                    onClick={(e) => handleWordClick(part, e)}
+                    onKeyDown={(e) => e.key === "Enter" && handleWordClick(part, e)}
+                    className="text-lg font-medium leading-relaxed text-base-content select-text
+                               hover:text-blue-500 dark:hover:text-blue-400
+                               hover:bg-blue-50/50 dark:hover:bg-blue-900/20
+                               cursor-pointer transition-all duration-200
+                               px-1 rounded-lg inline-block"
+                    style={speaking ? { color: levelColor } : {}}
+                    title={`"${part}" kelimesinin çevirisine bak`}
+                  >
+                    {part}
+                  </div>
+
+                  {/* daisyUI dropdown-content: sadece Türkçe anlamı gösterir, modal yok */}
+                  <div
+                    tabIndex={0}
+                    className="dropdown-content card card-sm bg-base-100 z-20 w-32 shadow-md border border-base-300"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="card-body p-3 items-center text-center gap-1">
+                      {wordState?.loading ? (
+                        <span
+                          className="loading loading-spinner loading-xs"
+                          style={{ color: levelColor }}
+                        />
+                      ) : (
+                        <p className="text-sm font-semibold text-base-content leading-snug">
+                          {wordState?.text || '...'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
 
-          {/* Seslendirme göstergesi */}
+          {/* Telaffuz butonu + seslendirme göstergesi */}
           <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!speaking) playPronunciation(currentQuestion.sentence_en);
+              }}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+              style={{ backgroundColor: `${levelColor}15`, color: levelColor }}
+              aria-label="Telaffuzu tekrar dinle"
+              title="Telaffuzu tekrar dinle"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+                />
+              </svg>
+            </button>
             {speaking && (
               <div className="flex items-center gap-1.5">
                 {[0, 150, 300].map((delay) => (
@@ -682,7 +726,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
 
 
-      {/* Google Translate Modal - TAM DARK MODE DESTEĞİ */}
+      {/* Google Translate Modal (cümle çevirisi) - TAM DARK MODE DESTEĞİ */}
       {showTranslationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -732,7 +776,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             </div>
 
-            {/* Modal Content - daisyUI tema token'ları ile tam dark mode desteği */}
+            {/* Modal Content */}
             <div className="p-6 min-h-[200px] flex flex-col items-center justify-center bg-base-200">
               {translating ? (
                 <div className="flex flex-col items-center gap-4">
@@ -786,105 +830,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                style={{ color: levelColor, backgroundColor: `${levelColor}15` }}
-              >
-                {userLevel}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Kelime Çeviri Modal - daisyUI tema token'ları ile tam dark mode desteği */}
-      {showWordModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setShowWordModal(false)}
-        >
-          <div
-            className="relative w-full max-w-sm bg-base-100 rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-base-300 bg-base-100">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-base-content">
-                    Kelime Çevirisi
-                  </h3>
-                  <p className="text-xs text-base-content/50">
-                    İngilizce → Türkçe
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowWordModal(false)}
-                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/50 hover:text-base-content flex-shrink-0"
-                aria-label="Kapat"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content - daisyUI tema token'ları ile tam dark mode desteği */}
-            <div className="p-6 bg-base-200">
-              {translating ? (
-                <div className="flex flex-col items-center gap-4 py-8">
-                  <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${levelColor}30`, borderTopColor: levelColor }} />
-                  <p className="text-sm text-base-content/60">Çeviri yapılıyor...</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-base-content/40 uppercase tracking-wider mb-1">
-                      İngilizce
-                    </div>
-                    <p className="text-xl font-bold text-base-content">
-                      {selectedWord}
-                    </p>
-                  </div>
-                  <div className="flex justify-center">
-                    <svg className="w-6 h-6 text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-base-content/40 uppercase tracking-wider mb-1">
-                      Türkçe
-                    </div>
-                    <p className="text-xl font-bold text-base-content">
-                      {wordTranslation || 'Çeviri bulunamadı'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  if (selectedWord) {
-                    copyToClipboard(selectedWord);
-                  }
-                }}
-                className="p-1.5 rounded-lg hover:bg-base-200 transition-colors text-base-content/40 hover:text-base-content"
-                aria-label="Kopyala"
-                title="Kopyala"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-              </button>
-              <span
-                className="px-2 py-0.5 rounded-full text-xs font-medium"
                 style={{ color: levelColor, backgroundColor: `${levelColor}15` }}
               >
                 {userLevel}
