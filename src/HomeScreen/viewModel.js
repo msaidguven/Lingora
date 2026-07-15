@@ -9,14 +9,49 @@ export function useHomeViewModel() {
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
-  const [dailyRemaining, setDailyRemaining] = useState(0);
+  const [coins, setCoins] = useState(0);
   const [dueCount, setDueCount] = useState(0);
   const [dueSentenceCount, setDueSentenceCount] = useState(0);
   const [userLevel, setUserLevel] = useState("A1");
-  const [opening, setOpening] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [recentLessons, setRecentLessons] = useState([]);
   const [lessonsLoading, setLessonsLoading] = useState(true);
+
+  // Günlük bonus kontrolü (her gün ilk girişte +100 coin)
+  const checkDailyBonus = async () => {
+    if (!user) return;
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const { data: userData } = await supabase
+      .from("en_users")
+      .select("coins, last_daily_bonus_at")
+      .eq("id", user.id)
+      .single();
+
+    if (!userData) return;
+
+    const lastBonusDate = userData.last_daily_bonus_at?.split('T')[0] || null;
+
+    if (lastBonusDate !== today) {
+      // Günlük bonusu ver (100 coin)
+      const newCoins = (userData.coins || 0) + 100;
+
+      await supabase
+        .from("en_users")
+        .update({
+          coins: newCoins,
+          last_daily_bonus_at: today
+        })
+        .eq("id", user.id);
+
+      setCoins(newCoins);
+      console.log(`🎁 Günlük 100 coin bonusu eklendi! Yeni bakiye: ${newCoins}`);
+    } else {
+      setCoins(userData.coins || 0);
+    }
+  };
 
   // Verileri çek
   const fetchData = async () => {
@@ -24,21 +59,22 @@ export function useHomeViewModel() {
     setLoading(true);
 
     try {
-      // 1) Önce kullanıcı seviyesi lazım (diğer sorgular buna bağımlı)
       const { data: userData } = await supabase
         .from("en_users")
-        .select("level")
+        .select("level, coins, last_daily_bonus_at")
         .eq("id", user.id)
         .maybeSingle();
 
       const level = userData?.level || "A1";
       setUserLevel(level);
+      setCoins(userData?.coins || 0);
 
-      // 2) Geri kalan sorgular birbirinden bağımsız -> paralel çalıştır
+      // Günlük bonus kontrolü
+      await checkDailyBonus();
+
       const [
         totalRes,
         myWordsRes,
-        dailyRes,
         dueRes,
         dueSentencesRes,
       ] = await Promise.all([
@@ -51,11 +87,6 @@ export function useHomeViewModel() {
           .from("en_user_words")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id),
-        supabase
-          .from("en_user_daily_limit")
-          .select("remaining_today")
-          .eq("user_id", user.id)
-          .maybeSingle(),
         supabase
           .from("en_user_words")
           .select("*", { count: "exact", head: true })
@@ -70,7 +101,6 @@ export function useHomeViewModel() {
 
       setTotalWords(totalRes.count || 0);
       setMyWordsCount(myWordsRes.count || 0);
-      setDailyRemaining(dailyRes.data?.remaining_today ?? 5);
       setDueCount(dueRes.count || 0);
       setDueSentenceCount(dueSentencesRes.count || 0);
     } catch (error) {
@@ -123,21 +153,22 @@ export function useHomeViewModel() {
     }
   };
 
-  // Yeni kelime aç
-  const handleOpenNewWords = async () => {
+  // 5 Kelime Satın Al (50 Coin)
+  const handleBuyWords = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
       return;
     }
 
-    if (dailyRemaining === 0) {
-      alert("Bugünlük hakkın kalmadı! Yarın tekrar dene.");
+    if (coins < 50) {
+      alert("⚠️ Yetersiz coin! Daha fazla kelime çalışarak coin kazanabilirsin.");
       return;
     }
 
-    setOpening(true);
+    setBuying(true);
 
     try {
+      // Kullanıcının mevcut kelimelerini al
       const { data: userWords } = await supabase
         .from("en_user_words")
         .select("word_id")
@@ -155,11 +186,11 @@ export function useHomeViewModel() {
         query = query.not("id", "in", `(${learnedIds.join(",")})`);
       }
 
-      const { data: newWords } = await query.limit(dailyRemaining);
+      const { data: newWords } = await query.limit(5);
 
       if (!newWords || newWords.length === 0) {
         alert("Tüm kelimeleri açtınız! 🎉");
-        setOpening(false);
+        setBuying(false);
         return;
       }
 
@@ -211,20 +242,110 @@ export function useHomeViewModel() {
           .insert(sentenceInserts);
       }
 
-      // Günlük limiti güncelle
+      // 50 coin düş
+      const newCoins = coins - 50;
       await supabase
-        .from("en_user_daily_limit")
-        .update({ remaining_today: 0 })
-        .eq("user_id", user.id);
+        .from("en_users")
+        .update({ coins: newCoins })
+        .eq("id", user.id);
+
+      setCoins(newCoins);
+
+      // Header'ı güncelle
+      window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
       await fetchData();
-      alert(`🎉 ${newWords.length} yeni kelime eklendi!`);
+      alert(`🎉 ${newWords.length} yeni kelime eklendi! Kalan coin: ${newCoins}`);
     } catch (error) {
       console.error("Hata:", error);
       alert("Bir hata oluştu! Lütfen tekrar deneyin.");
     }
 
-    setOpening(false);
+    setBuying(false);
+  };
+
+  // 5 Cümle Satın Al (50 Coin)
+  const handleBuySentences = async () => {
+    if (!user) {
+      alert("Lütfen giriş yapın!");
+      return;
+    }
+
+    if (coins < 50) {
+      alert("⚠️ Yetersiz coin! Daha fazla kelime çalışarak coin kazanabilirsin.");
+      return;
+    }
+
+    setBuying(true);
+
+    try {
+      // Kullanıcının mevcut cümlelerini al
+      const { data: userSentences } = await supabase
+        .from("en_user_sentences")
+        .select("sentence_id")
+        .eq("user_id", user.id);
+
+      const learnedSentenceIds = userSentences?.map((s) => s.sentence_id) || [];
+
+      let query = supabase
+        .from("en_example_sentences")
+        .select("*, en_words!inner(word, meaning, level)")
+        .eq("is_approved", true)
+        .eq("en_words.level", userLevel);
+
+      if (learnedSentenceIds.length > 0) {
+        query = query.not("id", "in", `(${learnedSentenceIds.join(",")})`);
+      }
+
+      const { data: newSentences } = await query.limit(5);
+
+      if (!newSentences || newSentences.length === 0) {
+        alert("Tüm cümleleri açtınız! 🎉");
+        setBuying(false);
+        return;
+      }
+
+      const now = new Date();
+      const today = new Date();
+
+      // Cümleleri ekle
+      const sentenceInserts = newSentences.map((sentence) => ({
+        user_id: user.id,
+        sentence_id: sentence.id,
+        added_at: now.toISOString(),
+        next_review_at: today.toISOString(),
+        review_count: 0,
+        last_score: null,
+        last_reviewed_at: null,
+        ease_factor: 2.5,
+      }));
+
+      const { error: sentenceError } = await supabase
+        .from("en_user_sentences")
+        .insert(sentenceInserts);
+
+      if (sentenceError) throw sentenceError;
+
+      // 50 coin düş
+      const newCoins = coins - 50;
+      await supabase
+        .from("en_users")
+        .update({ coins: newCoins })
+        .eq("id", user.id);
+
+      setCoins(newCoins);
+
+      // Header'ı güncelle
+      window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+
+      await fetchData();
+      alert(`🎉 ${newSentences.length} yeni cümle eklendi! Kalan coin: ${newCoins}`);
+    } catch (error) {
+      console.error("Hata:", error);
+      alert("Bir hata oluştu! Lütfen tekrar deneyin.");
+    }
+
+    setBuying(false);
   };
 
   // useEffect - user değiştiğinde çalış
@@ -248,18 +369,19 @@ export function useHomeViewModel() {
     loading,
     totalWords,
     myWordsCount,
-    dailyRemaining,
+    coins,
     dueCount,
     dueSentenceCount,
     userLevel,
-    opening,
+    buying,
     mounted,
     recentLessons,
     lessonsLoading,
     progress,
     remainingWords,
-    handleOpenNewWords,
-    onStartQuiz: null, // Parent'tan gelecek
-    onGoToLesson: null // Parent'tan gelecek
+    handleBuyWords,
+    handleBuySentences,
+    onStartQuiz: null,
+    onGoToLesson: null
   };
 }
