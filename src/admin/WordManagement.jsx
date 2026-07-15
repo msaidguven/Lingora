@@ -254,18 +254,17 @@ function WordAdder() {
                 }
 
                 if (!existingExample) {
-                  const { error: insertExampleError } = await supabase
-                    .from("en_example_sentences")
-                    .insert({
-                      word_id: wordId,
-                      sentence_en: example.en,
-                      sentence_tr: example.tr,
-                      level: example.level || item.level || "A1",
-                      order_index: 0,
-                      source: "manual",
-                      is_approved: true,
-                      learning_notes: example.learning_notes || [],
-                    });
+                const { error: insertExampleError } = await supabase
+  .from("en_example_sentences")
+  .insert({
+    sentence_en: example.en,
+    sentence_tr: example.tr,
+    level: example.level || item.level || "A1",
+    order_index: 0,
+    source: "manual",
+    is_approved: true,
+    learning_notes: example.learning_notes || [],
+  });
 
                   if (insertExampleError) {
                     console.error("Cümle eklenemedi:", insertExampleError);
@@ -331,18 +330,17 @@ function WordAdder() {
           if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
             for (const example of item.examples) {
               if (example.en && example.tr) {
-                const { error: insertExampleError } = await supabase
-                  .from("en_example_sentences")
-                  .insert({
-                    word_id: wordId,
-                    sentence_en: example.en,
-                    sentence_tr: example.tr,
-                    level: example.level || item.level || "A1",
-                    order_index: 0,
-                    source: "manual",
-                    is_approved: true,
-                    learning_notes: example.learning_notes || [],
-                  });
+              const { error: insertExampleError } = await supabase
+  .from("en_example_sentences")
+  .insert({
+    sentence_en: example.en,
+    sentence_tr: example.tr,
+    level: example.level || item.level || "A1",
+    order_index: 0,
+    source: "manual",
+    is_approved: true,
+    learning_notes: example.learning_notes || [],
+  });
 
                 if (insertExampleError) {
                   console.error("Cümle eklenemedi:", insertExampleError);
@@ -640,19 +638,19 @@ function WordEditor() {
     setSelectedWord(null);
 
     try {
-      const { data, error } = await supabase
-        .from("en_words")
-        .select(`
-          *,
-          en_example_sentences (
-            id,
-            sentence_en,
-            sentence_tr,
-            level,
-            order_index,
-            is_approved,
-            learning_notes
-          )
+const { data, error } = await supabase
+  .from("en_words")
+  .select(`
+    *,
+    en_example_sentences (
+      id,
+      sentence_en,
+      sentence_tr,
+      level,
+      order_index,
+      is_approved,
+      learning_notes
+    )
         `)
         .or(`word.ilike.%${term}%, meaning.ilike.%${term}%`)
         .order("word")
