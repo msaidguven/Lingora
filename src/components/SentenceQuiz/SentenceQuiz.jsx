@@ -62,6 +62,16 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Kelime çevirisi (artık modal değil, daisyUI dropdown kullanıyor)
   // { [word]: { loading: boolean, text: string } }
   const [wordTranslations, setWordTranslations] = useState({});
+  // Açık olan kelime dropdown'ının index'i (aynı kelime birden fazla geçebileceği için index kullanılıyor)
+  const [openWord, setOpenWord] = useState(null);
+
+  // Kart dışına tıklanınca açık kelime dropdown'ını kapat
+  useEffect(() => {
+    if (openWord === null) return;
+    const handleOutsideClick = () => setOpenWord(null);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [openWord]);
 
   const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
   const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
@@ -110,12 +120,17 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-  // Kelimeye tıklama handler'ı - kart tıklamasını (telaffuzu) tetiklemez
-  const handleWordClick = (word, e) => {
+  // Kelimeye tıklama handler'ı - kart tıklamasını (telaffuzu) KESİNLİKLE tetiklemez.
+  // Dropdown'ın açık/kapalı durumu artık CSS focus'a değil, React state'ine bağlı.
+  const handleWordClick = (index, word, e) => {
+    e.preventDefault();
     e.stopPropagation();
     const key = word.trim();
     if (/^[.,!?;:]$/.test(key)) return;
-    // Zaten çevrilmişse tekrar istek atma, sadece dropdown açılır (focus ile)
+
+    setOpenWord((prev) => (prev === index ? null : index));
+
+    // Zaten çevrilmişse tekrar istek atma
     if (!wordTranslations[key]) {
       translateWord(key);
     }
@@ -466,7 +481,13 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      border border-base-300 bg-base-200
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
-          onClick={() => !speaking && playPronunciation(currentQuestion.sentence_en)}
+          onClick={() => {
+            if (openWord !== null) {
+              setOpenWord(null);
+              return;
+            }
+            if (!speaking) playPronunciation(currentQuestion.sentence_en);
+          }}
           role="button"
           tabIndex={0}
           aria-label="Cümlenin telaffuzunu dinle"
@@ -531,14 +552,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
               const key = part.trim();
               const wordState = wordTranslations[key];
+              const isOpen = openWord === index;
 
               return (
-                <div key={index} className="dropdown dropdown-top dropdown-hover-none inline-block">
+                <div
+                  key={index}
+                  className={`dropdown dropdown-top inline-block ${isOpen ? 'dropdown-open' : ''}`}
+                >
                   <div
                     tabIndex={0}
                     role="button"
-                    onClick={(e) => handleWordClick(part, e)}
-                    onKeyDown={(e) => e.key === "Enter" && handleWordClick(part, e)}
+                    onClick={(e) => handleWordClick(index, part, e)}
+                    onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part, e)}
                     className="text-lg font-medium leading-relaxed text-base-content select-text
                                hover:text-blue-500 dark:hover:text-blue-400
                                hover:bg-blue-50/50 dark:hover:bg-blue-900/20
@@ -550,25 +575,27 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                     {part}
                   </div>
 
-                  {/* daisyUI dropdown-content: sadece Türkçe anlamı gösterir, modal yok */}
-                  <div
-                    tabIndex={0}
-                    className="dropdown-content card card-sm bg-base-100 z-20 w-32 shadow-md border border-base-300"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="card-body p-3 items-center text-center gap-1">
-                      {wordState?.loading ? (
-                        <span
-                          className="loading loading-spinner loading-xs"
-                          style={{ color: levelColor }}
-                        />
-                      ) : (
-                        <p className="text-sm font-semibold text-base-content leading-snug">
-                          {wordState?.text || '...'}
-                        </p>
-                      )}
+                  {/* daisyUI dropdown-content: sadece Türkçe anlamı gösterir, modal yok.
+                      Görünürlük artık focus'a değil, yukarıdaki "dropdown-open" class'ına bağlı. */}
+                  {isOpen && (
+                    <div
+                      className="dropdown-content card card-sm bg-base-100 z-30 w-32 shadow-md border border-base-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="card-body p-3 items-center text-center gap-1">
+                        {wordState?.loading || !wordState ? (
+                          <span
+                            className="loading loading-spinner loading-xs"
+                            style={{ color: levelColor }}
+                          />
+                        ) : (
+                          <p className="text-sm font-semibold text-base-content leading-snug">
+                            {wordState.text}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
