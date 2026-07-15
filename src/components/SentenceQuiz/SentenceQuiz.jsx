@@ -123,7 +123,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   // Kelimeye tıklama handler'ı - kart tıklamasını (telaffuzu) KESİNLİKLE tetiklemez.
   // Dropdown'ın açık/kapalı durumu artık CSS focus'a değil, React state'ine bağlı.
   const handleWordClick = (index, word, e) => {
-    console.log('[WORD CLICK] fired for word:', word, 'index:', index, 'target:', e.target);
     e.preventDefault();
     e.stopPropagation();
     const key = word.trim();
@@ -483,11 +482,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                      hover:border-base-content/10 hover:scale-[1.02] active:scale-[0.99]"
           style={speaking ? { borderColor: `${levelColor}45`, backgroundColor: `${levelColor}08` } : {}}
           onClick={(e) => {
-            console.log('[CARD CLICK] target:', e.target, 'closest data-card-ignore:', e.target.closest('[data-card-ignore]'));
             // Tıklama bir kelimenin veya kart üzerindeki bir butonun (kopyala/çevir/hoparlör/dropdown)
             // üzerinde gerçekleştiyse kartın kendi telaffuz/kapatma davranışı ÇALIŞMASIN.
-            // stopPropagation'a güvenmek yerine doğrudan gerçek tıklama hedefine bakıyoruz,
-            // bu yüzden bubbling sırasından tamamen bağımsız ve garantili çalışır.
             if (e.target.closest('[data-card-ignore]')) return;
 
             if (openWord !== null) {
@@ -567,27 +563,25 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               return (
                 <div
                   key={index}
-                  className={`dropdown dropdown-top inline-block ${isOpen ? 'dropdown-open' : ''}`}
+                  data-card-ignore
+                  tabIndex={0}
+                  role="button"
+                  onClick={(e) => handleWordClick(index, part, e)}
+                  onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part, e)}
+                  className={`dropdown dropdown-top inline-block text-lg font-medium leading-relaxed
+                             text-base-content select-text
+                             hover:text-blue-500 dark:hover:text-blue-400
+                             hover:bg-blue-50/50 dark:hover:bg-blue-900/20
+                             cursor-pointer transition-all duration-200
+                             px-1 rounded-lg ${isOpen ? 'dropdown-open' : ''}`}
+                  style={speaking ? { color: levelColor } : {}}
+                  title={`"${part}" kelimesinin çevirisine bak`}
                 >
-                  <div
-                    data-card-ignore
-                    tabIndex={0}
-                    role="button"
-                    onClick={(e) => handleWordClick(index, part, e)}
-                    onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part, e)}
-                    className="text-lg font-medium leading-relaxed text-base-content select-text
-                               hover:text-blue-500 dark:hover:text-blue-400
-                               hover:bg-blue-50/50 dark:hover:bg-blue-900/20
-                               cursor-pointer transition-all duration-200
-                               px-1 rounded-lg inline-block"
-                    style={speaking ? { color: levelColor } : {}}
-                    title={`"${part}" kelimesinin çevirisine bak`}
-                  >
-                    {part}
-                  </div>
+                  {part}
 
                   {/* daisyUI dropdown-content: sadece Türkçe anlamı gösterir, modal yok.
-                      Görünürlük artık focus'a değil, yukarıdaki "dropdown-open" class'ına bağlı. */}
+                      Görünürlük artık focus'a değil, yukarıdaki "dropdown-open" class'ına bağlı.
+                      Artık kelimenin KENDİ elemanının içinde - ayrı bir wrapper yok, kaçış noktası kalmadı. */}
                   {isOpen && (
                     <div
                       data-card-ignore
