@@ -134,6 +134,43 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     return { mainTranslation, meanings };
   };
 
+  // Sadece kendi en_words tablomuza bakar (Google'a gitmez) - hover'da ve tıklamada ortak kullanılır
+  const lookupWordInDb = async (lookupKey) => {
+    const { data } = await supabase
+      .from('en_words')
+      .select('meaning')
+      .ilike('word', lookupKey)
+      .maybeSingle();
+    return data?.meaning || null;
+  };
+
+  // Fareyi kelimenin üstüne getirince: sadece DB'ye bakar (ücretsiz, anında).
+  // Bulursa tooltip'te anlamı gösterir, bulamazsa "Çevirisi için tıkla" der. Google'a gitmez.
+  const handleWordHover = async (word) => {
+    const key = word.trim();
+    if (!key || /^[.,!?;:]$/.test(key) || wordTranslations[key]) return;
+
+    setWordTranslations((prev) => ({
+      ...prev,
+      [key]: { loading: true, text: '', foundInDb: null },
+    }));
+
+    try {
+      const meaning = await lookupWordInDb(key.toLowerCase());
+      setWordTranslations((prev) => ({
+        ...prev,
+        [key]: meaning
+          ? { loading: false, text: meaning, foundInDb: true }
+          : { loading: false, text: '', foundInDb: false },
+      }));
+    } catch (error) {
+      setWordTranslations((prev) => ({
+        ...prev,
+        [key]: { loading: false, text: '', foundInDb: false },
+      }));
+    }
+  };
+
   const translateWord = async (word, sentenceLevel) => {
     const key = word.trim();
     if (!key || /^[.,!?;:]$/.test(key)) return;
@@ -141,23 +178,24 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     // en_words_level_check constraint'i sadece A1-C1 kabul ediyor, geçersizse null gönder
     const levelToSave = VALID_LEVELS.includes(sentenceLevel) ? sentenceLevel : null;
 
+    // Hover sırasında zaten DB'de bulunup gösterildiyse tekrar hiçbir şey yapmaya gerek yok
+    const cached = wordTranslations[key];
+    if (cached?.foundInDb && cached?.text) return;
+
     setWordTranslations((prev) => ({
       ...prev,
       [key]: { loading: true, text: prev[key]?.text || '' },
     }));
 
     try {
-      // 1. Önce kendi kelime veritabanımıza bak (en_words) - ücretsiz, anında, limitsiz
-      const { data: existing } = await supabase
-        .from('en_words')
-        .select('meaning')
-        .ilike('word', lookupKey)
-        .maybeSingle();
+      // 1. Hover'da zaten "DB'de yok" diye işaretlenmediyse DB'ye bak - ücretsiz, anında, limitsiz
+      const existingMeaning =
+        cached?.foundInDb === false ? null : await lookupWordInDb(lookupKey);
 
-      if (existing?.meaning) {
+      if (existingMeaning) {
         setWordTranslations((prev) => ({
           ...prev,
-          [key]: { loading: false, text: existing.meaning },
+          [key]: { loading: false, text: existingMeaning, foundInDb: true },
         }));
         return;
       }
@@ -189,7 +227,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
       setWordTranslations((prev) => ({
         ...prev,
-        [key]: { loading: false, text: translated || 'Çeviri bulunamadı' },
+        [key]: { loading: false, text: translated || 'Çeviri bulunamadı', foundInDb: false },
       }));
 
       // 3. Bulunan çeviriyi en_words'e yaz ki bir daha kimse bu kelime için Google'a gitmesin
@@ -654,6 +692,19 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               const wordState = wordTranslations[key];
               const isOpen = openWord === index;
 
+              // Tooltip metni duruma göre değişir:
+              // - DB'de bulunduysa (veya daha önce çevrildiyse) -> anlamı direkt göster
+              // - DB kontrol edildi ama bulunamadıysa -> "Çevirisi için tıkla"
+              // - Henüz hiç kontrol edilmediyse -> genel ipucu
+              let tooltipText = `"${part}" kelimesinin çevirisine bak`;
+              if (wordState?.loading) {
+                tooltipText = 'Kontrol ediliyor...';
+              } else if (wordState?.text) {
+                tooltipText = wordState.text;
+              } else if (wordState?.foundInDb === false) {
+                tooltipText = 'Çevirisi için tıkla';
+              }
+
               return (
                 <div
                   key={index}
@@ -661,6 +712,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   tabIndex={0}
                   role="button"
                   onClick={(e) => handleWordClick(index, part, e)}
+                  onMouseEnter={() => handleWordHover(part)}
                   onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part, e)}
                   className={`dropdown dropdown-top inline-block text-lg font-medium leading-relaxed
                              text-base-content select-text
@@ -669,7 +721,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                              cursor-pointer transition-all duration-200
                              px-1 rounded-lg ${isOpen ? 'dropdown-open' : ''}`}
                   style={speaking ? { color: levelColor } : {}}
-                  title={`"${part}" kelimesinin çevirisine bak`}
+                  title={tooltipText}
                 >
                   {part}
 
