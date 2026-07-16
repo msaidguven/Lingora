@@ -90,10 +90,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   }, [currentQuestion]);
 
   // Tek kelime çevirisi - artık wordTranslations state'ine yazıyor (modal yok)
-  const translateWord = async (word) => {
+  const VALID_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
+
+  const translateWord = async (word, sentenceLevel) => {
     const key = word.trim();
     if (!key || /^[.,!?;:]$/.test(key)) return;
     const lookupKey = key.toLowerCase();
+    // en_words_level_check constraint'i sadece A1-C1 kabul ediyor, geçersizse null gönder
+    const levelToSave = VALID_LEVELS.includes(sentenceLevel) ? sentenceLevel : null;
 
     setWordTranslations((prev) => ({
       ...prev,
@@ -154,7 +158,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         supabase
           .from('en_words')
           .upsert(
-            { word: lookupKey, meaning: translated, type: 'word' },
+            { word: lookupKey, meaning: translated, type: 'word', level: levelToSave },
             { onConflict: 'word', ignoreDuplicates: true }
           )
           .then(({ error: upsertError }) => {
@@ -182,7 +186,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
     // Zaten çevrilmişse tekrar istek atma
     if (!wordTranslations[key]) {
-      translateWord(key);
+      translateWord(key, currentQuestion?.level);
     }
   };
 
