@@ -93,6 +93,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const translateWord = async (word) => {
     const key = word.trim();
     if (!key || /^[.,!?;:]$/.test(key)) return;
+    const lookupKey = key.toLowerCase();
 
     setWordTranslations((prev) => ({
       ...prev,
@@ -100,17 +101,66 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     }));
 
     try {
+      // 1. Önce kendi kelime veritabanımıza bak (en_words) - ücretsiz, anında, limitsiz
+      const { data: existing } = await supabase
+        .from('en_words')
+        .select('meaning')
+        .ilike('word', lookupKey)
+        .maybeSingle();
+
+      if (existing?.meaning) {
+        setWordTranslations((prev) => ({
+          ...prev,
+          [key]: { loading: false, text: existing.meaning },
+        }));
+        return;
+      }
+
+      // 2. Veritabanında yoksa Google Translate'e düş
+      //    dt=t   -> tek/ana çeviri (fallback)
+      //    dt=bd  -> sözlük verisi: kelime türüne göre birden fazla anlam (isim/fiil vb.)
       const response = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(key)}`
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&dt=bd&q=${encodeURIComponent(key)}`
       );
       const data = await response.json();
+
+      const mainTranslation =
+        data && data[0] ? data[0].map((item) => item[0]).join('') : '';
+
+      // Sözlük bölümünden (data[1]) birden fazla anlamı topla.
+      // Her eleman kabaca [kelimeTürü, [anlam1, anlam2, ...], ...] şeklinde geliyor.
+      let meanings = [];
+      if (Array.isArray(data?.[1])) {
+        data[1].forEach((entry) => {
+          if (Array.isArray(entry?.[1])) {
+            meanings.push(...entry[1]);
+          }
+        });
+      }
+      // Tekrarları temizle, çok uzamasın diye ilk birkaç tanesini al
+      meanings = [...new Set(meanings)].slice(0, 5);
+
       const translated =
-        data && data[0] ? data[0].map((item) => item[0]).join('') : 'Çeviri bulunamadı';
+        meanings.length > 0 ? meanings.join(', ') : mainTranslation;
 
       setWordTranslations((prev) => ({
         ...prev,
-        [key]: { loading: false, text: translated },
+        [key]: { loading: false, text: translated || 'Çeviri bulunamadı' },
       }));
+
+      // 3. Bulunan çeviriyi en_words'e yaz ki bir daha kimse bu kelime için Google'a gitmesin
+      //    (arka planda, kullanıcıyı bekletmeden)
+      if (translated) {
+        supabase
+          .from('en_words')
+          .upsert(
+            { word: lookupKey, meaning: translated, type: 'word' },
+            { onConflict: 'word', ignoreDuplicates: true }
+          )
+          .then(({ error: upsertError }) => {
+            if (upsertError) console.error('Kelime kaydetme hatası:', upsertError);
+          });
+      }
     } catch (error) {
       console.error('Kelime çeviri hatası:', error);
       setWordTranslations((prev) => ({
