@@ -107,7 +107,15 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allCards, choiceCount]);
 
-  // 🔥 ARKA PLANDA KELİME KAYDETME
+  // 🔥 ARKA PLANDA KELİME KAYDETME — gerçek SM-2 (SuperMemo-2) algoritması
+  //
+  // İki bağımsız katman var:
+  // 1) Zamanlama (SM-2'nin kendi işi): review_count = "repetitions",
+  //    ease_factor, next_review_at. Bunlar SM-2'nin standart formülüyle
+  //    hesaplanır — yanlışta repetitions sıfırlanır, bu algoritmanın kuralı.
+  // 2) Rütbe (oyunlaştırma, SM-2'den bağımsız): mastery_level kendi başına
+  //    +1/-1 ile ilerler, review_count'a bağımlı değil. Bir yanlış cevap
+  //    zamanlamayı sıfırlasa da rütbeyi silmez, sadece bir basamak indirir.
   const saveWordInBackground = async (wordId, isCorrect) => {
     if (!userId) {
       console.error("❌ userId gereklidir!");
@@ -116,11 +124,12 @@ export function useWordQuiz(userLevel) {
 
     try {
       const now = new Date();
-      let nextReviewDate = new Date();
 
       const { data: existing, error: findError } = await supabase
         .from("en_user_words")
-        .select("id, review_count, total_correct, total_wrong")
+        .select(
+          "id, review_count, total_correct, total_wrong, ease_factor, mastery_level, next_review_at, last_reviewed_at"
+        )
         .eq("user_id", userId)
         .eq("word_id", wordId)
         .maybeSingle();
@@ -132,53 +141,76 @@ export function useWordQuiz(userLevel) {
         return;
       }
 
-      if (isCorrect) {
-        const newReviewCount = (existing?.review_count || 0) + 1;
-        const newTotalCorrect = (existing?.total_correct || 0) + 1;
+      // --- SM-2: kalite puanı ---
+      // Elimizde sadece doğru/yanlış var (dereceli "kolay/orta/zor" yok),
+      // bu yüzden ikili SM-2 varyantlarında yaygın olan eşlemeyi kullanıyoruz:
+      // doğru → q=5 (mükemmel), yanlış → q=2 (eşik olan 3'ün altında, "fail").
+      const quality = isCorrect ? 5 : 2;
+      const prevRepetitions = existing.review_count || 0;
+      const prevEase = existing.ease_factor || 2.5;
 
-        if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-        else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-        else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-        else nextReviewDate.setDate(now.getDate() + 14);
+      let repetitions;
+      let intervalDays;
 
-        await supabase
-          .from("en_user_words")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: newReviewCount,
-            total_correct: newTotalCorrect,
-            last_score: 100,
-            last_reviewed_at: now.toISOString(),
-            mastery_level: Math.min(newReviewCount, 9),
-            is_mastered: newReviewCount >= 9
-          })
-          .eq("id", existing.id);
+      if (quality < 3) {
+        // Yanlış cevap: SM-2 kuralı gereği tekrar sayacı sıfırlanır,
+        // kelime yakın zamanda tekrar gösterilir.
+        repetitions = 0;
+        intervalDays = 1;
       } else {
-        const newTotalWrong = (existing?.total_wrong || 0) + 1;
-
-        // 🔽 Kademeli düşüş: yanlışta review_count (dolayısıyla mastery_level)
-        // sıfırlanmıyor, bir seviye geri iniyor. review_count 9'un üzerindeyse
-        // (mastery_level zaten 9'da sabitlenmiş "Efsane" kullanıcılar) tek bir
-        // yanlış rütbeyi hemen düşürmez — bu bir tampon görevi görüyor.
-        const newReviewCount = Math.max(0, (existing?.review_count || 0) - 1);
-
-        nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-
-        await supabase
-          .from("en_user_words")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: newReviewCount,
-            total_wrong: newTotalWrong,
-            last_score: 0,
-            last_reviewed_at: now.toISOString(),
-            mastery_level: Math.min(newReviewCount, 9),
-            is_mastered: newReviewCount >= 9
-          })
-          .eq("id", existing.id);
+        if (prevRepetitions === 0) {
+          intervalDays = 1;
+        } else if (prevRepetitions === 1) {
+          intervalDays = 6;
+        } else {
+          // Önceki aralığı, en son iki tekrar arasındaki gerçek gün farkından
+          // türetiyoruz (ayrı bir "interval" sütunumuz yok, ama next_review_at
+          // ile last_reviewed_at farkı bunu zaten taşıyor).
+          const prevIntervalDays = existing.last_reviewed_at
+            ? Math.max(
+              1,
+              Math.round(
+                (new Date(existing.next_review_at) - new Date(existing.last_reviewed_at)) /
+                (1000 * 60 * 60 * 24)
+              )
+            )
+            : 1;
+          intervalDays = Math.round(prevIntervalDays * prevEase);
+        }
+        repetitions = prevRepetitions + 1;
       }
 
-      console.log(`✅ Kelime ${wordId} arka planda kaydedildi (${isCorrect ? 'doğru' : 'yanlış'})`);
+      // --- SM-2: ease factor güncellemesi (standart formül) ---
+      let newEase = prevEase + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+      newEase = Math.max(1.3, newEase); // SM-2'nin alt sınırı
+
+      const nextReviewDate = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+      // --- Rütbe (mastery_level): SM-2'den bağımsız, kademeli +1/-1 ---
+      const prevMasteryLevel = existing.mastery_level || 0;
+      const newMasteryLevel = isCorrect
+        ? Math.min(prevMasteryLevel + 1, 9)
+        : Math.max(prevMasteryLevel - 1, 0);
+
+      await supabase
+        .from("en_user_words")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: repetitions,
+          ease_factor: newEase,
+          total_correct: (existing.total_correct || 0) + (isCorrect ? 1 : 0),
+          total_wrong: (existing.total_wrong || 0) + (isCorrect ? 0 : 1),
+          last_score: isCorrect ? 100 : 0,
+          last_reviewed_at: now.toISOString(),
+          mastery_level: newMasteryLevel,
+          is_mastered: newMasteryLevel >= 9,
+        })
+        .eq("id", existing.id);
+
+      console.log(
+        `✅ Kelime ${wordId} kaydedildi (${isCorrect ? "doğru" : "yanlış"}) · ` +
+        `interval=${intervalDays}g, ease=${newEase.toFixed(2)}, rütbe=${newMasteryLevel}`
+      );
     } catch (err) {
       console.error("❌ Arka plan kaydetme hatası:", err);
     }
