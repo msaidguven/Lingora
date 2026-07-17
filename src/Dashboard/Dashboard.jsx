@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./config.js";
-import { useAuth } from "./contexts/AuthContext";
+import { supabase } from "../config.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const ITEMS_PER_PAGE = 25;
 
@@ -50,7 +50,7 @@ function StatPill({ value, label, tone }) {
   );
 }
 
-export default function StatsScreen({ userLevel }) {
+export default function Dashboard({ userLevel }) {
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -244,11 +244,10 @@ export default function StatsScreen({ userLevel }) {
             <button
               key={pageNum}
               onClick={() => setCurrentPage(pageNum)}
-              className={`btn btn-sm btn-circle border text-xs ${
-                currentPage === pageNum
-                  ? "border-primary bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-                  : "border-base-300 bg-transparent font-medium text-base-content/40"
-              }`}
+              className={`btn btn-sm btn-circle border text-xs ${currentPage === pageNum
+                ? "border-primary bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+                : "border-base-300 bg-transparent font-medium text-base-content/40"
+                }`}
             >
               {pageNum}
             </button>
@@ -289,9 +288,8 @@ export default function StatsScreen({ userLevel }) {
         <div className="mb-3.5 flex items-start justify-between gap-2.5 pl-2.5">
           <div className="min-w-0 flex-1">
             <div
-              className={`overflow-hidden text-ellipsis whitespace-nowrap font-bold ${
-                type === "word" ? "text-[17px] tracking-tight" : "text-sm"
-              }`}
+              className={`overflow-hidden text-ellipsis whitespace-nowrap font-bold ${type === "word" ? "text-[17px] tracking-tight" : "text-sm"
+                }`}
             >
               {type === "word" ? item.word : `"${item.sentence}"`}
             </div>
@@ -401,36 +399,32 @@ export default function StatsScreen({ userLevel }) {
         <div className="mb-4.5 flex gap-1 rounded-2xl border border-base-300 bg-base-200 p-1.5">
           <button
             onClick={() => { setActiveTab("words"); setCurrentPage(1); }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${
-              activeTab === "words"
-                ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-                : "text-base-content/40 hover:text-base-content/60"
-            }`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${activeTab === "words"
+              ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+              : "text-base-content/40 hover:text-base-content/60"
+              }`}
           >
             <span>📖</span>
             Kelimeler
             <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeTab === "words" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
-              }`}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeTab === "words" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
+                }`}
             >
               {filteredWords.length}
             </span>
           </button>
           <button
             onClick={() => { setActiveTab("sentences"); setCurrentPage(1); }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${
-              activeTab === "sentences"
-                ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-                : "text-base-content/40 hover:text-base-content/60"
-            }`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${activeTab === "sentences"
+              ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
+              : "text-base-content/40 hover:text-base-content/60"
+              }`}
           >
             <span>📝</span>
             Cümleler
             <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeTab === "sentences" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
-              }`}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeTab === "sentences" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
+                }`}
             >
               {filteredSentences.length}
             </span>

@@ -72,7 +72,7 @@ export function useHeaderViewModel({
   const roleLabel = getRoleLabel(userRole);
 
   const goToStats = () => {
-    onNavigate("stats");
+    onNavigate("dashboard");
     setMenuOpen(false);
   };
 
