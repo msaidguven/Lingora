@@ -153,14 +153,18 @@ function MasteryTimeline({ level, tierProgress }) {
           return (
             <div key={tier.label} className="flex items-center" style={{ flex: isLast ? "0 0 auto" : "1 1 auto" }}>
               <div
-                className={`h-3 w-3 shrink-0 rounded-full border-2 transition-colors ${isCurrent ? "scale-125" : ""}`}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[10px] leading-none transition-all ${isCurrent ? "scale-125" : ""
+                  }`}
                 style={{
                   borderColor: achieved ? tier.color : "var(--lg-border-strong)",
-                  backgroundColor: achieved ? tier.color : "transparent",
-                  opacity: achieved ? 1 : 0.4,
+                  backgroundColor: achieved ? `color-mix(in srgb, ${tier.color} 18%, transparent)` : "transparent",
+                  filter: achieved ? "none" : "grayscale(1)",
+                  opacity: achieved ? 1 : 0.35,
                 }}
                 title={tier.label}
-              />
+              >
+                {tier.emoji}
+              </div>
               {!isLast && (
                 <div className="mx-0.5 h-0.5 flex-1 overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
                   <div
