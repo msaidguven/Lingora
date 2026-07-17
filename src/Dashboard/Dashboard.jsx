@@ -157,9 +157,10 @@ function MasteryTimeline({ level, tierProgress }) {
                   }`}
                 style={{
                   borderColor: achieved ? tier.color : "var(--lg-border-strong)",
-                  backgroundColor: achieved ? `color-mix(in srgb, ${tier.color} 18%, transparent)` : "transparent",
-                  filter: achieved ? "none" : "grayscale(1)",
-                  opacity: achieved ? 1 : 0.35,
+                  backgroundColor: achieved
+                    ? `color-mix(in srgb, ${tier.color} 18%, transparent)`
+                    : "var(--lg-border)",
+                  opacity: achieved ? 1 : 0.6,
                 }}
                 title={tier.label}
               >
