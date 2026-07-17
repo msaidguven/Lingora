@@ -47,7 +47,6 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
 
   useStudyTimer();
 
-
   const {
     loading, error,
     currentQuestion, options, selected, answered, saving,
@@ -305,6 +304,52 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
       translateText(currentQuestion.sentence_en);
     }
   }, [showTranslationModal, currentQuestion]);
+
+  // Yeni cümle geldiğinde, cümledeki TÜM kelimelerin anlamlarını TEK bir toplu sorguyla
+  // (kelime başına ayrı sorgu değil) önceden çekip hazır bekletir. Böylece kullanıcı
+  // hover yaptığında tooltip anında görünür, ayrıca sorgu bekletmez.
+  useEffect(() => {
+    if (!currentQuestion?.sentence_en) return;
+
+    const words = wordParts
+      .filter((w) => !/^[.,!?;:]$/.test(w))
+      .map((w) => w.trim())
+      .filter(Boolean);
+
+    if (words.length === 0) return;
+
+    const uniqueLowerWords = [...new Set(words.map((w) => w.toLowerCase()))];
+
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('en_words')
+          .select('word, meaning')
+          .in('word', uniqueLowerWords);
+
+        const foundMap = {};
+        (data || []).forEach((row) => {
+          foundMap[row.word.toLowerCase()] = row.meaning;
+        });
+
+        setWordTranslations((prev) => {
+          const next = { ...prev };
+          words.forEach((w) => {
+            // Zaten bilinen (hover/tıklama ile önceden çekilmiş) bir kelimenin üzerine yazma
+            if (next[w]?.text) return;
+            const meaning = foundMap[w.toLowerCase()];
+            next[w] = meaning
+              ? { loading: false, text: meaning, foundInDb: true }
+              : { loading: false, text: '', foundInDb: false };
+          });
+          return next;
+        });
+      } catch (error) {
+        // Sessizce geç - toplu sorgu başarısız olursa hover anındaki tekli sorgu zaten devreye girer
+        console.error('Toplu kelime çekme hatası:', error);
+      }
+    })();
+  }, [currentQuestion]);
 
   // Google Translate'i yeni pencerede aç
   const openGoogleTranslate = (text) => {
@@ -724,9 +769,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                              hover:text-blue-500 dark:hover:text-blue-400
                              hover:bg-blue-50/50 dark:hover:bg-blue-900/20
                              cursor-pointer transition-all duration-200
-                             px-1 rounded-lg ${isOpen ? 'dropdown-open' : ''}`}
+                             px-1 rounded-lg ${isOpen ? 'dropdown-open' : 'tooltip tooltip-top'}`}
                   style={speaking ? { color: levelColor } : {}}
-                  title={tooltipText}
+                  data-tip={!isOpen ? tooltipText : undefined}
                 >
                   {part}
 
