@@ -1,16 +1,46 @@
-import React from 'react';
-import { useTheme } from '../../hooks/useTheme';
+// src/components/common/ThemeToggle.jsx
+import { useTheme } from "../../contexts/ThemeContext.jsx";
 
-export const ThemeToggle = () => {
-  const { theme, toggleTheme } = useTheme();
+export default function ThemeToggle({ theme, toggleTheme }) {
+  // Eğer props olarak geliyorsa direkt kullan
+  if (theme !== undefined && toggleTheme !== undefined) {
+    return (
+      <button
+        onClick={toggleTheme}
+        className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-base-200"
+        aria-label="Tema değiştir"
+      >
+        {theme === "dark" ? (
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ) : (
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+    );
+  }
+
+  // Props gelmezse context'ten al
+  const { theme: contextTheme, toggleTheme: contextToggleTheme } = useTheme();
 
   return (
-    <button 
-      onClick={toggleTheme} 
-      className="theme-toggle"
+    <button
+      onClick={contextToggleTheme}
+      className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-base-200"
       aria-label="Tema değiştir"
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
+      {contextTheme === "dark" ? (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
     </button>
   );
-};
+}
