@@ -1,56 +1,107 @@
+// src/Dashboard.jsx
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import {
+  DOGEAR,
+  SectionTitle,
+  LegendDot,
+  NotebookTheme,
+} from "../theme/notebook";
 
 const ITEMS_PER_PAGE = 25;
 
-const getMasteryBadge = (level, isMastered) => {
+// ---------------------------------------------------------------------------
+// Design language: HomeScreen ile aynı "graded notebook" dili — kırmızı kalem
+// damgaları, kesik çizgili kartlar, dog-ear köşeler. Renkler NotebookTheme'in
+// light-dark() CSS değişkenlerinden geliyor, tema adı burada hardcode değil.
+// Mastery rozetleri (altın/gümüş/elmas vb.) bilinçli olarak temadan bağımsız
+// sabit renkler kullanıyor — bunlar koleksiyon rozeti/sticker mantığında,
+// logo rengi gibi her iki temada da aynı kalması gereken vurgular.
+// ---------------------------------------------------------------------------
+
+// Seviyeye göre artan tekrar aralığı (spaced repetition) gösteren damgalar.
+// Config-tabanlı: yeni seviye eklemek veya eşik değiştirmek tek satırlık iş.
+const MASTERY_STAMPS = [
+  { minLevel: 9, emoji: "🏆", color: "#d97706", label: "Efsane Uzman", days: 180 },
+  { minLevel: 8, emoji: "💎", color: "#9333ea", label: "Elmas Uzman", days: 120 },
+  { minLevel: 7, emoji: "⭐", color: "#2563eb", label: "Altın Uzman", days: 90 },
+  { minLevel: 6, emoji: "🌟", color: "#059669", label: "Gümüş Uzman", days: 60 },
+  { minLevel: 5, emoji: "🔥", color: "#ea580c", label: "Bronz Uzman", days: 30 },
+  { minLevel: 4, emoji: "📘", color: "#4f46e5", label: "Bilgili", days: 14 },
+  { minLevel: 3, emoji: "📘", color: "#4f46e5", label: "Bilgili", days: 7 },
+  { minLevel: 1, emoji: "📖", color: "#64748b", label: "Öğreniyor", days: 3 },
+];
+
+const getMasteryStamp = (level, isMastered) => {
   if (!isMastered && level === 0) return null;
 
-  if (level >= 9) return { emoji: "🏆", color: "#fbbf24", label: "Efsane Uzman", days: "180 gün" };
-  if (level >= 8) return { emoji: "💎", color: "#c084fc", label: "Diamond Uzman", days: "120 gün" };
-  if (level >= 7) return { emoji: "⭐", color: "#60a5fa", label: "Gold Uzman", days: "90 gün" };
-  if (level >= 6) return { emoji: "🌟", color: "#34d399", label: "Silver Uzman", days: "60 gün" };
-  if (level >= 5) return { emoji: "🔥", color: "#fb923c", label: "Bronz Uzman", days: "30 gün" };
-  if (level >= 3) return { emoji: "📘", color: "#818cf8", label: "Bilgili", days: `${level === 3 ? 7 : 14} gün` };
-  return { emoji: "📖", color: "#94a3b8", label: "Öğreniyor", days: `${level === 1 ? 1 : 3} gün` };
+  const match = MASTERY_STAMPS.find((m) => level >= m.minLevel);
+  if (match) return match;
+
+  // level === 0 ama isMastered === true: seviye henüz atanmamış, işaretli.
+  // Önceki sürümde bu durum "Öğreniyor" etiketiyle çelişiyordu; artık ayrı
+  // ve açık bir dal.
+  return { emoji: "📖", color: "#64748b", label: "Öğreniyor", days: 1 };
 };
 
-// Başarı oranına göre daisyUI semantic tonu (light/dark temada otomatik uyumlu)
+// Başarı oranına göre kalem rengi (notebook temasındaki CSS değişkenlerine bağlı)
 const getAccuracyTone = (accuracy) => {
-  if (accuracy >= 85) return "success";
-  if (accuracy >= 60) return "warning";
-  if (accuracy > 0) return "error";
-  return "neutral";
+  if (accuracy >= 85) return "green";
+  if (accuracy >= 60) return "gold";
+  if (accuracy > 0) return "red";
+  return "muted";
 };
 
-const TONE_PILL_CLASSES = {
-  success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/20 bg-warning/10 text-warning",
-  error: "border-error/20 bg-error/10 text-error",
-  primary: "border-primary/20 bg-primary/10 text-primary",
-  neutral: "border-base-300 bg-base-300/40 text-base-content/40",
-};
-
-const TONE_PROGRESS_CLASSES = {
-  success: "progress-success",
-  warning: "progress-warning",
-  error: "progress-error",
-  neutral: "progress-neutral",
+const TONE_VARS = {
+  green: "var(--lg-green)",
+  gold: "var(--lg-gold)",
+  red: "var(--lg-red)",
+  blue: "var(--lg-blue)",
+  muted: "var(--lg-ink-muted)",
 };
 
 function StatPill({ value, label, tone }) {
+  const colorVar = TONE_VARS[tone] || TONE_VARS.muted;
   return (
-    <div className={`rounded-[10px] border px-1 py-2 text-center ${TONE_PILL_CLASSES[tone] || TONE_PILL_CLASSES.neutral}`}>
-      <div className="text-base font-extrabold leading-none">{value}</div>
-      <div className="mt-1 text-[9px] font-semibold uppercase tracking-wider opacity-70">
+    <div
+      className="rounded border px-1 py-2 text-center"
+      style={{
+        borderColor: `color-mix(in srgb, ${colorVar} 30%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${colorVar} 8%, transparent)`,
+      }}
+    >
+      <div className="font-mono text-base font-extrabold leading-none" style={{ color: colorVar }}>
+        {value}
+      </div>
+      <div className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--lg-ink-muted)]">
         {label}
       </div>
     </div>
   );
 }
 
-export default function Dashboard({ userLevel }) {
+// Header'daki seviye damgasıyla aynı dilde: kesik çizgili, hafif döndürülmüş daire
+function MasteryStamp({ stamp }) {
+  if (!stamp) return null;
+  return (
+    <div
+      className="flex h-11 w-11 shrink-0 -rotate-6 flex-col items-center justify-center rounded-full border-2 border-dashed bg-[var(--lg-bg)] text-center"
+      style={{ borderColor: stamp.color }}
+      title={`${stamp.label} · ${stamp.days} gün`}
+    >
+      <span className="text-[13px] leading-none">{stamp.emoji}</span>
+      <span
+        className="mt-0.5 font-mono text-[7px] font-bold leading-none tracking-wide"
+        style={{ color: stamp.color }}
+      >
+        {stamp.days}G
+      </span>
+    </div>
+  );
+}
+
+export default function Dashboard() {
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -71,7 +122,6 @@ export default function Dashboard({ userLevel }) {
   }, [userId]);
 
   useEffect(() => {
-    // Filtrele ve sırala
     filterAndSortData();
   }, [allWords, allSentences, searchTerm, sortBy]);
 
@@ -84,36 +134,36 @@ export default function Dashboard({ userLevel }) {
     setLoading(true);
 
     try {
-      // 1. Kelime istatistikleri
-      const { data: userWords } = await supabase
-        .from("en_user_words")
-        .select(`
-          word_id,
-          review_count,
-          mastery_level,
-          is_mastered,
-          total_correct,
-          total_wrong,
-          en_words (word, meaning, part_of_speech)
-        `)
-        .eq("user_id", userId);
+      // Kelime ve cümle sorguları birbirine bağımlı değil — paralel çalıştır.
+      // (HomeScreen'deki 6 sıralı await'in tek await'e indirilmesiyle aynı mantık.)
+      const [{ data: userWords }, { data: userSentences }] = await Promise.all([
+        supabase
+          .from("en_user_words")
+          .select(`
+            word_id,
+            review_count,
+            mastery_level,
+            is_mastered,
+            total_correct,
+            total_wrong,
+            en_words (word, meaning, part_of_speech)
+          `)
+          .eq("user_id", userId),
+        supabase
+          .from("en_user_sentences")
+          .select(`
+            sentence_id,
+            review_count,
+            total_correct,
+            total_wrong,
+            en_example_sentences (sentence_en, sentence_tr, word_id)
+          `)
+          .eq("user_id", userId),
+      ]);
 
-      // 2. Cümle istatistikleri
-      const { data: userSentences } = await supabase
-        .from("en_user_sentences")
-        .select(`
-          sentence_id,
-          review_count,
-          total_correct,
-          total_wrong,
-          en_example_sentences (sentence_en, sentence_tr, word_id)
-        `)
-        .eq("user_id", userId);
-
-      // 3. Kelimeleri düzenle
       const words = (userWords || [])
-        .filter(uw => uw.en_words)
-        .map(uw => {
+        .filter((uw) => uw.en_words)
+        .map((uw) => {
           const totalCorrect = uw.total_correct || 0;
           const totalWrong = uw.total_wrong || 0;
           const totalReviews = totalCorrect + totalWrong;
@@ -124,20 +174,19 @@ export default function Dashboard({ userLevel }) {
             word: uw.en_words.word,
             meaning: uw.en_words.meaning,
             partOfSpeech: uw.en_words.part_of_speech || [],
-            totalReviews: totalReviews,
-            totalCorrect: totalCorrect,
-            totalWrong: totalWrong,
-            accuracy: accuracy,
+            totalReviews,
+            totalCorrect,
+            totalWrong,
+            accuracy,
             masteryLevel: uw.mastery_level || 0,
             isMastered: uw.is_mastered || false,
-            reviewCount: uw.review_count || 0
+            reviewCount: uw.review_count || 0,
           };
         });
 
-      // 4. Cümleleri düzenle
       const sentences = (userSentences || [])
-        .filter(us => us.en_example_sentences)
-        .map(us => {
+        .filter((us) => us.en_example_sentences)
+        .map((us) => {
           const totalCorrect = us.total_correct || 0;
           const totalWrong = us.total_wrong || 0;
           const totalReviews = totalCorrect + totalWrong;
@@ -148,11 +197,11 @@ export default function Dashboard({ userLevel }) {
             sentence: us.en_example_sentences.sentence_en,
             meaning: us.en_example_sentences.sentence_tr,
             wordId: us.en_example_sentences.word_id,
-            totalReviews: totalReviews,
-            totalCorrect: totalCorrect,
-            totalWrong: totalWrong,
-            accuracy: accuracy,
-            reviewCount: us.review_count || 0
+            totalReviews,
+            totalCorrect,
+            totalWrong,
+            accuracy,
+            reviewCount: us.review_count || 0,
           };
         });
 
@@ -160,7 +209,6 @@ export default function Dashboard({ userLevel }) {
       setAllSentences(sentences);
       setFilteredWords(words);
       setFilteredSentences(sentences);
-
     } catch (error) {
       console.error("Veri çekme hatası:", error);
     } finally {
@@ -169,17 +217,13 @@ export default function Dashboard({ userLevel }) {
   };
 
   const filterAndSortData = () => {
-    // Kelimeleri filtrele
     let filteredW = [...allWords];
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
-      filteredW = filteredW.filter(w =>
-        w.word.toLowerCase().includes(term) ||
-        w.meaning.toLowerCase().includes(term)
+      filteredW = filteredW.filter(
+        (w) => w.word.toLowerCase().includes(term) || w.meaning.toLowerCase().includes(term)
       );
     }
-
-    // Kelimeleri sırala
     filteredW.sort((a, b) => {
       if (sortBy === "accuracy") return b.accuracy - a.accuracy;
       if (sortBy === "reviews") return b.totalReviews - a.totalReviews;
@@ -188,17 +232,13 @@ export default function Dashboard({ userLevel }) {
     });
     setFilteredWords(filteredW);
 
-    // Cümleleri filtrele
     let filteredS = [...allSentences];
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
-      filteredS = filteredS.filter(s =>
-        s.sentence.toLowerCase().includes(term) ||
-        s.meaning.toLowerCase().includes(term)
+      filteredS = filteredS.filter(
+        (s) => s.sentence.toLowerCase().includes(term) || s.meaning.toLowerCase().includes(term)
       );
     }
-
-    // Cümleleri sırala
     filteredS.sort((a, b) => {
       if (sortBy === "accuracy") return b.accuracy - a.accuracy;
       if (sortBy === "reviews") return b.totalReviews - a.totalReviews;
@@ -206,14 +246,12 @@ export default function Dashboard({ userLevel }) {
     });
     setFilteredSentences(filteredS);
 
-    // Sayfayı sıfırla
     setCurrentPage(1);
   };
 
   const getCurrentItems = (items) => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return items.slice(startIndex, endIndex);
+    return items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   };
 
   const totalPages = (items) => Math.ceil(items.length / ITEMS_PER_PAGE);
@@ -230,13 +268,13 @@ export default function Dashboard({ userLevel }) {
     });
 
     return (
-      <div className="mt-7 flex flex-wrap items-center justify-center gap-1.5">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5">
         <button
-          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           disabled={currentPage === 1}
-          className="btn btn-sm rounded-xl border-none bg-primary/10 text-xs font-semibold text-primary disabled:bg-transparent disabled:text-base-content/20"
+          className="rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)] px-3 py-1.5 font-mono text-[11px] font-bold tracking-wide text-[var(--lg-red)] disabled:text-[var(--lg-ink-muted)] disabled:opacity-40"
         >
-          ← Önceki
+          ← ÖNCEKİ
         </button>
 
         <div className="flex items-center gap-1">
@@ -244,9 +282,9 @@ export default function Dashboard({ userLevel }) {
             <button
               key={pageNum}
               onClick={() => setCurrentPage(pageNum)}
-              className={`btn btn-sm btn-circle border text-xs ${currentPage === pageNum
-                ? "border-primary bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-                : "border-base-300 bg-transparent font-medium text-base-content/40"
+              className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${currentPage === pageNum
+                  ? "border-[var(--lg-red)] text-[var(--lg-red)]"
+                  : "border-dashed border-[var(--lg-border-strong)] text-[var(--lg-ink-muted)]"
                 }`}
             >
               {pageNum}
@@ -255,11 +293,11 @@ export default function Dashboard({ userLevel }) {
         </div>
 
         <button
-          onClick={() => setCurrentPage(p => Math.min(total, p + 1))}
+          onClick={() => setCurrentPage((p) => Math.min(total, p + 1))}
           disabled={currentPage === total}
-          className="btn btn-sm rounded-xl border-none bg-primary/10 text-xs font-semibold text-primary disabled:bg-transparent disabled:text-base-content/20"
+          className="rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)] px-3 py-1.5 font-mono text-[11px] font-bold tracking-wide text-[var(--lg-red)] disabled:text-[var(--lg-ink-muted)] disabled:opacity-40"
         >
-          Sonraki →
+          SONRAKİ →
         </button>
       </div>
     );
@@ -267,64 +305,49 @@ export default function Dashboard({ userLevel }) {
 
   const renderStatCard = (item, type) => {
     const accuracyTone = getAccuracyTone(item.accuracy);
-    const badge = type === "word" ? getMasteryBadge(item.masteryLevel, item.isMastered) : null;
+    const stamp = type === "word" ? getMasteryStamp(item.masteryLevel, item.isMastered) : null;
+    const marginColor = stamp ? stamp.color : "var(--lg-red)";
 
     return (
       <div
         key={item.id}
-        className="relative overflow-hidden rounded-2xl border border-base-300 bg-base-200 p-4.5 shadow-lg shadow-black/5"
+        className={`rounded-md border border-[var(--lg-border)] border-l-4 bg-[var(--lg-card)] py-3.5 pl-4 pr-4 ${DOGEAR}`}
+        style={{
+          borderLeftColor: marginColor,
+          backgroundImage:
+            "repeating-linear-gradient(to bottom, transparent 0px, transparent 21px, var(--lg-rule) 22px)",
+        }}
       >
-        {/* Sol mastery renk çizgisi */}
-        {badge ? (
-          <div
-            className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full"
-            style={{ background: `linear-gradient(180deg, ${badge.color}, ${badge.color}55)` }}
-          />
-        ) : (
-          <div className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full bg-gradient-to-b from-primary to-primary/30" />
-        )}
-
         {/* Başlık satırı */}
-        <div className="mb-3.5 flex items-start justify-between gap-2.5 pl-2.5">
+        <div className="mb-3 flex items-start justify-between gap-2.5">
           <div className="min-w-0 flex-1">
             <div
-              className={`overflow-hidden text-ellipsis whitespace-nowrap font-bold ${type === "word" ? "text-[17px] tracking-tight" : "text-sm"
+              className={`overflow-hidden text-ellipsis whitespace-nowrap font-serif font-bold text-[var(--lg-ink)] ${type === "word" ? "text-[17px] tracking-tight" : "text-sm"
                 }`}
             >
               {type === "word" ? item.word : `"${item.sentence}"`}
             </div>
-            <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-xs italic text-base-content/40">
+            <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-xs italic text-[var(--lg-ink-muted)]">
               {item.meaning}
             </div>
           </div>
 
-          {badge && (
-            <div
-              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] border px-2.5 py-1"
-              style={{ background: `${badge.color}12`, borderColor: `${badge.color}25` }}
-            >
-              <span className="text-[11px]">{badge.emoji}</span>
-              <span className="text-[10px] font-bold tracking-wide" style={{ color: badge.color }}>
-                {badge.label}
-              </span>
-            </div>
-          )}
+          {stamp && <MasteryStamp stamp={stamp} />}
         </div>
 
         {/* Stat pilleri */}
-        <div className="mb-3 grid grid-cols-4 gap-1.5 pl-2.5">
-          <StatPill value={item.totalCorrect} label="Doğru" tone="success" />
-          <StatPill value={item.totalWrong} label="Yanlış" tone="error" />
+        <div className="mb-3 grid grid-cols-4 gap-1.5">
+          <StatPill value={item.totalCorrect} label="Doğru" tone="green" />
+          <StatPill value={item.totalWrong} label="Yanlış" tone="red" />
           <StatPill value={`%${item.accuracy}`} label="Başarı" tone={accuracyTone} />
-          <StatPill value={item.totalReviews} label="Tekrar" tone="primary" />
+          <StatPill value={item.totalReviews} label="Tekrar" tone="blue" />
         </div>
 
         {/* İlerleme çubuğu */}
-        <div className="pl-2.5">
-          <progress
-            className={`progress h-1 w-full ${TONE_PROGRESS_CLASSES[accuracyTone] || TONE_PROGRESS_CLASSES.neutral}`}
-            value={item.accuracy}
-            max="100"
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${item.accuracy}%`, backgroundColor: TONE_VARS[accuracyTone] }}
           />
         </div>
       </div>
@@ -333,10 +356,11 @@ export default function Dashboard({ userLevel }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-100">
-        <span className="loading loading-spinner loading-lg text-primary" />
-        <span className="text-[13px] font-medium tracking-wide text-base-content/50">
-          Veriler yükleniyor...
+      <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--lg-bg)]">
+        <NotebookTheme />
+        <span className="h-14 w-14 animate-spin rounded-full border-[3px] border-dashed border-[var(--lg-red)]" />
+        <span className="font-mono text-[12px] font-semibold tracking-[4px] text-[var(--lg-ink-muted)]">
+          VERİLER YÜKLENİYOR…
         </span>
       </div>
     );
@@ -347,47 +371,54 @@ export default function Dashboard({ userLevel }) {
   const currentTotalPages = totalPages(activeTab === "words" ? filteredWords : filteredSentences);
 
   return (
-    <div className="min-h-screen bg-base-100 px-4 pb-12 pt-6 text-base-content">
-      <div className="mx-auto max-w-[480px]">
+    <div className="lg-notebook relative min-h-screen overflow-hidden bg-[var(--lg-bg)] text-[var(--lg-ink)]">
+      <NotebookTheme />
 
-        {/* ── HEADER ── */}
-        <div className="mb-7 text-center">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[4px] text-primary/70">
-            Lingora
+      {/* Ambient glow — HomeScreen ile aynı */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-[var(--lg-red)]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-[var(--lg-gold)]/10 blur-3xl" />
+
+      <div className="relative z-10 mx-auto max-w-md px-5 pb-10 pt-5">
+        {/* Header: cover label + sayfa başlığı */}
+        <div className="mb-6 flex items-center justify-between">
+          <div
+            className="inline-flex items-center gap-2 bg-[var(--lg-card)] px-3 py-1.5 font-mono text-[11px] font-bold tracking-[3px] text-[var(--lg-ink)] shadow-sm"
+            style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--lg-red)]" />
+            LINGORA
           </div>
-          <h1 className="mb-3.5 bg-gradient-to-br from-base-content to-base-content/40 bg-clip-text font-display text-[26px] font-extrabold tracking-tight text-transparent">
-            İstatistikler
-          </h1>
 
-          {/* Özet pill'ler */}
-          <div className="flex justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/10 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary">
-              <span>📖</span>
-              <span>{allWords.length} kelime</span>
+          <div className="flex gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)] px-2.5 py-1 font-mono text-[10px] font-bold text-[var(--lg-ink-muted)]">
+              📖 {allWords.length}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/10 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary">
-              <span>📝</span>
-              <span>{allSentences.length} cümle</span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)] px-2.5 py-1 font-mono text-[10px] font-bold text-[var(--lg-ink-muted)]">
+              📝 {allSentences.length}
             </span>
           </div>
         </div>
 
-        {/* ── ARAMA & FİLTRE ── */}
-        <div className="mb-3.5 flex gap-2">
-          <label className="input input-bordered flex flex-1 items-center gap-2 border-base-300 bg-base-200">
-            <span className="text-sm text-base-content/30">🔍</span>
+        <h1 className="mb-5 font-serif text-[26px] font-black tracking-tight text-[var(--lg-ink)]">
+          İstatistik Defteri
+        </h1>
+
+        {/* Arama & sıralama — çizgili defter satırı gibi */}
+        <div className="mb-4 flex gap-2">
+          <label className="flex flex-1 items-center gap-2 border-b-2 border-dashed border-[var(--lg-border-strong)] bg-transparent px-1 py-2">
+            <span className="text-sm text-[var(--lg-ink-muted)]">🔍</span>
             <input
               type="text"
-              placeholder="Kelime veya anlam ara..."
+              placeholder="Kelime veya anlam ara…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="grow bg-transparent text-[13px] outline-none placeholder:text-base-content/30"
+              className="grow bg-transparent font-serif text-[13px] text-[var(--lg-ink)] outline-none placeholder:text-[var(--lg-ink-muted)]"
             />
           </label>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="select select-bordered w-auto shrink-0 border-base-300 bg-base-200 text-xs font-semibold"
+            className="shrink-0 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] px-2 py-2 font-mono text-[11px] font-semibold text-[var(--lg-ink)] outline-none"
           >
             <option value="accuracy">Başarı Oranı</option>
             <option value="reviews">Çözüm Sayısı</option>
@@ -395,50 +426,47 @@ export default function Dashboard({ userLevel }) {
           </select>
         </div>
 
-        {/* ── TABS ── */}
-        <div className="mb-4.5 flex gap-1 rounded-2xl border border-base-300 bg-base-200 p-1.5">
-          <button
-            onClick={() => { setActiveTab("words"); setCurrentPage(1); }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${activeTab === "words"
-              ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-              : "text-base-content/40 hover:text-base-content/60"
-              }`}
-          >
-            <span>📖</span>
-            Kelimeler
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeTab === "words" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
-                }`}
-            >
-              {filteredWords.length}
-            </span>
-          </button>
-          <button
-            onClick={() => { setActiveTab("sentences"); setCurrentPage(1); }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all duration-200 ${activeTab === "sentences"
-              ? "bg-gradient-to-br from-primary to-secondary text-primary-content shadow-lg shadow-primary/30"
-              : "text-base-content/40 hover:text-base-content/60"
-              }`}
-          >
-            <span>📝</span>
-            Cümleler
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeTab === "sentences" ? "bg-white/20 text-primary-content" : "bg-primary/10 text-base-content/50"
-                }`}
-            >
-              {filteredSentences.length}
-            </span>
-          </button>
+        {/* Tabs — defter bölüm ayracı gibi */}
+        <div className="mb-5 flex gap-1.5">
+          {[
+            { key: "words", icon: "📖", label: "Kelimeler", count: filteredWords.length },
+            { key: "sentences", icon: "📝", label: "Cümleler", count: filteredSentences.length },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setCurrentPage(1);
+                }}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-t-md border border-b-0 py-2.5 text-[13px] font-bold transition-transform ${isActive
+                    ? "-translate-y-0.5 border-[var(--lg-red)] bg-[var(--lg-card)] text-[var(--lg-red)] shadow-sm"
+                    : "border-transparent text-[var(--lg-ink-muted)]"
+                  }`}
+              >
+                <span>{tab.icon}</span>
+                {tab.label}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold ${isActive ? "bg-[var(--lg-red)]/10 text-[var(--lg-red)]" : "text-[var(--lg-ink-muted)]"
+                    }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
+        <div className="-mt-5 mb-5 h-px bg-[var(--lg-border-strong)]" />
 
-        {/* ── İÇERİK ── */}
+        {/* İçerik */}
         {totalItems === 0 ? (
-          <div className="rounded-[20px] border border-base-300 bg-base-200 px-6 py-12 text-center shadow-lg shadow-black/5">
+          <div className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] px-6 py-12 text-center ${DOGEAR}`}>
             <div className="mb-3.5 text-4xl">🌱</div>
-            <div className="mb-2 text-[15px] font-bold">
+            <div className="mb-2 font-serif text-[15px] font-bold text-[var(--lg-ink)]">
               {activeTab === "words" ? "Henüz kelime yok" : "Henüz cümle yok"}
             </div>
-            <p className="m-0 text-[13px] leading-relaxed text-base-content/40">
+            <p className="m-0 text-[13px] leading-relaxed text-[var(--lg-ink-muted)]">
               {activeTab === "words"
                 ? "Ana sayfadan yeni kelimeler ekleyerek istatistiklerini görmeye başla!"
                 : "Kelime ekledikçe cümleler otomatik olarak eklenecek."}
@@ -446,12 +474,12 @@ export default function Dashboard({ userLevel }) {
           </div>
         ) : (
           <>
-            <div className="mb-3 text-right text-[11px] font-semibold tracking-wide text-base-content/30">
+            <div className="mb-3 text-right font-mono text-[11px] font-semibold tracking-wide text-[var(--lg-ink-muted)]">
               {totalItems} {activeTab === "words" ? "kelime" : "cümle"} · Sayfa {currentPage}/{currentTotalPages}
             </div>
 
             <div className="flex flex-col gap-2.5">
-              {currentItems.map(item => renderStatCard(item, activeTab === "words" ? "word" : "sentence"))}
+              {currentItems.map((item) => renderStatCard(item, activeTab === "words" ? "word" : "sentence"))}
             </div>
 
             {renderPagination(activeTab === "words" ? filteredWords : filteredSentences)}
