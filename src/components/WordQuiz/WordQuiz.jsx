@@ -12,7 +12,7 @@ import FeedbackModal from "./FeedbackModal.jsx";
 import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
 
-import { useStudyTimer } from "../hooks/useStudyTimer";
+import { useStudyTimer } from "../../hooks/useStudyTimer";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
