@@ -126,6 +126,62 @@ function MasteryStamp({ stamp }) {
   );
 }
 
+// Öğreniyor → Efsane sırasıyla artan rütbe dizisi (MASTERY_STAMPS'in tersi)
+const TIER_TIMELINE = [...MASTERY_STAMPS].reverse();
+
+// Tüm rütbe yolculuğunu tek bakışta gösterir: kazanılanlar dolu/renkli,
+// önündekiler soluk/boş nokta. Aradaki çizgi de kazanılmış segmentlerde dolu,
+// mevcut segmentte tierProgress.pct kadar kısmi dolu, ilerideki segmentlerde
+// soluk. Hiçbir sayı uydurulmuyor — sadece mastery_level'ın kendisi çiziliyor.
+function MasteryTimeline({ level, tierProgress }) {
+  const currentIdx = TIER_TIMELINE.reduce(
+    (acc, tier, i) => (level >= tier.minLevel ? i : acc),
+    -1
+  );
+  if (currentIdx === -1) return null;
+
+  return (
+    <div className="mb-3">
+      <div className="flex items-center">
+        {TIER_TIMELINE.map((tier, i) => {
+          const achieved = i <= currentIdx;
+          const isCurrent = i === currentIdx;
+          const isLast = i === TIER_TIMELINE.length - 1;
+          const segmentFillPct = i < currentIdx ? 100 : i === currentIdx ? tierProgress?.pct ?? 0 : 0;
+          const segmentColor = TIER_TIMELINE[i + 1]?.color;
+
+          return (
+            <div key={tier.label} className="flex items-center" style={{ flex: isLast ? "0 0 auto" : "1 1 auto" }}>
+              <div
+                className={`h-3 w-3 shrink-0 rounded-full border-2 transition-colors ${isCurrent ? "scale-125" : ""}`}
+                style={{
+                  borderColor: achieved ? tier.color : "var(--lg-border-strong)",
+                  backgroundColor: achieved ? tier.color : "transparent",
+                  opacity: achieved ? 1 : 0.4,
+                }}
+                title={tier.label}
+              />
+              {!isLast && (
+                <div className="mx-0.5 h-0.5 flex-1 overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${segmentFillPct}%`, backgroundColor: segmentColor }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 text-[9px] font-semibold text-[var(--lg-ink-muted)]">
+        {tierProgress
+          ? `${tierProgress.nextLabel}'a ${tierProgress.levelsToGo} seviye kaldı`
+          : "🏆 En yüksek rütbeye ulaştın"}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -377,28 +433,7 @@ export default function Dashboard() {
         </div>
 
         {/* Bir sonraki rütbeye ilerleme — sadece daha yükseği varsa gösterilir */}
-        {tierProgress ? (
-          <div className="mb-3">
-            <div className="mb-1 flex items-center justify-between text-[9px] font-semibold text-[var(--lg-ink-muted)]">
-              <span>
-                {tierProgress.nextLabel}'a {tierProgress.levelsToGo} seviye kaldı
-              </span>
-              <span>%{tierProgress.pct}</span>
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${tierProgress.pct}%`, backgroundColor: tierProgress.nextColor }}
-              />
-            </div>
-          </div>
-        ) : (
-          stamp?.label === "Efsane Uzman" && (
-            <div className="mb-3 text-[9px] font-semibold text-[var(--lg-ink-muted)]">
-              🏆 En yüksek rütbeye ulaştın
-            </div>
-          )
-        )}
+        {type === "word" && <MasteryTimeline level={item.masteryLevel} tierProgress={tierProgress} />}
 
         {/* Stat pilleri */}
         <div className="mb-3 grid grid-cols-4 gap-1.5">
