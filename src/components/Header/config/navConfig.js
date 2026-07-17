@@ -6,7 +6,7 @@
 export const NAV_ITEMS = [
   { key: "home", icon: "ti-home", label: "Anasayfa" },
   { key: "dashboard", icon: "ti-layout-dashboard", label: "İstatistik" },
-  { key: "dashboard", icon: "ti-layout-dashboard", label: "İstatistik" },
+  { key: "StatsScreen", icon: "ti-layout-dashboard", label: "StatsScreen" },
   { key: "quiz", icon: "ti-tournament", label: "Kelime/Cümle" },
 ];
 
