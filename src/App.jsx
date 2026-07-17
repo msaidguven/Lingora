@@ -233,6 +233,8 @@ function AppContent() {
 
         {currentScreen === "dashboard" && <DashboardScreen />}
 
+        {currentScreen === "statsscreen" && <StatsScreen />}
+
         {currentScreen === "quiz" && renderQuizScreen()}
 
         {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
