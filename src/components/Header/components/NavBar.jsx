@@ -17,11 +17,10 @@ export default function NavBar({ currentScreen, onNavigate, isActive, accent, qu
             aria-label={displayLabel}
             title={displayLabel}
             style={active ? { backgroundColor: accent.from } : undefined}
-            className={`flex flex-1 items-center justify-center gap-1.5 px-1.5 py-2.5 text-[11.5px] font-semibold transition-colors active:scale-95 ${
-              active
+            className={`flex flex-1 items-center justify-center gap-1.5 px-1.5 py-2.5 text-[11.5px] font-semibold transition-colors active:scale-95 ${active
                 ? "text-white"
                 : "text-base-content/55 hover:bg-base-300 hover:text-base-content"
-            }`}
+              }`}
           >
             <i className={`ti ${displayIcon} text-[15px]`} aria-hidden="true" />
             <span className="min-w-0 truncate">{displayLabel}</span>
