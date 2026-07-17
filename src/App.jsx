@@ -8,7 +8,7 @@ import HomeScreen from "./HomeScreen/HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen/StatsScreen.jsx";
-import StatsScreen from "./Dashboard/Dashboard.jsx";
+import Dashboard from "./Dashboard/Dashboard.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 import LessonPage from "./components/Lesson/LessonPage.jsx";
 import Admin from "./Admin.jsx";
@@ -236,7 +236,7 @@ function AppContent() {
 
         {currentScreen === "quiz" && renderQuizScreen()}
 
-        {currentScreen === "stats" && <StatsScreen userLevel={userLevel} />}
+        {currentScreen === "dashboard" && <Dashboard userLevel={userLevel} />}
 
         {currentScreen === "lesson" && (
           <LessonPage
