@@ -155,18 +155,25 @@ export function useWordQuiz(userLevel) {
           .eq("id", existing.id);
       } else {
         const newTotalWrong = (existing?.total_wrong || 0) + 1;
+
+        // 🔽 Kademeli düşüş: yanlışta review_count (dolayısıyla mastery_level)
+        // sıfırlanmıyor, bir seviye geri iniyor. review_count 9'un üzerindeyse
+        // (mastery_level zaten 9'da sabitlenmiş "Efsane" kullanıcılar) tek bir
+        // yanlış rütbeyi hemen düşürmez — bu bir tampon görevi görüyor.
+        const newReviewCount = Math.max(0, (existing?.review_count || 0) - 1);
+
         nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
 
         await supabase
           .from("en_user_words")
           .update({
             next_review_at: nextReviewDate.toISOString(),
-            review_count: 0,
+            review_count: newReviewCount,
             total_wrong: newTotalWrong,
             last_score: 0,
             last_reviewed_at: now.toISOString(),
-            mastery_level: 0,
-            is_mastered: false
+            mastery_level: Math.min(newReviewCount, 9),
+            is_mastered: newReviewCount >= 9
           })
           .eq("id", existing.id);
       }
