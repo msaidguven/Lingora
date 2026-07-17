@@ -35,6 +35,9 @@ export default function StatsScreen({ onBack }) {
         (d) => d.wordCorrect + d.wordWrong + d.sentenceCorrect + d.sentenceWrong > 0
     );
 
+    // Tüm günleri göster (boş günler dahil) - en yeniden eskiye
+    const allDaysDesc = [...days].reverse();
+
     return (
         <div className="lg-notebook relative min-h-screen overflow-hidden bg-[var(--lg-bg)] text-[var(--lg-ink)]">
             <NotebookTheme />
@@ -107,24 +110,25 @@ export default function StatsScreen({ onBack }) {
                     </div>
                 </div>
 
-                {/* Günlük kayıtlar — özet kartı tarzında */}
+                {/* Günlük kayıtlar — tüm günler gösteriliyor, boş günlerde 0 */}
                 <div className="mb-4">
                     <SectionTitle emoji="🗓️" title="Günlük Kayıtlar" />
 
-                    {activeDaysDesc.length > 0 ? (
+                    {allDaysDesc.length > 0 ? (
                         <div className="space-y-3">
-                            {activeDaysDesc.map((d) => {
+                            {allDaysDesc.map((d) => {
                                 const dayTotal = d.wordCorrect + d.wordWrong + d.sentenceCorrect + d.sentenceWrong;
                                 const dayCorrect = d.wordCorrect + d.sentenceCorrect;
                                 const dayWrong = d.wordWrong + d.sentenceWrong;
                                 const dayAccuracy = dayTotal > 0 ? Math.round((dayCorrect / dayTotal) * 100) : 0;
                                 const correctPct = dayTotal > 0 ? (dayCorrect / dayTotal) * 100 : 0;
                                 const wrongPct = dayTotal > 0 ? (dayWrong / dayTotal) * 100 : 0;
+                                const isEmpty = dayTotal === 0;
 
                                 return (
                                     <div
                                         key={d.date}
-                                        className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}
+                                        className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR} ${isEmpty ? 'opacity-60' : ''}`}
                                     >
                                         {/* Tarih ve süre */}
                                         <div className="flex items-center justify-between border-b border-dashed border-[var(--lg-border)] px-3 py-2">
@@ -143,31 +147,45 @@ export default function StatsScreen({ onBack }) {
                                                 label="Kelime"
                                                 correct={d.wordCorrect}
                                                 wrong={d.wordWrong}
+                                                isEmpty={isEmpty}
                                             />
                                             <DayStatCard
                                                 icon="📝"
                                                 label="Cümle"
                                                 correct={d.sentenceCorrect}
                                                 wrong={d.sentenceWrong}
+                                                isEmpty={isEmpty}
                                             />
                                         </div>
 
                                         {/* Alt bilgi - toplam ve doğruluk */}
                                         <div className="flex items-center justify-between border-t border-dashed border-[var(--lg-border)] px-3 py-2 font-mono text-[10.5px] text-[var(--lg-ink-muted)]">
                                             <span>
-                                                <span className="font-bold text-[var(--lg-ink)]">{dayTotal}</span> deneme
+                                                <span className={`font-bold ${isEmpty ? 'text-[var(--lg-ink-muted)]' : 'text-[var(--lg-ink)]'}`}>
+                                                    {dayTotal}
+                                                </span> deneme
                                             </span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[var(--lg-green)]">✓ {dayCorrect}</span>
-                                                <span className="text-[var(--lg-red)]">✗ {dayWrong}</span>
-                                                <span className="font-bold text-[var(--lg-ink)]">%{dayAccuracy}</span>
-                                            </div>
+                                            {!isEmpty ? (
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-[var(--lg-green)]">✓ {dayCorrect}</span>
+                                                    <span className="text-[var(--lg-red)]">✗ {dayWrong}</span>
+                                                    <span className="font-bold text-[var(--lg-ink)]">%{dayAccuracy}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[var(--lg-ink-muted)] text-[9px]">Henüz çalışılmadı</span>
+                                            )}
                                         </div>
 
-                                        {/* Doğruluk çubuğu */}
+                                        {/* Doğruluk çubuğu - boş günlerde gri göster */}
                                         <div className="h-1 w-full overflow-hidden rounded-b-md bg-[var(--lg-border-strong)]">
-                                            <div className="h-full bg-[var(--lg-green)]" style={{ width: `${correctPct}%` }} />
-                                            <div className="h-full bg-[var(--lg-red)]" style={{ width: `${wrongPct}%` }} />
+                                            {!isEmpty ? (
+                                                <>
+                                                    <div className="h-full bg-[var(--lg-green)]" style={{ width: `${correctPct}%` }} />
+                                                    <div className="h-full bg-[var(--lg-red)]" style={{ width: `${wrongPct}%` }} />
+                                                </>
+                                            ) : (
+                                                <div className="h-full bg-[var(--lg-border-strong)]/50" style={{ width: '100%' }} />
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -221,10 +239,32 @@ function RangeStatCard({ icon, label, correct, wrong }) {
     );
 }
 
-// Günlük kayıtlar için küçük istatistik kartı
-function DayStatCard({ icon, label, correct, wrong }) {
+// Günlük kayıtlar için küçük istatistik kartı - boş günleri de destekler
+function DayStatCard({ icon, label, correct, wrong, isEmpty = false }) {
     const total = correct + wrong;
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    if (isEmpty) {
+        return (
+            <div className="flex-1 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--lg-ink-muted)]">
+                    <span>{icon}</span>
+                    {label}
+                </div>
+                <div className="mt-0.5 flex items-baseline gap-1">
+                    <span className="font-mono text-[18px] font-bold leading-none text-[var(--lg-ink-muted)]">
+                        0
+                    </span>
+                    <span className="font-mono text-[9px] text-[var(--lg-ink-muted)]">den</span>
+                </div>
+                <div className="mt-0.5 flex gap-2 font-mono text-[9.5px] text-[var(--lg-ink-muted)]">
+                    <span>✓0</span>
+                    <span>✗0</span>
+                    <span className="ml-auto">%0</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex-1 px-3 py-2">
@@ -247,9 +287,7 @@ function DayStatCard({ icon, label, correct, wrong }) {
     );
 }
 
-// 30 sütunluk çubuk grafik. Her sütun kelime+cümle toplamını temsil ediyor,
-// yeşil (doğru) altta, kırmızı (yanlış) üstte yığılı. Dar ekranlarda yatay
-// kaydırma ile açılıyor.
+// 30 sütunluk çubuk grafik - boş günlerde sıfır yükseklik
 function ActivityChart({ days }) {
     const maxTotal = Math.max(
         1,
@@ -262,21 +300,26 @@ function ActivityChart({ days }) {
                 const total = d.wordCorrect + d.wordWrong + d.sentenceCorrect + d.sentenceWrong;
                 const correct = d.wordCorrect + d.sentenceCorrect;
                 const wrong = d.wordWrong + d.sentenceWrong;
-                const totalPct = (total / maxTotal) * 100;
+                const totalPct = total > 0 ? (total / maxTotal) * 100 : 0;
                 const correctPct = total > 0 ? (correct / total) * totalPct : 0;
                 const wrongPct = total > 0 ? (wrong / total) * totalPct : 0;
                 const showLabel = i % 5 === 0 || i === days.length - 1;
+                const isEmpty = total === 0;
 
                 return (
                     <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
                         <div
-                            className="flex h-24 w-full flex-col-reverse overflow-hidden rounded-[2px] bg-[var(--lg-border)]"
+                            className={`flex h-24 w-full flex-col-reverse overflow-hidden rounded-[2px] ${isEmpty ? 'bg-[var(--lg-border)]/30' : 'bg-[var(--lg-border)]'}`}
                             title={`${formatShortTrDate(d.date)}: ${total} deneme`}
                         >
-                            <div className="w-full bg-[var(--lg-green)]" style={{ height: `${correctPct}%` }} />
-                            <div className="w-full bg-[var(--lg-red)]" style={{ height: `${wrongPct}%` }} />
+                            {!isEmpty && (
+                                <>
+                                    <div className="w-full bg-[var(--lg-green)]" style={{ height: `${correctPct}%` }} />
+                                    <div className="w-full bg-[var(--lg-red)]" style={{ height: `${wrongPct}%` }} />
+                                </>
+                            )}
                         </div>
-                        <span className="h-3 font-mono text-[8px] text-[var(--lg-ink-muted)]">
+                        <span className={`h-3 font-mono text-[8px] ${isEmpty ? 'text-[var(--lg-ink-muted)]/40' : 'text-[var(--lg-ink-muted)]'}`}>
                             {showLabel ? formatShortTrDate(d.date) : ""}
                         </span>
                     </div>
