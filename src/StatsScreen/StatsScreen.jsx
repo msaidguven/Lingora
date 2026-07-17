@@ -107,34 +107,71 @@ export default function StatsScreen({ onBack }) {
                     </div>
                 </div>
 
-                {/* Günlük kayıtlar — sadece çalışılan günler, en yeniden eskiye */}
+                {/* Günlük kayıtlar — özet kartı tarzında */}
                 <div className="mb-4">
                     <SectionTitle emoji="🗓️" title="Günlük Kayıtlar" />
 
                     {activeDaysDesc.length > 0 ? (
-                        <div className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 ${DOGEAR}`}>
-                            {activeDaysDesc.map((d, i) => (
-                                <div
-                                    key={d.date}
-                                    className={`flex items-center gap-3 px-2 py-2.5 ${i !== activeDaysDesc.length - 1 ? "border-b border-dashed border-[var(--lg-border)]" : ""
-                                        }`}
-                                >
-                                    <span className="w-16 shrink-0 font-mono text-[11px] font-bold text-[var(--lg-ink)]">
-                                        {formatWeekdayTrDate(d.date)}
-                                    </span>
-                                    <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10.5px] text-[var(--lg-ink-muted)]">
-                                        <span>
-                                            📖 <span className="text-[var(--lg-green)]">{d.wordCorrect}</span>/
-                                            <span className="text-[var(--lg-red)]">{d.wordWrong}</span>
-                                        </span>
-                                        <span>
-                                            📝 <span className="text-[var(--lg-green)]">{d.sentenceCorrect}</span>/
-                                            <span className="text-[var(--lg-red)]">{d.sentenceWrong}</span>
-                                        </span>
-                                        {d.studySeconds > 0 && <span>⏱ {formatStudyDuration(d.studySeconds)}</span>}
+                        <div className="space-y-3">
+                            {activeDaysDesc.map((d) => {
+                                const dayTotal = d.wordCorrect + d.wordWrong + d.sentenceCorrect + d.sentenceWrong;
+                                const dayCorrect = d.wordCorrect + d.sentenceCorrect;
+                                const dayWrong = d.wordWrong + d.sentenceWrong;
+                                const dayAccuracy = dayTotal > 0 ? Math.round((dayCorrect / dayTotal) * 100) : 0;
+                                const correctPct = dayTotal > 0 ? (dayCorrect / dayTotal) * 100 : 0;
+                                const wrongPct = dayTotal > 0 ? (dayWrong / dayTotal) * 100 : 0;
+
+                                return (
+                                    <div
+                                        key={d.date}
+                                        className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}
+                                    >
+                                        {/* Tarih ve süre */}
+                                        <div className="flex items-center justify-between border-b border-dashed border-[var(--lg-border)] px-3 py-2">
+                                            <span className="font-mono text-[11px] font-bold text-[var(--lg-ink)]">
+                                                {formatWeekdayTrDate(d.date)}
+                                            </span>
+                                            <span className="font-mono text-[10.5px] text-[var(--lg-ink-muted)]">
+                                                ⏱ {formatStudyDuration(d.studySeconds)}
+                                            </span>
+                                        </div>
+
+                                        {/* İçerik */}
+                                        <div className="flex divide-x divide-dashed divide-[var(--lg-border)]">
+                                            <DayStatCard
+                                                icon="📖"
+                                                label="Kelime"
+                                                correct={d.wordCorrect}
+                                                wrong={d.wordWrong}
+                                            />
+                                            <DayStatCard
+                                                icon="📝"
+                                                label="Cümle"
+                                                correct={d.sentenceCorrect}
+                                                wrong={d.sentenceWrong}
+                                            />
+                                        </div>
+
+                                        {/* Alt bilgi - toplam ve doğruluk */}
+                                        <div className="flex items-center justify-between border-t border-dashed border-[var(--lg-border)] px-3 py-2 font-mono text-[10.5px] text-[var(--lg-ink-muted)]">
+                                            <span>
+                                                <span className="font-bold text-[var(--lg-ink)]">{dayTotal}</span> deneme
+                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[var(--lg-green)]">✓ {dayCorrect}</span>
+                                                <span className="text-[var(--lg-red)]">✗ {dayWrong}</span>
+                                                <span className="font-bold text-[var(--lg-ink)]">%{dayAccuracy}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Doğruluk çubuğu */}
+                                        <div className="h-1 w-full overflow-hidden rounded-b-md bg-[var(--lg-border-strong)]">
+                                            <div className="h-full bg-[var(--lg-green)]" style={{ width: `${correctPct}%` }} />
+                                            <div className="h-full bg-[var(--lg-red)]" style={{ width: `${wrongPct}%` }} />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="flex items-center justify-center gap-2 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] py-6 text-sm text-[var(--lg-ink-muted)]">
@@ -178,6 +215,32 @@ function RangeStatCard({ icon, label, correct, wrong }) {
             <div className="flex items-center gap-3 font-mono text-[10.5px]">
                 <span className="text-[var(--lg-green)]">✓ {correct}</span>
                 <span className="text-[var(--lg-red)]">✗ {wrong}</span>
+                <span className="ml-auto text-[var(--lg-ink-muted)]">%{accuracy}</span>
+            </div>
+        </div>
+    );
+}
+
+// Günlük kayıtlar için küçük istatistik kartı
+function DayStatCard({ icon, label, correct, wrong }) {
+    const total = correct + wrong;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    return (
+        <div className="flex-1 px-3 py-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--lg-ink)]">
+                <span>{icon}</span>
+                {label}
+            </div>
+            <div className="mt-0.5 flex items-baseline gap-1">
+                <span className="font-mono text-[18px] font-bold leading-none text-[var(--lg-ink)]">
+                    {total}
+                </span>
+                <span className="font-mono text-[9px] text-[var(--lg-ink-muted)]">den</span>
+            </div>
+            <div className="mt-0.5 flex gap-2 font-mono text-[9.5px]">
+                <span className="text-[var(--lg-green)]">✓{correct}</span>
+                <span className="text-[var(--lg-red)]">✗{wrong}</span>
                 <span className="ml-auto text-[var(--lg-ink-muted)]">%{accuracy}</span>
             </div>
         </div>
