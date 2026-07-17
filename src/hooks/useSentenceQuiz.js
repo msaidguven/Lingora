@@ -101,7 +101,9 @@ export function useSentenceQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allSentences, choiceCount]);
 
-  // 🔥 ARKA PLANDA CÜMLE KAYDETME
+  // 🔥 ARKA PLANDA CÜMLE KAYDETME — gerçek SM-2 (SuperMemo-2) algoritması.
+  // en_user_sentences'ta mastery_level yok, o yüzden burada sadece SM-2'nin
+  // kendi katmanı var: review_count = "repetitions", ease_factor, next_review_at.
   const saveSentenceInBackground = async (sentenceId, isCorrect) => {
     if (!userId) {
       console.error("❌ userId gereklidir!");
@@ -110,11 +112,10 @@ export function useSentenceQuiz(userLevel) {
 
     try {
       const now = new Date();
-      let nextReviewDate = new Date();
 
       const { data: existing, error: findError } = await supabase
         .from("en_user_sentences")
-        .select("id, review_count, total_correct, total_wrong")
+        .select("id, review_count, total_correct, total_wrong, ease_factor, next_review_at, last_reviewed_at")
         .eq("user_id", userId)
         .eq("sentence_id", sentenceId)
         .maybeSingle();
@@ -126,43 +127,63 @@ export function useSentenceQuiz(userLevel) {
         return;
       }
 
-      if (isCorrect) {
-        const newReviewCount = (existing?.review_count || 0) + 1;
-        const newTotalCorrect = (existing?.total_correct || 0) + 1;
+      // --- SM-2: kalite puanı ---
+      // İkili doğru/yanlış eşlemesi: doğru → q=5, yanlış → q=2 (3'ün altı = "fail").
+      const quality = isCorrect ? 5 : 2;
+      const prevRepetitions = existing.review_count || 0;
+      const prevEase = existing.ease_factor || 2.5;
 
-        // Tekrar aralığını hesapla
-        if (newReviewCount === 1) nextReviewDate.setDate(now.getDate() + 1);
-        else if (newReviewCount === 2) nextReviewDate.setDate(now.getDate() + 3);
-        else if (newReviewCount === 3) nextReviewDate.setDate(now.getDate() + 7);
-        else nextReviewDate.setDate(now.getDate() + 14);
+      let repetitions;
+      let intervalDays;
 
-        await supabase
-          .from("en_user_sentences")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: newReviewCount,
-            total_correct: newTotalCorrect,
-            last_score: 100,
-            last_reviewed_at: now.toISOString()
-          })
-          .eq("id", existing.id);
+      if (quality < 3) {
+        // Yanlış cevap: SM-2 kuralı gereği tekrar sayacı sıfırlanır.
+        repetitions = 0;
+        intervalDays = 1;
       } else {
-        const newTotalWrong = (existing?.total_wrong || 0) + 1;
-        nextReviewDate.setTime(now.getTime() + 3 * 60 * 60 * 1000);
-
-        await supabase
-          .from("en_user_sentences")
-          .update({
-            next_review_at: nextReviewDate.toISOString(),
-            review_count: 0,
-            total_wrong: newTotalWrong,
-            last_score: 0,
-            last_reviewed_at: now.toISOString()
-          })
-          .eq("id", existing.id);
+        if (prevRepetitions === 0) {
+          intervalDays = 1;
+        } else if (prevRepetitions === 1) {
+          intervalDays = 6;
+        } else {
+          // Önceki aralığı, son iki tekrar arasındaki gerçek gün farkından türetiyoruz.
+          const prevIntervalDays = existing.last_reviewed_at
+            ? Math.max(
+              1,
+              Math.round(
+                (new Date(existing.next_review_at) - new Date(existing.last_reviewed_at)) /
+                (1000 * 60 * 60 * 24)
+              )
+            )
+            : 1;
+          intervalDays = Math.round(prevIntervalDays * prevEase);
+        }
+        repetitions = prevRepetitions + 1;
       }
 
-      console.log(`✅ Cümle ${sentenceId} arka planda kaydedildi (${isCorrect ? 'doğru' : 'yanlış'})`);
+      // --- SM-2: ease factor güncellemesi (standart formül) ---
+      let newEase = prevEase + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+      newEase = Math.max(1.3, newEase);
+
+      const nextReviewDate = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from("en_user_sentences")
+        .update({
+          next_review_at: nextReviewDate.toISOString(),
+          review_count: repetitions,
+          ease_factor: newEase,
+          total_correct: (existing.total_correct || 0) + (isCorrect ? 1 : 0),
+          total_wrong: (existing.total_wrong || 0) + (isCorrect ? 0 : 1),
+          last_score: isCorrect ? 100 : 0,
+          last_reviewed_at: now.toISOString(),
+        })
+        .eq("id", existing.id);
+
+      console.log(
+        `✅ Cümle ${sentenceId} kaydedildi (${isCorrect ? "doğru" : "yanlış"}) · ` +
+        `interval=${intervalDays}g, ease=${newEase.toFixed(2)}`
+      );
     } catch (err) {
       console.error("❌ Arka plan kaydetme hatası:", err);
     }
