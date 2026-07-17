@@ -1,13 +1,13 @@
 // src/StatsScreen.jsx
-import { useStatsViewModel } from "./StatsScreen.viewModel";
+import { useStatsViewModel } from "./viewModel";
 import {
     DOGEAR,
     formatStudyDuration,
     SectionTitle,
     SpiralStrip,
     NotebookTheme,
-} from "./theme/notebook";
-import { formatShortTrDate, formatWeekdayTrDate } from "./utils/turkeyDate";
+} from "../theme/notebook";
+import { formatShortTrDate, formatWeekdayTrDate } from "../utils/turkeyDate";
 
 export default function StatsScreen({ onBack }) {
     const { loading, days, totals, rangeDays } = useStatsViewModel();

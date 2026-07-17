@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from "../contexts/AuthContext";
-import { getLastNTurkeyDates } from "./utils/turkeyDate";
+import { getLastNTurkeyDates } from "../utils/turkeyDate";
 
 const RANGE_DAYS = 30;
 

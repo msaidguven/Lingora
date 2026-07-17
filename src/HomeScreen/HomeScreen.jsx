@@ -9,7 +9,7 @@ import {
   LegendDot,
   SpiralStrip,
   NotebookTheme,
-} from "./theme/notebook";
+} from "../theme/notebook";
 
 // ---------------------------------------------------------------------------
 // Design language: "graded notebook" — spiral binding, ruled paper, a red-pen

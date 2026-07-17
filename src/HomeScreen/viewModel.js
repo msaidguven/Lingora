@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
-import { getTurkeyTodayString } from "./utils/turkeyDate";
+import { getTurkeyTodayString } from "../utils/turkeyDate";
 
 export function useHomeViewModel() {
   const { user } = useAuth();
