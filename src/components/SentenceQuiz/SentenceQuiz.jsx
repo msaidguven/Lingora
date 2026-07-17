@@ -10,6 +10,8 @@ import SentenceResult from "./SentenceResult.jsx";
 import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
 
+import { useStudyTimer } from "../hooks/useStudyTimer";
+
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b", C1: "#a855f7" };
 const LEVEL_LABEL = { A1: "Başlangıç", A2: "Temel", B1: "Orta", B2: "Üst-Orta", C1: "İleri" };
 
@@ -42,6 +44,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const { user } = useAuth();
   const isUpdatingRef = useRef(false);
   const lastSpokenIdRef = useRef(null);
+
+  useStudyTimer();
+
 
   const {
     loading, error,

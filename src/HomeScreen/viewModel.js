@@ -3,6 +3,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
 
+// "Bugün"ü her zaman Türkiye saatine (Europe/Istanbul) göre hesaplar —
+// kullanıcının cihaz saati/timezone'u farklı olsa bile gün, TR gece yarısında
+// döner. en-CA locale çıktısı YYYY-MM-DD formatında, Postgres date kolonuyla
+// birebir uyumlu. en_user_daily_stats'a yazan quiz akışında da AYNI
+// fonksiyonu kullanman gerekiyor, aksi halde yazma/okuma günü kayabilir.
+function getTurkeyTodayString() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
+}
+
 export function useHomeViewModel() {
   const { user } = useAuth();
 
@@ -23,12 +32,13 @@ export function useHomeViewModel() {
   const [dailyWordWrong, setDailyWordWrong] = useState(0);
   const [dailySentenceCorrect, setDailySentenceCorrect] = useState(0);
   const [dailySentenceWrong, setDailySentenceWrong] = useState(0);
+  const [dailyStudySeconds, setDailyStudySeconds] = useState(0);
 
   // Günlük bonus kontrolü (her gün ilk girişte +100 coin)
   const checkDailyBonus = async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTurkeyTodayString();
 
     const { data: userData } = await supabase
       .from("en_users")
@@ -76,8 +86,8 @@ export function useHomeViewModel() {
 
       await checkDailyBonus();
 
-      // "Bugün" — cihazın yerel gününe göre (stat_date bir date kolonu)
-      const today = new Date().toISOString().split('T')[0];
+      // "Bugün" — Türkiye saatine göre (stat_date bir date kolonu)
+      const today = getTurkeyTodayString();
 
       const [
         totalRes,
@@ -107,7 +117,7 @@ export function useHomeViewModel() {
           .lt("next_review_at", new Date().toISOString()),
         supabase
           .from("en_user_daily_stats")
-          .select("word_correct, word_wrong, sentence_correct, sentence_wrong")
+          .select("word_correct, word_wrong, sentence_correct, sentence_wrong, study_seconds")
           .eq("user_id", user.id)
           .eq("stat_date", today)
           .maybeSingle(),
@@ -123,6 +133,7 @@ export function useHomeViewModel() {
       setDailyWordWrong(stats?.word_wrong || 0);
       setDailySentenceCorrect(stats?.sentence_correct || 0);
       setDailySentenceWrong(stats?.sentence_wrong || 0);
+      setDailyStudySeconds(stats?.study_seconds || 0);
     } catch (error) {
       console.error("Veri çekme hatası:", error);
     } finally {
@@ -435,6 +446,7 @@ export function useHomeViewModel() {
     dailyWordWrong,
     dailySentenceCorrect,
     dailySentenceWrong,
+    dailyStudySeconds,
     dailyWordGoal: 100,
     dailySentenceGoal: 100,
     handleBuyWords,

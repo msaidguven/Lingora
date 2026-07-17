@@ -12,6 +12,8 @@ import FeedbackModal from "./FeedbackModal.jsx";
 import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
 
+import { useStudyTimer } from "../hooks/useStudyTimer";
+
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
 // Coin sesi
@@ -41,6 +43,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const isUpdatingRef = useRef(false);
+
+  useStudyTimer();
+
 
   const isAdmin = user?.role === 'admin';
 
@@ -319,8 +324,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       {/* Word Card */}
       <div
         className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${revealed
-            ? 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
-            : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
+          ? 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
+          : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
           }`}
         onClick={handleCardClick}
         style={{ marginTop: 20, marginBottom: 20 }}
@@ -414,8 +419,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
                   playPronunciation();
                 }}
                 className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${speaking
-                    ? 'bg-primary/20 text-primary animate-pulse'
-                    : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
+                  ? 'bg-primary/20 text-primary animate-pulse'
+                  : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
                   }`}
                 aria-label="Telaffuzu dinle"
                 title="Telaffuzu dinle"
@@ -528,8 +533,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       {/* Answer Feedback */}
       {answered && (
         <div className={`mt-4 p-4 rounded-2xl border-2 transition-all duration-300 ${selected === correctAnswer
-            ? 'bg-success/10 border-success/40 text-success'
-            : 'bg-error/10 border-error/40 text-error'
+          ? 'bg-success/10 border-success/40 text-success'
+          : 'bg-error/10 border-error/40 text-error'
           }`}>
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 font-bold text-sm">

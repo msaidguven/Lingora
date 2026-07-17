@@ -51,6 +51,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     dailySentenceWrong = 0,
     dailyWordGoal = 100,
     dailySentenceGoal = 100,
+    dailyStudySeconds = 0,
   } = viewModel;
 
   if (loading) {
@@ -108,11 +109,18 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 
         {/* Günlük Hedef — today's word/sentence attempt goal */}
         <div className={`mb-5 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
-          <div className="flex items-center gap-2 border-b border-dashed border-[var(--lg-border)] px-3 py-2">
-            <span className="text-[15px]">🎯</span>
-            <span className="font-serif text-[14px] font-bold text-[var(--lg-ink)]">
-              Günlük Hedef
-            </span>
+          <div className="flex items-center justify-between border-b border-dashed border-[var(--lg-border)] px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[15px]">🎯</span>
+              <span className="font-serif text-[14px] font-bold text-[var(--lg-ink)]">
+                Günlük Hedef
+              </span>
+            </div>
+            {dailyStudySeconds > 0 && (
+              <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-[var(--lg-ink-muted)]">
+                ⏱ {Math.round(dailyStudySeconds / 60)} dk
+              </span>
+            )}
           </div>
           <div className="flex divide-x divide-dashed divide-[var(--lg-border)]">
             <DailyGoalRow
