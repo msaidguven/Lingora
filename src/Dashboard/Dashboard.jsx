@@ -20,17 +20,17 @@ const ITEMS_PER_PAGE = 25;
 // logo rengi gibi her iki temada da aynı kalması gereken vurgular.
 // ---------------------------------------------------------------------------
 
-// Seviyeye göre artan tekrar aralığı (spaced repetition) gösteren damgalar.
+// Mastery seviyesi = rütbe/oyunlaştırma katmanı. Zamanlamayla (next_review_at)
+// hiçbir ilgisi yok — sadece "bu kelimede ne kadar iyisin" sorusuna cevap verir.
 // Config-tabanlı: yeni seviye eklemek veya eşik değiştirmek tek satırlık iş.
 const MASTERY_STAMPS = [
-  { minLevel: 9, emoji: "🏆", color: "#d97706", label: "Efsane Uzman", days: 180 },
-  { minLevel: 8, emoji: "💎", color: "#9333ea", label: "Elmas Uzman", days: 120 },
-  { minLevel: 7, emoji: "⭐", color: "#2563eb", label: "Altın Uzman", days: 90 },
-  { minLevel: 6, emoji: "🌟", color: "#059669", label: "Gümüş Uzman", days: 60 },
-  { minLevel: 5, emoji: "🔥", color: "#ea580c", label: "Bronz Uzman", days: 30 },
-  { minLevel: 4, emoji: "📘", color: "#4f46e5", label: "Bilgili", days: 14 },
-  { minLevel: 3, emoji: "📘", color: "#4f46e5", label: "Bilgili", days: 7 },
-  { minLevel: 1, emoji: "📖", color: "#64748b", label: "Öğreniyor", days: 3 },
+  { minLevel: 9, emoji: "🏆", color: "#d97706", label: "Efsane Uzman" },
+  { minLevel: 8, emoji: "💎", color: "#9333ea", label: "Elmas Uzman" },
+  { minLevel: 7, emoji: "⭐", color: "#2563eb", label: "Altın Uzman" },
+  { minLevel: 6, emoji: "🌟", color: "#059669", label: "Gümüş Uzman" },
+  { minLevel: 5, emoji: "🔥", color: "#ea580c", label: "Bronz Uzman" },
+  { minLevel: 3, emoji: "📘", color: "#4f46e5", label: "Bilgili" },
+  { minLevel: 1, emoji: "📖", color: "#64748b", label: "Öğreniyor" },
 ];
 
 const getMasteryStamp = (level, isMastered) => {
@@ -40,9 +40,19 @@ const getMasteryStamp = (level, isMastered) => {
   if (match) return match;
 
   // level === 0 ama isMastered === true: seviye henüz atanmamış, işaretli.
-  // Önceki sürümde bu durum "Öğreniyor" etiketiyle çelişiyordu; artık ayrı
-  // ve açık bir dal.
-  return { emoji: "📖", color: "#64748b", label: "Öğreniyor", days: 1 };
+  return { emoji: "📖", color: "#64748b", label: "Öğreniyor" };
+};
+
+// Gerçek tekrar zamanlaması: next_review_at, SM-2 algoritmasının çıktısı.
+// "X gün sonra" burada gösterdiğimiz tek gerçek/canlı geri sayım.
+const getReviewCountdown = (nextReviewAt) => {
+  if (!nextReviewAt) return null;
+  const diffMs = new Date(nextReviewAt).getTime() - Date.now();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (days <= 0) return { label: "Bugün tekrar zamanı", overdue: days < 0 };
+  if (days === 1) return { label: "Yarın", overdue: false };
+  return { label: `${days} gün sonra`, overdue: false };
 };
 
 // Başarı oranına göre kalem rengi (notebook temasındaki CSS değişkenlerine bağlı)
@@ -81,22 +91,17 @@ function StatPill({ value, label, tone }) {
   );
 }
 
-// Header'daki seviye damgasıyla aynı dilde: kesik çizgili, hafif döndürülmüş daire
+// Header'daki seviye damgasıyla aynı dilde: kesik çizgili, hafif döndürülmüş daire.
+// Sadece rütbeyi taşır — emoji + isim. Zamanlama bilgisi artık ayrı gösteriliyor.
 function MasteryStamp({ stamp }) {
   if (!stamp) return null;
   return (
     <div
-      className="flex h-11 w-11 shrink-0 -rotate-6 flex-col items-center justify-center rounded-full border-2 border-dashed bg-[var(--lg-bg)] text-center"
+      className="flex h-9 w-9 shrink-0 -rotate-6 items-center justify-center rounded-full border-2 border-dashed bg-[var(--lg-bg)]"
       style={{ borderColor: stamp.color }}
-      title={`${stamp.label} · ${stamp.days} gün`}
+      title={stamp.label}
     >
-      <span className="text-[13px] leading-none">{stamp.emoji}</span>
-      <span
-        className="mt-0.5 font-mono text-[7px] font-bold leading-none tracking-wide"
-        style={{ color: stamp.color }}
-      >
-        {stamp.days}G
-      </span>
+      <span className="text-[15px] leading-none">{stamp.emoji}</span>
     </div>
   );
 }
@@ -146,6 +151,7 @@ export default function Dashboard() {
             is_mastered,
             total_correct,
             total_wrong,
+            next_review_at,
             en_words (word, meaning, part_of_speech)
           `)
           .eq("user_id", userId),
@@ -181,6 +187,7 @@ export default function Dashboard() {
             masteryLevel: uw.mastery_level || 0,
             isMastered: uw.is_mastered || false,
             reviewCount: uw.review_count || 0,
+            nextReviewAt: uw.next_review_at,
           };
         });
 
@@ -306,6 +313,7 @@ export default function Dashboard() {
   const renderStatCard = (item, type) => {
     const accuracyTone = getAccuracyTone(item.accuracy);
     const stamp = type === "word" ? getMasteryStamp(item.masteryLevel, item.isMastered) : null;
+    const countdown = type === "word" ? getReviewCountdown(item.nextReviewAt) : null;
     const marginColor = stamp ? stamp.color : "var(--lg-red)";
 
     return (
@@ -332,7 +340,19 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {stamp && <MasteryStamp stamp={stamp} />}
+          {stamp && (
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              <MasteryStamp stamp={stamp} />
+              {countdown && (
+                <span
+                  className={`whitespace-nowrap font-mono text-[9px] font-bold ${countdown.overdue ? "text-[var(--lg-red)]" : "text-[var(--lg-ink-muted)]"
+                    }`}
+                >
+                  🔁 {countdown.label}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Stat pilleri */}
