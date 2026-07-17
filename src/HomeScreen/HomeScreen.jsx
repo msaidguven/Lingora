@@ -118,7 +118,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             </div>
             {dailyStudySeconds > 0 && (
               <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-[var(--lg-ink-muted)]">
-                ⏱ {Math.round(dailyStudySeconds / 60)} dk
+                ⏱ {formatStudyDuration(dailyStudySeconds)}
               </span>
             )}
           </div>
@@ -356,6 +356,14 @@ function SectionTitle({ emoji, title }) {
 // Today's attempt count toward the daily goal. Total is the headline number
 // (the thing that matters most); correct/wrong is the smaller supporting
 // detail, shown both as a two-color bar segment and as a ✓/✗ readout.
+// 1 dakikanın altında saniye gösterir ("0 dk" demotive edici olmasın diye),
+// üstünde tam dakikaya yuvarlar (canlı akmayan bir snapshot değeri olduğu
+// için saniye göstermek "donmuş" hissi verir).
+function formatStudyDuration(totalSeconds) {
+  if (totalSeconds < 60) return `${totalSeconds} sn`;
+  return `${Math.round(totalSeconds / 60)} dk`;
+}
+
 function DailyGoalRow({ icon, label, correct, wrong, goal }) {
   const total = correct + wrong;
   const filledPct = Math.min((total / goal) * 100, 100);
