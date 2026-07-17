@@ -1,53 +1,76 @@
 // src/components/Header/hooks/useHeaderViewModel.js
-// Header'ın tüm state'i ve iş mantığı burada yaşar.
-// Header.jsx (View) bu hook'un döndürdüğü değerleri sadece ekrana basar;
-// "nasıl çalışıyor" sorusunun cevabını bilmesi gerekmez.
-
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../../contexts/AuthContext.jsx";
+import { useTheme } from "../../../contexts/ThemeContext.jsx";
 import { supabase } from "../../../config.js";
-import { useAuth } from "../../../contexts/AuthContext";
-import { useTheme } from "../../../contexts/ThemeContext";
-import { fetchHeaderUserData } from "../services/headerUserService";
-import { LEVEL_COLOR, DEFAULT_ACCENT, QUIZ_VARIANTS } from "../config/navConfig";
-import { hasAdminAccess, getRoleLabel } from "../config/roleConfig";
+import { NAV_ITEMS, QUIZ_VARIANTS, LEVEL_COLOR, DEFAULT_ACCENT } from "../config/navConfig.js";
+import { getUserDisplayName, getUserRole } from "../services/headerUserService.js";
 
-export function useHeaderViewModel({
-  currentScreen,
-  onNavigate,
-  userLevel,
-  userRole = "user",
-  quizType = null,
-  onLogout,
-  onNavigateToAdmin,
-}) {
+export function useHeaderViewModel(props) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userLevel, setUserLevel] = useState("A1");
   const menuRef = useRef(null);
 
-  // Kullanıcı verisini çek (username, streak_days)
+  // Props'tan gelen değerler
+  const currentScreen = props.currentScreen || "home";
+  const onNavigate = props.onNavigate || (() => { });
+  const quizVariant = props.quizVariant || "default";
+
+  // Kullanıcı bilgileri
+  const displayName = getUserDisplayName(user);
+  const roleLabel = getUserRole(user);
+  const isAdmin = user?.role === "admin";
+
+  // Seviye rengi
+  const levelColors = LEVEL_COLOR[userLevel] || LEVEL_COLOR["A1"];
+  const accent = { from: levelColors.from, to: levelColors.to };
+
+  // Aktif mi kontrolü
+  const isActive = (key) => currentScreen === key;
+
+  // Navigasyon fonksiyonu
+  const handleNavigate = (key) => {
+    setMenuOpen(false);
+    onNavigate(key);
+  };
+
+  // İstatistik sayfasına git
+  const goToStats = () => {
+    setMenuOpen(false);
+    onNavigate("statsScreen"); // ✅ EKLENDİ
+  };
+
+  // Admin sayfasına git
+  const goToAdmin = () => {
+    setMenuOpen(false);
+    onNavigate("admin");
+  };
+
+  // Çıkış yap
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+  };
+
+  // Kullanıcı seviyesini getir
   useEffect(() => {
-    let active = true;
-    if (!user) {
-      setLoading(false);
-      return;
+    if (user?.id) {
+      supabase
+        .from("en_users")
+        .select("level")
+        .eq("id", user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data?.level) {
+            setUserLevel(data.level);
+          }
+        });
     }
-    setLoading(true);
-    fetchHeaderUserData(supabase, user).then((data) => {
-      if (active) {
-        setUserData(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      active = false;
-    };
   }, [user]);
 
-  // Dropdown menü dışına tıklayınca kapat
+  // Dışarı tıklama ile menü kapatma
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -56,69 +79,25 @@ export function useHeaderViewModel({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const accent = LEVEL_COLOR[userLevel] || DEFAULT_ACCENT;
-  const isActive = (key) => currentScreen === key;
-  const quizVariant = QUIZ_VARIANTS[quizType] || QUIZ_VARIANTS.default;
-
-  const displayName =
-    userData?.username ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "Öğrenci";
-
-  const isAdmin = hasAdminAccess(userRole);
-  const roleLabel = getRoleLabel(userRole);
-
-  const goToStats = () => {
-    onNavigate("stats");
-    setMenuOpen(false);
-  };
-
-  const goToAdmin = () => {
-    setMenuOpen(false);
-    if (onNavigateToAdmin) {
-      onNavigateToAdmin();
-    } else {
-      window.location.href = "/admin";
-    }
-  };
-
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    if (!window.confirm("Çıkış yapmak istediğinize emin misiniz?")) return;
-    const result = await logout();
-    if (result.success) {
-      onLogout?.();
-    } else {
-      alert("Çıkış yapılırken bir hata oluştu!");
-    }
-  };
+  }, [menuRef]);
 
   return {
-    // veri
     user,
-    theme,
-    toggleTheme,
-    loading,
-    accent,
-    isActive,
-    quizVariant,
-    displayName,
-    isAdmin,
-    roleLabel,
-    userLevel,
-    streakDays: userData?.streak_days || 0,
-    // menü state
     menuOpen,
     setMenuOpen,
     menuRef,
-    // navigasyon
+    displayName,
+    userLevel,
+    roleLabel,
+    isAdmin,
+    theme,
+    toggleTheme,
     currentScreen,
-    onNavigate,
-    // aksiyonlar
-    goToStats,
+    onNavigate: handleNavigate,
+    isActive,
+    accent,
+    quizVariant,
+    goToStats, // ✅ EKLENDİ
     goToAdmin,
     handleLogout,
   };
