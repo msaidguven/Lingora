@@ -4,16 +4,17 @@
 // Header.jsx veya diğer component'lere dokunmana gerek yok.
 
 export const NAV_ITEMS = [
-  { key: "home",      icon: "ti-home",             label: "Anasayfa"   },
-  { key: "dashboard", icon: "ti-layout-dashboard",  label: "İstatistik" },
-  { key: "quiz",      icon: "ti-tournament",        label: "Kelime/Cümle"       },
+  { key: "home", icon: "ti-home", label: "Anasayfa" },
+  { key: "dashboard", icon: "ti-layout-dashboard", label: "İstatistik" },
+  { key: "dashboard", icon: "ti-layout-dashboard", label: "İstatistik" },
+  { key: "quiz", icon: "ti-tournament", label: "Kelime/Cümle" },
 ];
 
 // Quiz sekmesi aktifken quizType'a göre ikon/label değişimi
 export const QUIZ_VARIANTS = {
-  word:     { icon: "ti-book",       label: "Kelime" },
-  sentence: { icon: "ti-message",    label: "Cümle"  },
-  default:  { icon: "ti-tournament", label: "Kelime/Cümle"   },
+  word: { icon: "ti-book", label: "Kelime" },
+  sentence: { icon: "ti-message", label: "Cümle" },
+  default: { icon: "ti-tournament", label: "Kelime/Cümle" },
 };
 
 export const LEVEL_COLOR = {
