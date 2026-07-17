@@ -50,9 +50,29 @@ const getReviewCountdown = (nextReviewAt) => {
   const diffMs = new Date(nextReviewAt).getTime() - Date.now();
   const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (days <= 0) return { label: "Bugün tekrar zamanı", overdue: days < 0 };
+  if (days <= 0) return { label: "Tekrar zamanı geldi", overdue: days < 0 };
   if (days === 1) return { label: "Yarın", overdue: false };
   return { label: `${days} gün sonra`, overdue: false };
+};
+
+// Bir sonraki rütbeye kaç seviye kaldığını hesaplar. mastery_level gerçek,
+// veritabanında tutulan bir sayı olduğu için bu — önceki "days" tahmininin
+// aksine — uydurma değil, doğrudan veriye dayalı bir gösterge.
+const getNextTierProgress = (level) => {
+  const idx = MASTERY_STAMPS.findIndex((m) => level >= m.minLevel);
+  if (idx <= 0) return null; // seviye yok ya da zaten en üst rütbede
+
+  const current = MASTERY_STAMPS[idx];
+  const next = MASTERY_STAMPS[idx - 1];
+  const span = next.minLevel - current.minLevel;
+  const progress = level - current.minLevel;
+
+  return {
+    levelsToGo: next.minLevel - level,
+    nextLabel: next.label,
+    nextColor: next.color,
+    pct: Math.min(100, Math.round((progress / span) * 100)),
+  };
 };
 
 // Başarı oranına göre kalem rengi (notebook temasındaki CSS değişkenlerine bağlı)
@@ -314,6 +334,7 @@ export default function Dashboard() {
     const accuracyTone = getAccuracyTone(item.accuracy);
     const stamp = type === "word" ? getMasteryStamp(item.masteryLevel, item.isMastered) : null;
     const countdown = type === "word" ? getReviewCountdown(item.nextReviewAt) : null;
+    const tierProgress = type === "word" ? getNextTierProgress(item.masteryLevel) : null;
     const marginColor = stamp ? stamp.color : "var(--lg-red)";
 
     return (
@@ -354,6 +375,30 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Bir sonraki rütbeye ilerleme — sadece daha yükseği varsa gösterilir */}
+        {tierProgress ? (
+          <div className="mb-3">
+            <div className="mb-1 flex items-center justify-between text-[9px] font-semibold text-[var(--lg-ink-muted)]">
+              <span>
+                {tierProgress.nextLabel}'a {tierProgress.levelsToGo} seviye kaldı
+              </span>
+              <span>%{tierProgress.pct}</span>
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${tierProgress.pct}%`, backgroundColor: tierProgress.nextColor }}
+              />
+            </div>
+          </div>
+        ) : (
+          stamp?.label === "Efsane Uzman" && (
+            <div className="mb-3 text-[9px] font-semibold text-[var(--lg-ink-muted)]">
+              🏆 En yüksek rütbeye ulaştın
+            </div>
+          )
+        )}
 
         {/* Stat pilleri */}
         <div className="mb-3 grid grid-cols-4 gap-1.5">
