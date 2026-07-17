@@ -2,15 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
-
-// "Bugün"ü her zaman Türkiye saatine (Europe/Istanbul) göre hesaplar —
-// kullanıcının cihaz saati/timezone'u farklı olsa bile gün, TR gece yarısında
-// döner. en-CA locale çıktısı YYYY-MM-DD formatında, Postgres date kolonuyla
-// birebir uyumlu. en_user_daily_stats'a yazan quiz akışında da AYNI
-// fonksiyonu kullanman gerekiyor, aksi halde yazma/okuma günü kayabilir.
-function getTurkeyTodayString() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
-}
+import { getTurkeyTodayString } from "./utils/turkeyDate";
 
 export function useHomeViewModel() {
   const { user } = useAuth();

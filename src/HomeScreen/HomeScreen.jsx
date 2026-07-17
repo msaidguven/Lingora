@@ -1,6 +1,15 @@
 // src/HomeScreen.jsx
 import { useHomeViewModel } from "./viewModel";
 import QuizOptionButton from "../components/Quiz/QuizOptionButton";
+import {
+  DOGEAR,
+  DOGEAR_ON_COLOR,
+  formatStudyDuration,
+  SectionTitle,
+  LegendDot,
+  SpiralStrip,
+  NotebookTheme,
+} from "./theme/notebook";
 
 // ---------------------------------------------------------------------------
 // Design language: "graded notebook" — spiral binding, ruled paper, a red-pen
@@ -15,14 +24,6 @@ import QuizOptionButton from "../components/Quiz/QuizOptionButton";
 // spine, the red pen) stay fixed in both modes on purpose — like a logo
 // color that doesn't change with the theme.
 // ---------------------------------------------------------------------------
-
-const DOGEAR =
-  "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
-  "after:border-t-[14px] after:border-l-[14px] after:border-t-[var(--lg-border-strong)] after:border-l-transparent";
-
-const DOGEAR_ON_COLOR =
-  "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
-  "after:border-t-[14px] after:border-l-[14px] after:border-t-black/25 after:border-l-transparent";
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   const viewModel = useHomeViewModel();
@@ -75,13 +76,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
       <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-[var(--lg-gold)]/10 blur-3xl" />
 
       {/* Spiral binding strip — fixed brand color in both themes */}
-      <div
-        className="relative z-10 h-5 w-full bg-[var(--lg-cover)] bg-[length:22px_20px] bg-[position:11px_0]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(0,0,0,0.35) 3px, transparent 3px)",
-        }}
-      />
+      <SpiralStrip />
 
       <div
         className={`relative z-10 mx-auto max-w-md px-5 pb-8 pt-5 transition-all duration-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
@@ -318,11 +313,11 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
 
         {/* Summary bar */}
         <div className="flex items-center justify-around rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] px-3 py-3">
-          <SummaryItem colorVar="var(--lg-green)" label="Kelime" value={dueCount} />
+          <LegendDot colorVar="var(--lg-green)" label="Kelime" value={dueCount} />
           <span className="h-6 w-px bg-[var(--lg-border)]" />
-          <SummaryItem colorVar="var(--lg-blue)" label="Cümle" value={dueSentenceCount} />
+          <LegendDot colorVar="var(--lg-blue)" label="Cümle" value={dueSentenceCount} />
           <span className="h-6 w-px bg-[var(--lg-border)]" />
-          <SummaryItem
+          <LegendDot
             colorVar="var(--lg-gold)"
             label="Toplam"
             value={dueCount + dueSentenceCount}
@@ -333,37 +328,11 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   );
 }
 
-// ============ ALT BİLEŞENLER ============
-
-function SectionTitle({ emoji, title }) {
-  return (
-    <div className="mb-2.5 flex items-center gap-2">
-      <span className="text-[15px]">{emoji}</span>
-      <span className="font-serif text-[15px] font-bold text-[var(--lg-ink)]">{title}</span>
-      <svg width="46" height="10" viewBox="0 0 46 10" className="mt-1 text-[var(--lg-red)] opacity-70">
-        <path
-          d="M1 6 C 8 2, 14 9, 21 5 S 34 2, 45 6"
-          stroke="currentColor"
-          strokeWidth="2"
-          fill="none"
-          strokeLinecap="round"
-        />
-      </svg>
-    </div>
-  );
-}
+// ============ ALT BİLEŞENLER (bu ekrana özel) ============
 
 // Today's attempt count toward the daily goal. Total is the headline number
 // (the thing that matters most); correct/wrong is the smaller supporting
 // detail, shown both as a two-color bar segment and as a ✓/✗ readout.
-// 1 dakikanın altında saniye gösterir ("0 dk" demotive edici olmasın diye),
-// üstünde tam dakikaya yuvarlar (canlı akmayan bir snapshot değeri olduğu
-// için saniye göstermek "donmuş" hissi verir).
-function formatStudyDuration(totalSeconds) {
-  if (totalSeconds < 60) return `${totalSeconds} sn`;
-  return `${Math.round(totalSeconds / 60)} dk`;
-}
-
 function DailyGoalRow({ icon, label, correct, wrong, goal }) {
   const total = correct + wrong;
   const filledPct = Math.min((total / goal) * 100, 100);
@@ -419,49 +388,5 @@ function DailyGoalRow({ icon, label, correct, wrong, goal }) {
         <span className="text-[var(--lg-red)]">✗ {wrong}</span>
       </div>
     </div>
-  );
-}
-
-function SummaryItem({ colorVar, label, value }) {
-  return (
-    <div className="flex items-center gap-1.5 text-xs">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colorVar }} />
-      <span className="text-[var(--lg-ink-muted)]">{label}</span>
-      <span className="font-mono font-bold text-[var(--lg-ink)]">{value}</span>
-    </div>
-  );
-}
-
-// All notebook colors live here as CSS variables built with light-dark().
-// `light-dark(lightValue, darkValue)` resolves using the *inherited*
-// `color-scheme` property — and daisyUI already sets `color-scheme: light`
-// or `color-scheme: dark` on whatever element carries `data-theme`. So this
-// block never needs to know your theme's name; it just needs your app's
-// themed root to be an ancestor of this component, which it already is.
-function NotebookTheme() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=JetBrains+Mono:wght@500;600;700&display=swap');
-
-      .lg-notebook {
-        --lg-bg: light-dark(#F7F2E4, #131B33);
-        --lg-card: light-dark(#FFFDF7, #1C2748);
-        --lg-ink: light-dark(#241D12, #F0E9D8);
-        --lg-ink-muted: light-dark(rgba(36,29,18,0.55), rgba(240,233,216,0.55));
-        --lg-border: light-dark(rgba(36,29,18,0.14), rgba(240,233,216,0.12));
-        --lg-border-strong: light-dark(rgba(36,29,18,0.28), rgba(240,233,216,0.22));
-        --lg-rule: light-dark(rgba(36,29,18,0.09), rgba(240,233,216,0.09));
-
-        /* fixed brand accents — same in both themes, like a logo color */
-        --lg-cover: #1B2A4A;
-        --lg-red: #D6303C;
-        --lg-gold: #E8B94E;
-        --lg-green: #4C9A6B;
-        --lg-blue: #6C8EBF;
-      }
-
-      .font-serif { font-family: 'Fraunces', ui-serif, Georgia, serif; }
-      .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    `}</style>
   );
 }
