@@ -8,7 +8,6 @@ import HomeScreen from "./HomeScreen/HomeScreen.jsx";
 import WordQuiz from "./components/WordQuiz/WordQuiz.jsx";
 import SentenceQuiz from "./components/SentenceQuiz/SentenceQuiz.jsx";
 import StatsScreen from "./StatsScreen/StatsScreen.jsx";
-import DashboardScreen from "./components/Dashboard/DashboardScreen.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 import LessonPage from "./components/Lesson/LessonPage.jsx";
 import Admin from "./Admin.jsx";
@@ -231,7 +230,6 @@ function AppContent() {
           />
         )}
 
-        {currentScreen === "dashboard" && <DashboardScreen />}
 
         {currentScreen === "statsscreen" && <StatsScreen />}
 
