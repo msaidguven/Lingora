@@ -272,7 +272,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             onClick={handleRestart}
             className="btn btn-primary btn-lg rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
           >
-            20 Kelime Daha Çalış
+            10 Kelime Daha Çalış
           </button>
           <button
             onClick={onChangeLevel}
