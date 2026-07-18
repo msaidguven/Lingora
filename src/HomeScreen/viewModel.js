@@ -16,6 +16,20 @@ function shuffleArray(arr) {
   return a;
 }
 
+// Reklam merdiveni — hesap ömrü boyunca izlenen TOPLAM reklam sayısına göre
+// ödül belirler (günlük sıfırlanmıyor, limit yok; kullanıcı istediği kadar
+// izleyebilir). adNumber = bu reklam kaçıncı reklam (1'den başlar).
+// 12. reklamdan itibaren sabit 100 coin.
+const AD_REWARD_LADDER = [1000, 700, 500, 500, 300, 300, 300, 300, 300, 200, 100];
+const AD_REWARD_STANDARD = 100;
+
+function getAdReward(adNumber) {
+  if (adNumber >= 1 && adNumber <= AD_REWARD_LADDER.length) {
+    return AD_REWARD_LADDER[adNumber - 1];
+  }
+  return AD_REWARD_STANDARD;
+}
+
 export function useHomeViewModel() {
   const { user } = useAuth();
 
@@ -76,6 +90,43 @@ export function useHomeViewModel() {
     } else {
       setCoins(userData.coins || 0);
     }
+  };
+
+  // Reklam izleme ödülü — reklam SDK'sının "reklam başarıyla tamamlandı"
+  // callback'i içinden çağrılmalı. Günlük limit yok; her reklam, hesap
+  // ömrü boyunca kaçıncı reklam olduğuna göre merdivenden ödül alır.
+  const handleWatchAd = async () => {
+    if (!user) return;
+
+    const { data: userData } = await supabase
+      .from("en_users")
+      .select("coins, total_ads_watched")
+      .eq("id", user.id)
+      .single();
+
+    if (!userData) return;
+
+    const nextAdNumber = (userData.total_ads_watched || 0) + 1;
+    const reward = getAdReward(nextAdNumber);
+    const newCoins = (userData.coins || 0) + reward;
+
+    const { error } = await supabase
+      .from("en_users")
+      .update({
+        coins: newCoins,
+        total_ads_watched: nextAdNumber,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Reklam ödülü kaydedilemedi:", error);
+      return;
+    }
+
+    setCoins(newCoins);
+    window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
+
+    return { reward, adNumber: nextAdNumber };
   };
 
   // Verileri çek
@@ -471,6 +522,7 @@ export function useHomeViewModel() {
     dailySentenceGoal: 100,
     handleBuyWords,
     handleBuySentences,
+    handleWatchAd,
     introItems,
     introKind,
     finishIntro,

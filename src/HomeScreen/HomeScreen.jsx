@@ -1,4 +1,5 @@
 // src/HomeScreen.jsx
+import { useState } from "react";
 import { useHomeViewModel } from "./viewModel";
 import QuizOptionButton from "../components/Quiz/QuizOptionButton";
 import NewItemsIntro from "./NewItemsIntro";
@@ -51,6 +52,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     handleOpenNewWords,
     handleBuyWords,
     handleBuySentences,
+    handleWatchAd,
     dailyWordCorrect = 0,
     dailyWordWrong = 0,
     dailySentenceCorrect = 0,
@@ -63,6 +65,41 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     finishIntro,
     cancelIntro,
   } = viewModel;
+
+  // Demo reklam izleme durumu — gerçek reklam SDK'sı entegre olana kadar
+  // burada 3 saniyelik sahte bir "izleniyor" bekletmesi yapıyoruz. SDK
+  // entegre edildiğinde, bu setTimeout'u SDK'nın "reklam tamamlandı"
+  // callback'iyle değiştirmen yeterli — handleWatchAd() çağrısı ve ödül
+  // toast'ı aynı kalabilir.
+  const [watchingAd, setWatchingAd] = useState(false);
+
+  const handleDemoWatchAd = async () => {
+    if (watchingAd) return;
+    setWatchingAd(true);
+
+    // DEMO: gerçek reklam yerine sahte bekleme. Gerçek SDK'da bu blok,
+    // reklamın "tamamlandı" event'ine taşınmalı.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const result = await handleWatchAd();
+    setWatchingAd(false);
+
+    if (result) {
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: `🎬 Reklam tamamlandı! +${result.reward} coin kazandın (${result.adNumber}. reklam)`,
+          type: 'success'
+        }
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: '⚠️ Reklam ödülü alınamadı, tekrar dener misin?',
+          type: 'error'
+        }
+      }));
+    }
+  };
 
   if (loading) {
     return (
@@ -168,14 +205,14 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
                     key={lesson.id}
                     onClick={() => onGoToLesson?.(lesson.id)}
                     className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[var(--lg-border)] ${i !== recentLessons.length - 1
-                        ? "border-b border-dashed border-[var(--lg-border)]"
-                        : ""
+                      ? "border-b border-dashed border-[var(--lg-border)]"
+                      : ""
                       }`}
                   >
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted
-                          ? "border-[var(--lg-green)] text-[var(--lg-green)]"
-                          : "border-[var(--lg-red)] text-[var(--lg-red)]"
+                        ? "border-[var(--lg-green)] text-[var(--lg-green)]"
+                        : "border-[var(--lg-red)] text-[var(--lg-red)]"
                         }`}
                     >
                       {isCompleted ? "✓" : lesson.lesson_number}
@@ -309,6 +346,28 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             <span className="block font-mono text-[10px] font-normal opacity-75">50 COIN</span>
           </button>
         </div>
+
+        {/* Reklam izle (DEMO) — gerçek reklam SDK'sı entegre olana kadar
+            sahte bir bekleme ile ödül veriyor. handleDemoWatchAd fonksiyonundaki
+            setTimeout'u SDK callback'i ile değiştirince gerçek reklama geçilir. */}
+        <button
+          onClick={handleDemoWatchAd}
+          disabled={watchingAd}
+          className={`mb-4 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-[var(--lg-gold)] bg-[var(--lg-gold)]/10 py-3 font-serif font-bold text-[var(--lg-gold)] transition-transform ${!watchingAd ? "hover:scale-[1.01] active:scale-[0.99]" : "opacity-60"
+            }`}
+        >
+          {watchingAd ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-dashed border-[var(--lg-gold)]" />
+              <span className="text-sm">Reklam izleniyor (demo)…</span>
+            </>
+          ) : (
+            <>
+              <span className="text-lg">🎬</span>
+              <span className="text-sm">Reklam İzle, Coin Kazan (DEMO)</span>
+            </>
+          )}
+        </button>
 
         {coins < 50 && (
           <div className="mb-4 rounded-md border border-dashed border-[var(--lg-red)]/50 bg-[var(--lg-red)]/10 px-4 py-2.5 text-center text-sm text-[var(--lg-red)]">
