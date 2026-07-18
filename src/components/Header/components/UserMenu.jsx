@@ -1,5 +1,5 @@
 // src/components/Header/components/UserMenu.jsx
-import { DOGEAR } from "../../../theme/notebook";
+import { DOGEAR_FOLD } from "../../../theme/notebook";
 
 export default function UserMenu({
   menuOpen,
@@ -37,7 +37,7 @@ export default function UserMenu({
 
       {menuOpen && (
         <div
-          className={`animate-fade-up absolute right-0 top-[calc(100%+12px)] z-[9999] w-64 origin-top-right rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 shadow-2xl ${DOGEAR}`}
+          className={`animate-fade-up absolute right-0 top-[calc(100%+12px)] z-[9999] w-64 origin-top-right rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 shadow-2xl ${DOGEAR_FOLD}`}
         >
           {/* Kullanıcı kartı — öğrenci kimlik damgası gibi */}
           <div className="flex items-center gap-3 rounded-md border border-dashed border-[var(--lg-border)] px-3 py-2.5">

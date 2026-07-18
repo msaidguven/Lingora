@@ -4,13 +4,25 @@
 // değişkeni olarak tanımlanıyor (bkz. NotebookTheme), böylece daisyUI'nin
 // light/dark temasını otomatik takip ediyor — hiçbir yerde sabit hex yok.
 
-export const DOGEAR =
-    "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
+// Sadece kıvrık köşe pseudo-elementi — position değeri (relative/absolute)
+// dahil değil, çünkü elementin kendisi zaten `absolute` gibi başka bir
+// konumlandırma sınıfı taşıyorsa `relative` classı Tailwind'in derlenmiş
+// CSS sıralaması yüzünden onun üzerine yazıp position:relative'e çevirebilir
+// (aynı property'yi ayarlayan iki class varsa, HTML'deki sıra değil,
+// Tailwind'in ürettiği stylesheet'teki sıra kazanır — orada `relative`,
+// `absolute`'ten SONRA gelir). Normal akıştaki kartlarda DOGEAR/DOGEAR_ON_COLOR
+// kullan; zaten `absolute` ile konumlanan elementlerde DOGEAR_FOLD kullan.
+export const DOGEAR_FOLD =
+    "after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
     "after:border-t-[14px] after:border-l-[14px] after:border-t-[var(--lg-border-strong)] after:border-l-transparent";
 
-export const DOGEAR_ON_COLOR =
-    "relative after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
+export const DOGEAR_ON_COLOR_FOLD =
+    "after:content-[''] after:absolute after:top-0 after:right-0 after:w-0 after:h-0 " +
     "after:border-t-[14px] after:border-l-[14px] after:border-t-black/25 after:border-l-transparent";
+
+// Normal-akıştaki (statik/relative) kartlar için — kendi relative'ini de getirir.
+export const DOGEAR = `relative ${DOGEAR_FOLD}`;
+export const DOGEAR_ON_COLOR = `relative ${DOGEAR_ON_COLOR_FOLD}`;
 
 // 1 dakikanın altında saniye, 60 dakikanın altında dakika, üstünde saat+dakika.
 export function formatStudyDuration(totalSeconds) {
