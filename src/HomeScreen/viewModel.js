@@ -4,6 +4,18 @@ import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
 import { getTurkeyTodayString } from "../utils/turkeyDate";
 
+// Basit Fisher-Yates karıştırma — satın alınan kelime/cümlelerin her
+// seferinde farklı 5'ini göstermek için. Havuzdan geniş bir aday listesi
+// çekip burada karıştırıyoruz, DB tarafında ORDER BY random() gerekmiyor.
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export function useHomeViewModel() {
   const { user } = useAuth();
 
@@ -229,13 +241,15 @@ export function useHomeViewModel() {
         query = query.not("id", "in", `(${learnedIds.join(",")})`);
       }
 
-      const { data: newWords } = await query.limit(5);
+      const { data: candidateWords } = await query.limit(200);
 
-      if (!newWords || newWords.length === 0) {
+      if (!candidateWords || candidateWords.length === 0) {
         alert("Tüm kelimeleri açtınız! 🎉");
         setBuying(false);
         return;
       }
+
+      const newWords = shuffleArray(candidateWords).slice(0, 5);
 
       // Tanıtım ekranını aç. Henüz hiçbir şey kaydedilmedi, coin düşmedi —
       // kullanıcı sayfayı şimdi kapatsa bile hiçbir şey kaybetmez.
@@ -292,20 +306,20 @@ export function useHomeViewModel() {
           if (data) allSentences = [...allSentences, ...data];
         }
 
-        // Benzersiz yap (aynı cümle farklı chunk'larda gelebilir)
+        // Benzersiz yap (aynı cümle farklı chunk'larda gelebilir), sonra karıştır
         const uniqueMap = {};
         allSentences.forEach((s) => (uniqueMap[s.id] = s));
-        selectedSentences = Object.values(uniqueMap).slice(0, 5);
+        selectedSentences = shuffleArray(Object.values(uniqueMap)).slice(0, 5);
       } else {
         const { data, error } = await supabase
           .from("en_example_sentences")
           .select("*")
           .eq("is_approved", true)
           .eq("level", userLevel)
-          .limit(5);
+          .limit(200);
 
         if (error) throw error;
-        selectedSentences = data || [];
+        selectedSentences = shuffleArray(data || []).slice(0, 5);
       }
 
       if (selectedSentences.length === 0) {
