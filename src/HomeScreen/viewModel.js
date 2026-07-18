@@ -113,19 +113,28 @@ export function useHomeViewModel() {
           .select("*", { count: "exact", head: true })
           .eq("level", level)
           .eq("type", "word"),
+        // NOT: en_words ile inner join yapıp sadece MEVCUT SEVİYEDEKİ
+        // kelimeleri sayıyoruz. Önceden burada seviye filtresi yoktu,
+        // bu yüzden kullanıcı birden fazla seviyede kelime öğrenmişse
+        // (örn. A1'den B1'e geçmişse) ilerleme yüzdesi (myWordsCount/
+        // totalWords) yanlış hesaplanıyor, hatta %100'ü aşabiliyordu.
         supabase
           .from("en_user_words")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
+          .select("word_id, en_words!inner(level)", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("en_words.level", level),
         supabase
           .from("en_example_sentences")
           .select("*", { count: "exact", head: true })
           .eq("level", level)
           .eq("is_approved", true),
+        // Aynı düzeltme cümleler için de geçerli — en_example_sentences
+        // ile inner join yapıp sadece mevcut seviyedeki cümleleri sayıyoruz.
         supabase
           .from("en_user_sentences")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
+          .select("sentence_id, en_example_sentences!inner(level)", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("en_example_sentences.level", level),
         supabase
           .from("en_user_words")
           .select("*", { count: "exact", head: true })
