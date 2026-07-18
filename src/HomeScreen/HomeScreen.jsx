@@ -61,6 +61,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     introItems = [],
     introKind = null,
     finishIntro,
+    cancelIntro,
   } = viewModel;
 
   if (loading) {
@@ -80,7 +81,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
       <NotebookTheme />
 
       {introItems.length > 0 && (
-        <NewItemsIntro items={introItems} kind={introKind} onFinish={finishIntro} />
+        <NewItemsIntro items={introItems} kind={introKind} onFinish={finishIntro} onCancel={cancelIntro} />
       )}
 
       {/* Ambient glow */}
