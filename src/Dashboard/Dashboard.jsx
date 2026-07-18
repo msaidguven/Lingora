@@ -20,16 +20,16 @@ const ITEMS_PER_PAGE = 25;
 // logo rengi gibi her iki temada da aynı kalması gereken vurgular.
 // ---------------------------------------------------------------------------
 
-// Mastery seviyesi = rütbe/oyunlaştırma katmanı. Zamanlamayla (next_review_at)
-// hiçbir ilgisi yok — sadece "bu kelimede ne kadar iyisin" sorusuna cevap verir.
-// Config-tabanlı: yeni seviye eklemek veya eşik değiştirmek tek satırlık iş.
+// Mastery seviyesi tavanı 7 (bkz. utils/spacedRepetition.js). Yedi rütbe,
+// yedi seviyeye 1:1 karşılık geliyor — her doğru cevap doğrudan bir sonraki
+// rozete taşıyor. Zamanlamayla (next_review_at) hiçbir ilgisi yok.
 const MASTERY_STAMPS = [
-  { minLevel: 9, emoji: "🏆", color: "#d97706", label: "Efsane Uzman" },
-  { minLevel: 8, emoji: "💎", color: "#9333ea", label: "Elmas Uzman" },
-  { minLevel: 7, emoji: "⭐", color: "#2563eb", label: "Altın Uzman" },
-  { minLevel: 6, emoji: "🌟", color: "#059669", label: "Gümüş Uzman" },
-  { minLevel: 5, emoji: "🔥", color: "#ea580c", label: "Bronz Uzman" },
-  { minLevel: 3, emoji: "📘", color: "#4f46e5", label: "Bilgili" },
+  { minLevel: 7, emoji: "🏆", color: "#d97706", label: "Efsane Uzman" },
+  { minLevel: 6, emoji: "💎", color: "#9333ea", label: "Elmas Uzman" },
+  { minLevel: 5, emoji: "⭐", color: "#2563eb", label: "Altın Uzman" },
+  { minLevel: 4, emoji: "🌟", color: "#059669", label: "Gümüş Uzman" },
+  { minLevel: 3, emoji: "🔥", color: "#ea580c", label: "Bronz Uzman" },
+  { minLevel: 2, emoji: "📘", color: "#4f46e5", label: "Bilgili" },
   { minLevel: 1, emoji: "📖", color: "#64748b", label: "Öğreniyor" },
 ];
 
@@ -371,8 +371,8 @@ export default function Dashboard() {
               key={pageNum}
               onClick={() => setCurrentPage(pageNum)}
               className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${currentPage === pageNum
-                  ? "border-[var(--lg-red)] text-[var(--lg-red)]"
-                  : "border-dashed border-[var(--lg-border-strong)] text-[var(--lg-ink-muted)]"
+                ? "border-[var(--lg-red)] text-[var(--lg-red)]"
+                : "border-dashed border-[var(--lg-border-strong)] text-[var(--lg-ink-muted)]"
                 }`}
             >
               {pageNum}
@@ -546,8 +546,8 @@ export default function Dashboard() {
                   setCurrentPage(1);
                 }}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-t-md border border-b-0 py-2.5 text-[13px] font-bold transition-transform ${isActive
-                    ? "-translate-y-0.5 border-[var(--lg-red)] bg-[var(--lg-card)] text-[var(--lg-red)] shadow-sm"
-                    : "border-transparent text-[var(--lg-ink-muted)]"
+                  ? "-translate-y-0.5 border-[var(--lg-red)] bg-[var(--lg-card)] text-[var(--lg-red)] shadow-sm"
+                  : "border-transparent text-[var(--lg-ink-muted)]"
                   }`}
               >
                 <span>{tab.icon}</span>

@@ -5,7 +5,7 @@ import { shuffle, buildSentenceOptions } from "../utils/quizHelpers.js";
 import { calculateNextReview } from "../utils/spacedRepetition.js";
 import { useAuth } from "../contexts/AuthContext";
 
-const SESSION_SENTENCE_LIMIT = 20;
+const SESSION_SENTENCE_LIMIT = 10;
 
 export function useSentenceQuiz(userLevel) {
   const { user } = useAuth();

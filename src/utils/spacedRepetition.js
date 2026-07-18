@@ -5,6 +5,12 @@
 
 const MIN_EASE_FACTOR = 1.3;
 const DEFAULT_EASE_FACTOR = 2.5;
+// ease_factor'a üst sınır koymuyoruz (SM-2'nin standart formülü bunu
+// öngörmüyor); bunun yerine sonuç aralığını doğrudan tavana vuruyoruz.
+// Anki gibi uygulamaların "maximum interval" ayarıyla aynı fikir: hangi
+// ease_factor'a ulaşılırsa ulaşılsın, bir kelime/cümle en fazla bu kadar
+// (~1,4 yıl) beklemeden tekrar gösterilir.
+const MAX_INTERVAL_DAYS = 500;
 
 // Doğru/yanlış'ı SM-2'nin beklediği 0-5 kalite puanına çeviriyoruz. Şu an
 // ikili (doğru/yanlış) bir quiz olduğu için sabit bir eşleme kullanıyoruz:
@@ -46,6 +52,8 @@ export function calculateNextReview({
     if (quality < 3) {
         // Yanlış cevap: SM-2 kuralı gereği tekrar sayacı sıfırlanır,
         // kelime/cümle yakın zamanda tekrar gösterilir.
+        // (mastery_level bundan tamamen bağımsız — bkz. calculateNextMasteryLevel,
+        // orada kademeli -1 düşüş uygulanmaya devam ediyor.)
         repetitions = 0;
         intervalDays = 1;
     } else {
@@ -68,6 +76,9 @@ export function calculateNextReview({
         repetitions = prevRepetitions + 1;
     }
 
+    // Aralık tavanı: ease_factor sınırsız büyüse bile sonuç 500 günü geçmez.
+    intervalDays = Math.min(intervalDays, MAX_INTERVAL_DAYS);
+
     // SM-2: ease factor güncellemesi (standart formül)
     let newEase = prevEase + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
     newEase = Math.max(MIN_EASE_FACTOR, newEase);
@@ -85,9 +96,10 @@ export function calculateNextReview({
 /**
  * mastery_level rütbe sayacı — SM-2'den tamamen bağımsız bir oyunlaştırma
  * katmanı (şu an sadece en_user_words'te var, en_user_sentences'ta yok).
- * Doğru cevapta +1, yanlışta -1; 0-9 arasında sabitlenir.
+ * Doğru cevapta +1, yanlışta -1; 0-7 arasında sabitlenir (7 rütbe: Öğreniyor
+ * → Bilgili → Bronz → Gümüş → Altın → Elmas → Efsane, her biri tam 1 seviye).
  */
 export function calculateNextMasteryLevel(currentLevel, isCorrect) {
     const level = currentLevel || 0;
-    return isCorrect ? Math.min(level + 1, 9) : Math.max(level - 1, 0);
+    return isCorrect ? Math.min(level + 1, 7) : Math.max(level - 1, 0);
 }

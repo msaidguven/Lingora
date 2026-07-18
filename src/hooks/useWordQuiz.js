@@ -5,7 +5,7 @@ import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
 import { calculateNextReview, calculateNextMasteryLevel } from "../utils/spacedRepetition.js";
 import { useAuth } from "../contexts/AuthContext";
 
-const SESSION_WORD_LIMIT = 20;
+const SESSION_WORD_LIMIT = 10;
 
 export function useWordQuiz(userLevel) {
   const { user } = useAuth();
@@ -38,11 +38,15 @@ export function useWordQuiz(userLevel) {
       setError(null);
       setExamplesMap({});
       try {
+        // en geciken next_review_at önce — useSentenceQuiz.js ile aynı
+        // spaced-repetition önceliklendirmesi.
         const { data: userWords, error: uwError } = await supabase
           .from("en_user_words")
           .select("word_id, next_review_at")
           .eq("user_id", userId)
-          .lt("next_review_at", new Date().toISOString());
+          .lt("next_review_at", new Date().toISOString())
+          .order("next_review_at", { ascending: true })
+          .limit(SESSION_WORD_LIMIT);
 
         if (uwError) throw uwError;
 
@@ -55,7 +59,9 @@ export function useWordQuiz(userLevel) {
           return;
         }
 
-        const wordIds = shuffle(userWords.map(w => w.word_id)).slice(0, SESSION_WORD_LIMIT);
+        // Seçim next_review_at'e göre yapıldı (DB tarafında); shuffle burada
+        // sadece seçilen bu kelimelerin sunum sırasını karıştırıyor.
+        const wordIds = shuffle(userWords.map(w => w.word_id));
 
         const { data: words, error: wError } = await supabase
           .from("en_words")
@@ -159,7 +165,7 @@ export function useWordQuiz(userLevel) {
           last_score: isCorrect ? 100 : 0,
           last_reviewed_at: now.toISOString(),
           mastery_level: newMasteryLevel,
-          is_mastered: newMasteryLevel >= 9,
+          is_mastered: newMasteryLevel >= 7,
         })
         .eq("id", existing.id);
 
