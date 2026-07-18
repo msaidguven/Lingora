@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../config.js";
 import { shuffle, buildWordOptions } from "../utils/quizHelpers.js";
+import { calculateNextReview, calculateNextMasteryLevel } from "../utils/spacedRepetition.js";
 import { useAuth } from "../contexts/AuthContext";
 
 const SESSION_WORD_LIMIT = 20;
@@ -107,15 +108,10 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [currentQuestion, allCards, choiceCount]);
 
-  // 🔥 ARKA PLANDA KELİME KAYDETME — gerçek SM-2 (SuperMemo-2) algoritması
-  //
-  // İki bağımsız katman var:
-  // 1) Zamanlama (SM-2'nin kendi işi): review_count = "repetitions",
-  //    ease_factor, next_review_at. Bunlar SM-2'nin standart formülüyle
-  //    hesaplanır — yanlışta repetitions sıfırlanır, bu algoritmanın kuralı.
-  // 2) Rütbe (oyunlaştırma, SM-2'den bağımsız): mastery_level kendi başına
-  //    +1/-1 ile ilerler, review_count'a bağımlı değil. Bir yanlış cevap
-  //    zamanlamayı sıfırlasa da rütbeyi silmez, sadece bir basamak indirir.
+  // 🔥 ARKA PLANDA KELİME KAYDETME
+  // Zamanlama (review_count/ease_factor/next_review_at) ortak SM-2
+  // fonksiyonundan geliyor. mastery_level ise SM-2'den bağımsız, ayrı bir
+  // rütbe sayacı — bkz. utils/spacedRepetition.js.
   const saveWordInBackground = async (wordId, isCorrect) => {
     if (!userId) {
       console.error("❌ userId gereklidir!");
@@ -141,63 +137,23 @@ export function useWordQuiz(userLevel) {
         return;
       }
 
-      // --- SM-2: kalite puanı ---
-      // Elimizde sadece doğru/yanlış var (dereceli "kolay/orta/zor" yok),
-      // bu yüzden ikili SM-2 varyantlarında yaygın olan eşlemeyi kullanıyoruz:
-      // doğru → q=5 (mükemmel), yanlış → q=2 (eşik olan 3'ün altında, "fail").
-      const quality = isCorrect ? 5 : 2;
-      const prevRepetitions = existing.review_count || 0;
-      const prevEase = existing.ease_factor || 2.5;
+      const { reviewCount, easeFactor, nextReviewAt, intervalDays } = calculateNextReview({
+        isCorrect,
+        reviewCount: existing.review_count,
+        easeFactor: existing.ease_factor,
+        nextReviewAt: existing.next_review_at,
+        lastReviewedAt: existing.last_reviewed_at,
+        now,
+      });
 
-      let repetitions;
-      let intervalDays;
-
-      if (quality < 3) {
-        // Yanlış cevap: SM-2 kuralı gereği tekrar sayacı sıfırlanır,
-        // kelime yakın zamanda tekrar gösterilir.
-        repetitions = 0;
-        intervalDays = 1;
-      } else {
-        if (prevRepetitions === 0) {
-          intervalDays = 1;
-        } else if (prevRepetitions === 1) {
-          intervalDays = 6;
-        } else {
-          // Önceki aralığı, en son iki tekrar arasındaki gerçek gün farkından
-          // türetiyoruz (ayrı bir "interval" sütunumuz yok, ama next_review_at
-          // ile last_reviewed_at farkı bunu zaten taşıyor).
-          const prevIntervalDays = existing.last_reviewed_at
-            ? Math.max(
-              1,
-              Math.round(
-                (new Date(existing.next_review_at) - new Date(existing.last_reviewed_at)) /
-                (1000 * 60 * 60 * 24)
-              )
-            )
-            : 1;
-          intervalDays = Math.round(prevIntervalDays * prevEase);
-        }
-        repetitions = prevRepetitions + 1;
-      }
-
-      // --- SM-2: ease factor güncellemesi (standart formül) ---
-      let newEase = prevEase + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-      newEase = Math.max(1.3, newEase); // SM-2'nin alt sınırı
-
-      const nextReviewDate = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
-
-      // --- Rütbe (mastery_level): SM-2'den bağımsız, kademeli +1/-1 ---
-      const prevMasteryLevel = existing.mastery_level || 0;
-      const newMasteryLevel = isCorrect
-        ? Math.min(prevMasteryLevel + 1, 9)
-        : Math.max(prevMasteryLevel - 1, 0);
+      const newMasteryLevel = calculateNextMasteryLevel(existing.mastery_level, isCorrect);
 
       await supabase
         .from("en_user_words")
         .update({
-          next_review_at: nextReviewDate.toISOString(),
-          review_count: repetitions,
-          ease_factor: newEase,
+          next_review_at: nextReviewAt.toISOString(),
+          review_count: reviewCount,
+          ease_factor: easeFactor,
           total_correct: (existing.total_correct || 0) + (isCorrect ? 1 : 0),
           total_wrong: (existing.total_wrong || 0) + (isCorrect ? 0 : 1),
           last_score: isCorrect ? 100 : 0,
@@ -209,7 +165,7 @@ export function useWordQuiz(userLevel) {
 
       console.log(
         `✅ Kelime ${wordId} kaydedildi (${isCorrect ? "doğru" : "yanlış"}) · ` +
-        `interval=${intervalDays}g, ease=${newEase.toFixed(2)}, rütbe=${newMasteryLevel}`
+        `interval=${intervalDays}g, ease=${easeFactor.toFixed(2)}, rütbe=${newMasteryLevel}`
       );
     } catch (err) {
       console.error("❌ Arka plan kaydetme hatası:", err);
