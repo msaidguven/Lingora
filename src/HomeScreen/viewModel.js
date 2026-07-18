@@ -30,6 +30,23 @@ function getAdReward(adNumber) {
   return AD_REWARD_STANDARD;
 }
 
+// Kullanıcının zaten sahip olduğu id'leri, verilen tabloda/kolonda hariç
+// tutan bir sorgu inşa eder. TÜM chunk'lar AYNI query builder üzerine
+// .not() ile ZİNCİRLENİR (ayrı ayrı sorgu atıp sonuçları birleştirmek
+// yerine) — böylece PostgREST tüm koşulları AND ile birleştirir ve
+// "chunk1'de yok VE chunk2'de yok VE ..." doğru şekilde uygulanır.
+// (Önceki implementasyonda her chunk için ayrı bir sorgu atılıyordu; bu
+// da bir chunk'ın sorgusunda başka bir chunk'taki öğrenilmiş id'lerin hariç
+// tutulmaması yüzünden, öğrenilmiş öğelerin sonuca sızmasına yol açıyordu.)
+function excludeLearnedIds(query, learnedIds, chunkSize = 500) {
+  let q = query;
+  for (let i = 0; i < learnedIds.length; i += chunkSize) {
+    const chunk = learnedIds.slice(i, i + chunkSize);
+    q = q.not("id", "in", `(${chunk.join(",")})`);
+  }
+  return q;
+}
+
 export function useHomeViewModel() {
   const { user } = useAuth();
 
@@ -289,7 +306,9 @@ export function useHomeViewModel() {
         .select("word_id")
         .eq("user_id", user.id);
 
-      const learnedIds = userWords?.map((w) => w.word_id) || [];
+      // Set ile benzersizleştiriyoruz — kaynak tabloda olası duplicate
+      // satırlara karşı ekstra güvenlik, filtrelemeyi bozmaz.
+      const learnedIds = [...new Set((userWords || []).map((w) => w.word_id))];
 
       let query = supabase
         .from("en_words")
@@ -297,11 +316,13 @@ export function useHomeViewModel() {
         .eq("level", userLevel)
         .eq("type", "word");
 
-      if (learnedIds.length > 0) {
-        query = query.not("id", "in", `(${learnedIds.join(",")})`);
-      }
+      // Tüm chunk'lar aynı query builder'a zincirlenir (bkz. excludeLearnedIds
+      // yorumu) — bu sayede öğrenilen kelime sayısı 500'ü geçse bile hepsi
+      // doğru şekilde hariç tutulur.
+      query = excludeLearnedIds(query, learnedIds);
 
-      const { data: candidateWords } = await query.limit(200);
+      const { data: candidateWords, error } = await query.limit(200);
+      if (error) throw error;
 
       if (!candidateWords || candidateWords.length === 0) {
         alert("Tüm kelimeleri açtınız! 🎉");
@@ -324,7 +345,15 @@ export function useHomeViewModel() {
   };
 
   // 5 Cümle Al — SADECE ADAY CÜMLELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // (İki dal aynı işi yapıyordu, tek akışta birleştirdim.)
+  //
+  // DÜZELTME: Önceki implementasyon, öğrenilen cümle sayısı 500'ü (chunk
+  // boyutunu) geçtiğinde her chunk için AYRI bir sorgu atıp sonuçları
+  // birleştiriyordu. Bu, bir chunk'ın sorgusunda başka bir chunk'taki
+  // öğrenilmiş cümlelerin hariç tutulmaması yüzünden, ÖĞRENİLMİŞ
+  // CÜMLELERİN TEKRAR "YENİ" DİYE HAVUZA SIZMASINA yol açıyordu — yani
+  // kullanıcının zaten açtığı cümleler tekrar önüne gelebiliyordu.
+  // Şimdi tek bir query builder kullanılıyor ve tüm chunk'lar .not() ile
+  // zincirleniyor, PostgREST bunları AND ile birleştiriyor.
   const handleBuySentences = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
@@ -344,43 +373,22 @@ export function useHomeViewModel() {
         .select("sentence_id")
         .eq("user_id", user.id);
 
-      const learnedIds = userSentences?.map((s) => s.sentence_id) || [];
+      // Set ile benzersizleştiriyoruz — en_user_sentences'ta olası
+      // duplicate satırlara karşı ekstra güvenlik.
+      const learnedIds = [...new Set((userSentences || []).map((s) => s.sentence_id))];
 
-      let selectedSentences = [];
+      let query = supabase
+        .from("en_example_sentences")
+        .select("*")
+        .eq("is_approved", true)
+        .eq("level", userLevel);
 
-      if (learnedIds.length > 0) {
-        // chunk'lara böl (Supabase URL limiti için)
-        const chunkSize = 500;
-        let allSentences = [];
+      query = excludeLearnedIds(query, learnedIds);
 
-        for (let i = 0; i < learnedIds.length; i += chunkSize) {
-          const chunk = learnedIds.slice(i, i + chunkSize);
-          const { data, error } = await supabase
-            .from("en_example_sentences")
-            .select("*")
-            .eq("is_approved", true)
-            .eq("level", userLevel)
-            .not("id", "in", `(${chunk.join(",")})`);
+      const { data, error } = await query.limit(200);
+      if (error) throw error;
 
-          if (error) throw error;
-          if (data) allSentences = [...allSentences, ...data];
-        }
-
-        // Benzersiz yap (aynı cümle farklı chunk'larda gelebilir), sonra karıştır
-        const uniqueMap = {};
-        allSentences.forEach((s) => (uniqueMap[s.id] = s));
-        selectedSentences = shuffleArray(Object.values(uniqueMap)).slice(0, 5);
-      } else {
-        const { data, error } = await supabase
-          .from("en_example_sentences")
-          .select("*")
-          .eq("is_approved", true)
-          .eq("level", userLevel)
-          .limit(200);
-
-        if (error) throw error;
-        selectedSentences = shuffleArray(data || []).slice(0, 5);
-      }
+      const selectedSentences = shuffleArray(data || []).slice(0, 5);
 
       if (selectedSentences.length === 0) {
         alert(`Bu seviyede (${userLevel}) açılacak cümle kalmadı! 🎉`);
