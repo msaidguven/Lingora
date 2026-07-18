@@ -8,16 +8,24 @@ export function buildWordOptions(correct, allCards, count) {
   return shuffle([correct.meaning, ...wrong]);
 }
 
-export function buildSentenceOptions(correctSentence, allSentences, currentWordId, count) {
-  const sameWordSentences = allSentences.filter(s => s.word_id === currentWordId && s.id !== correctSentence.id);
-  const sameWordMeanings = sameWordSentences.map(s => s.sentence_tr).filter(Boolean);
-  let wrong = [...sameWordMeanings];
-  if (wrong.length < count - 1) {
-    const otherSentences = allSentences.filter(s => s.word_id !== currentWordId && s.sentence_tr);
-    const otherMeanings = shuffle(otherSentences.map(s => s.sentence_tr));
-    wrong = [...wrong, ...otherMeanings].slice(0, count - 1);
-  } else {
-    wrong = shuffle(wrong).slice(0, count - 1);
+// allSentences: yanlış şıkların çekileceği havuz (session kuyruğu DEĞİL,
+// aynı seviyedeki tüm onaylı cümleler - bkz. useSentenceQuiz.js -> distractorPool)
+export function buildSentenceOptions(correctSentence, allSentences, count) {
+  // Doğru cevabın kendisini havuzdan çıkar, metni olmayanları ele
+  const candidates = allSentences.filter(
+    s => s.id !== correctSentence.id && s.sentence_tr
+  );
+
+  // Aynı Türkçe metne sahip cümleleri tekilleştir (aynı şık iki kez çıkmasın)
+  const seenTexts = new Set([correctSentence.sentence_tr]);
+  const uniqueCandidates = [];
+  for (const s of shuffle(candidates)) {
+    if (!seenTexts.has(s.sentence_tr)) {
+      seenTexts.add(s.sentence_tr);
+      uniqueCandidates.push(s);
+    }
   }
+
+  const wrong = uniqueCandidates.slice(0, count - 1).map(s => s.sentence_tr);
   return shuffle([correctSentence.sentence_tr, ...wrong]);
 }

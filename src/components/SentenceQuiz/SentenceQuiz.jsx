@@ -949,6 +949,24 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             isLastQuestion={queueIndex + 1 >= queue.length}
             isDarkMode={isDarkMode}
           />
+
+          {/* Learning Notes - sadece cevap verildikten sonra gösterilir */}
+          {currentQuestion.learning_notes && currentQuestion.learning_notes.length > 0 && (
+            <div className="mt-4 p-4 rounded-2xl border border-base-300 bg-base-200/50">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <span className="text-[11px] font-bold tracking-[0.1em] text-base-content/40 uppercase">
+                  💡 Notlar
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {currentQuestion.learning_notes.map((note, i) => (
+                  <p key={i} className="text-xs text-base-content/60 leading-relaxed">
+                    {note}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
