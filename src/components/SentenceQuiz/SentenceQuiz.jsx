@@ -567,7 +567,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             className="py-3.5 rounded-2xl text-white text-sm font-bold tracking-wide transition-all hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: levelColor }}
           >
-            20 Cümle Daha Çalış
+            10 Cümle Daha Çalış
           </button>
           <button
             onClick={onChangeLevel}
