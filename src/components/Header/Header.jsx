@@ -3,13 +3,29 @@ import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
 import UserMenu from "./components/UserMenu";
 import CoinDisplay from "./components/CoinDisplay";
+import { NotebookTheme } from "../../theme/notebook";
 
+// Header, defterin sırtı/kapağı gibi davranıyor — sabit lacivert (--lg-cover),
+// üstünde ince spiral delik şeridi. Anasayfa/İstatistik sayfalarının en
+// üstündeki <SpiralStrip /> ile aynı motif; Header her sayfada zaten en üstte
+// olduğu için o sayfalardaki spiral şeridi kaldırmak istersen kaldırabilirsin
+// (aynı görsel artık burada da var, iki kere tekrar etmesin diye).
 export default function Header(props) {
   const vm = useHeaderViewModel(props);
 
   return (
-    <header className="sticky top-0 z-[1000] border-b border-base-300 bg-base-100/85 px-3 shadow-md backdrop-blur-xl backdrop-saturate-[120%] sm:px-4">
-      <div className="mx-auto flex min-h-[56px] max-w-[500px] items-center justify-between gap-2.5 py-2.5">
+    <header className="lg-notebook sticky top-0 z-[1000] bg-[var(--lg-cover)] shadow-md">
+      <NotebookTheme />
+
+      {/* İnce spiral cilt şeridi */}
+      <div
+        className="h-[6px] w-full bg-[length:22px_10px] bg-[position:11px_0]"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.35) 2.5px, transparent 2.5px)",
+        }}
+      />
+
+      <div className="mx-auto flex min-h-[54px] max-w-[500px] items-end justify-between gap-2 px-3 pt-2 sm:px-4">
         <NavBar
           currentScreen={vm.currentScreen}
           onNavigate={vm.onNavigate}
@@ -18,7 +34,7 @@ export default function Header(props) {
           quizVariant={vm.quizVariant}
         />
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 pb-2">
           <CoinDisplay userId={vm.user?.id} />
           <UserMenu
             menuOpen={vm.menuOpen}
@@ -35,6 +51,7 @@ export default function Header(props) {
             goToStats={vm.goToStats}
             goToAdmin={vm.goToAdmin}
             handleLogout={vm.handleLogout}
+            streakDays={vm.streakDays}
           />
         </div>
       </div>
