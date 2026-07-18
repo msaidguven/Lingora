@@ -10,6 +10,8 @@ export function useHomeViewModel() {
   const [loading, setLoading] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
   const [myWordsCount, setMyWordsCount] = useState(0);
+  const [totalSentences, setTotalSentences] = useState(0);
+  const [mySentencesCount, setMySentencesCount] = useState(0);
   const [coins, setCoins] = useState(0);
   const [dueCount, setDueCount] = useState(0);
   const [dueSentenceCount, setDueSentenceCount] = useState(0);
@@ -25,6 +27,10 @@ export function useHomeViewModel() {
   const [dailySentenceCorrect, setDailySentenceCorrect] = useState(0);
   const [dailySentenceWrong, setDailySentenceWrong] = useState(0);
   const [dailyStudySeconds, setDailyStudySeconds] = useState(0);
+
+  // Yeni satın alınan kelime/cümlelerin tanıtım ekranı için state
+  const [introItems, setIntroItems] = useState([]);
+  const [introKind, setIntroKind] = useState(null); // "word" | "sentence" | null
 
   // Günlük bonus kontrolü (her gün ilk girişte +100 coin)
   const checkDailyBonus = async () => {
@@ -84,6 +90,8 @@ export function useHomeViewModel() {
       const [
         totalRes,
         myWordsRes,
+        totalSentencesRes,
+        mySentencesRes,
         dueRes,
         dueSentencesRes,
         dailyStatsRes,
@@ -98,14 +106,25 @@ export function useHomeViewModel() {
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id),
         supabase
+          .from("en_example_sentences")
+          .select("*", { count: "exact", head: true })
+          .eq("level", level)
+          .eq("is_approved", true),
+        supabase
+          .from("en_user_sentences")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
           .from("en_user_words")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
+          .eq("is_new", false)
           .lt("next_review_at", new Date().toISOString()),
         supabase
           .from("en_user_sentences")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
+          .eq("is_new", false)
           .lt("next_review_at", new Date().toISOString()),
         supabase
           .from("en_user_daily_stats")
@@ -117,6 +136,8 @@ export function useHomeViewModel() {
 
       setTotalWords(totalRes.count || 0);
       setMyWordsCount(myWordsRes.count || 0);
+      setTotalSentences(totalSentencesRes.count || 0);
+      setMySentencesCount(mySentencesRes.count || 0);
       setDueCount(dueRes.count || 0);
       setDueSentenceCount(dueSentencesRes.count || 0);
 
@@ -231,6 +252,7 @@ export function useHomeViewModel() {
         ease_factor: 2.5,
         mastery_level: 0,
         is_mastered: false,
+        is_new: true,
       }));
 
       const { error: wordError } = await supabase
@@ -250,7 +272,10 @@ export function useHomeViewModel() {
       window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
       await fetchData();
-      alert(`🎉 ${newWords.length} yeni kelime eklendi! Kalan coin: ${newCoins}`);
+
+      // Tanıtım ekranını aç — havuza asıl ekleme (is_new=false) finishIntro'da
+      setIntroKind("word");
+      setIntroItems(newWords.map((w) => ({ id: w.id, front: w.word, back: w.meaning })));
     } catch (error) {
       console.error("Hata:", error);
       alert("Bir hata oluştu! Lütfen tekrar deneyin.");
@@ -289,6 +314,10 @@ export function useHomeViewModel() {
         .eq("is_approved", true)
         .eq("level", userLevel);
 
+      // Tanıtım ekranında göstermek için, hangi daldan geçerse geçsin
+      // seçilen cümleleri burada topluyoruz.
+      let selectedSentences = [];
+
       // Öğrenilmiş cümleleri hariç tut
       if (learnedIds.length > 0) {
         // chunk'lara böl (Supabase URL limiti için)
@@ -323,6 +352,8 @@ export function useHomeViewModel() {
           return;
         }
 
+        selectedSentences = newSentences;
+
         // Cümleleri ekle
         const now = new Date();
         const today = new Date();
@@ -336,6 +367,7 @@ export function useHomeViewModel() {
           last_score: null,
           last_reviewed_at: null,
           ease_factor: 2.5,
+          is_new: true,
         }));
 
         const { error: sentenceError } = await supabase
@@ -361,6 +393,8 @@ export function useHomeViewModel() {
           return;
         }
 
+        selectedSentences = newSentences;
+
         const now = new Date();
         const today = new Date();
 
@@ -373,6 +407,7 @@ export function useHomeViewModel() {
           last_score: null,
           last_reviewed_at: null,
           ease_factor: 2.5,
+          is_new: true,
         }));
 
         const { error: sentenceError } = await supabase
@@ -393,7 +428,12 @@ export function useHomeViewModel() {
       window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
       await fetchData();
-      alert(`🎉 5 yeni cümle eklendi! Kalan coin: ${newCoins}`);
+
+      // Tanıtım ekranını aç — havuza asıl ekleme (is_new=false) finishIntro'da
+      setIntroKind("sentence");
+      setIntroItems(
+        selectedSentences.map((s) => ({ id: s.id, front: s.sentence_en, back: s.sentence_tr }))
+      );
 
     } catch (error) {
       console.error("Hata:", error);
@@ -401,6 +441,34 @@ export function useHomeViewModel() {
     }
 
     setBuying(false);
+  };
+
+  // Tanıtım ekranı bitince çağrılır: bu kelimeleri/cümleleri sınav
+  // havuzuna asıl sokan işlem burada — is_new'i false yapar.
+  const finishIntro = async () => {
+    if (!user || introItems.length === 0) return;
+
+    const ids = introItems.map((item) => item.id);
+    const table = introKind === "word" ? "en_user_words" : "en_user_sentences";
+    const idColumn = introKind === "word" ? "word_id" : "sentence_id";
+
+    try {
+      const { error } = await supabase
+        .from(table)
+        .update({ is_new: false, next_review_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .in(idColumn, ids);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Tanıtım tamamlanırken hata:", error);
+      alert("Bir hata oluştu, tekrar dener misin?");
+      return;
+    }
+
+    setIntroItems([]);
+    setIntroKind(null);
+    await fetchData();
   };
 
   // useEffect - user değiştiğinde çalış
@@ -419,11 +487,15 @@ export function useHomeViewModel() {
   // Hesaplamalar
   const progress = totalWords > 0 ? (myWordsCount / totalWords) * 100 : 0;
   const remainingWords = totalWords - myWordsCount;
+  const sentenceProgress = totalSentences > 0 ? (mySentencesCount / totalSentences) * 100 : 0;
+  const remainingSentences = totalSentences - mySentencesCount;
 
   return {
     loading,
     totalWords,
     myWordsCount,
+    totalSentences,
+    mySentencesCount,
     coins,
     dueCount,
     dueSentenceCount,
@@ -434,6 +506,8 @@ export function useHomeViewModel() {
     lessonsLoading,
     progress,
     remainingWords,
+    sentenceProgress,
+    remainingSentences,
     dailyWordCorrect,
     dailyWordWrong,
     dailySentenceCorrect,
@@ -443,6 +517,9 @@ export function useHomeViewModel() {
     dailySentenceGoal: 100,
     handleBuyWords,
     handleBuySentences,
+    introItems,
+    introKind,
+    finishIntro,
     onStartQuiz: null,
     onGoToLesson: null
   };

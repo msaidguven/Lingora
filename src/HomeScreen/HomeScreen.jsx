@@ -1,6 +1,7 @@
 // src/HomeScreen.jsx
 import { useHomeViewModel } from "./viewModel";
 import QuizOptionButton from "../components/Quiz/QuizOptionButton";
+import NewItemsIntro from "./NewItemsIntro";
 import {
   DOGEAR,
   DOGEAR_ON_COLOR,
@@ -32,6 +33,10 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     loading,
     totalWords,
     myWordsCount,
+    totalSentences = 0,
+    mySentencesCount = 0,
+    sentenceProgress = 0,
+    remainingSentences = 0,
     dueCount,
     dueSentenceCount,
     userLevel,
@@ -53,6 +58,9 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
     dailyWordGoal = 100,
     dailySentenceGoal = 100,
     dailyStudySeconds = 0,
+    introItems = [],
+    introKind = null,
+    finishIntro,
   } = viewModel;
 
   if (loading) {
@@ -70,6 +78,10 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   return (
     <div className="lg-notebook relative min-h-screen overflow-hidden bg-[var(--lg-bg)] text-[var(--lg-ink)]">
       <NotebookTheme />
+
+      {introItems.length > 0 && (
+        <NewItemsIntro items={introItems} kind={introKind} onFinish={finishIntro} />
+      )}
 
       {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-[var(--lg-red)]/10 blur-3xl" />
@@ -220,6 +232,41 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             <div
               className="h-full rounded-full bg-[var(--lg-red)] transition-all duration-700"
               style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Sentence Progress — same language, blue margin line */}
+        <div
+          className={`mb-4 rounded-md border border-[var(--lg-border)] border-l-4 border-l-[var(--lg-blue)] bg-[var(--lg-card)] py-4 pl-7 pr-4 ${DOGEAR}`}
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)",
+          }}
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">
+                CÜMLE HAZNEN
+              </div>
+              <div className="font-serif text-[28px] font-black leading-tight text-[var(--lg-ink)]">
+                {mySentencesCount}
+                <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]">
+                  {" "}
+                  / {totalSentences}
+                </span>
+              </div>
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-blue)] bg-[var(--lg-bg)]">
+              <span className="font-mono text-[13px] font-black text-[var(--lg-blue)]">
+                {Math.round(sentenceProgress)}%
+              </span>
+            </div>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+            <div
+              className="h-full rounded-full bg-[var(--lg-blue)] transition-all duration-700"
+              style={{ width: `${Math.min(sentenceProgress, 100)}%` }}
             />
           </div>
         </div>
