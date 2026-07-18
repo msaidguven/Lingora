@@ -285,8 +285,9 @@ export function useHomeViewModel() {
   };
 
   // 5 Kelime Al — SADECE ADAY KELİMELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // Asıl kayıt + coin düşme işlemi finishIntro'da, kullanıcı tanıtım
-  // kartlarını bitirip "Havuza Ekle" dediği anda olur.
+  // Filtreleme artık sunucu tarafında (get_new_words RPC) yapılıyor, bu
+  // yüzden client'tan öğrenilen id listesi göndermiyoruz — URL uzunluk
+  // limitine takılma sorunu tamamen ortadan kalktı.
   const handleBuyWords = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
@@ -301,36 +302,19 @@ export function useHomeViewModel() {
     setBuying(true);
 
     try {
-      const { data: userWords } = await supabase
-        .from("en_user_words")
-        .select("word_id")
-        .eq("user_id", user.id);
+      const { data: newWords, error } = await supabase.rpc("get_new_words", {
+        p_user_id: user.id,
+        p_level: userLevel,
+        p_limit: 5,
+      });
 
-      // Set ile benzersizleştiriyoruz — kaynak tabloda olası duplicate
-      // satırlara karşı ekstra güvenlik, filtrelemeyi bozmaz.
-      const learnedIds = [...new Set((userWords || []).map((w) => w.word_id))];
-
-      let query = supabase
-        .from("en_words")
-        .select("*")
-        .eq("level", userLevel)
-        .eq("type", "word");
-
-      // Tüm chunk'lar aynı query builder'a zincirlenir (bkz. excludeLearnedIds
-      // yorumu) — bu sayede öğrenilen kelime sayısı 500'ü geçse bile hepsi
-      // doğru şekilde hariç tutulur.
-      query = excludeLearnedIds(query, learnedIds);
-
-      const { data: candidateWords, error } = await query.limit(200);
       if (error) throw error;
 
-      if (!candidateWords || candidateWords.length === 0) {
+      if (!newWords || newWords.length === 0) {
         alert("Tüm kelimeleri açtınız! 🎉");
         setBuying(false);
         return;
       }
-
-      const newWords = shuffleArray(candidateWords).slice(0, 5);
 
       // Tanıtım ekranını aç. Henüz hiçbir şey kaydedilmedi, coin düşmedi —
       // kullanıcı sayfayı şimdi kapatsa bile hiçbir şey kaybetmez.
@@ -345,15 +329,7 @@ export function useHomeViewModel() {
   };
 
   // 5 Cümle Al — SADECE ADAY CÜMLELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  //
-  // DÜZELTME: Önceki implementasyon, öğrenilen cümle sayısı 500'ü (chunk
-  // boyutunu) geçtiğinde her chunk için AYRI bir sorgu atıp sonuçları
-  // birleştiriyordu. Bu, bir chunk'ın sorgusunda başka bir chunk'taki
-  // öğrenilmiş cümlelerin hariç tutulmaması yüzünden, ÖĞRENİLMİŞ
-  // CÜMLELERİN TEKRAR "YENİ" DİYE HAVUZA SIZMASINA yol açıyordu — yani
-  // kullanıcının zaten açtığı cümleler tekrar önüne gelebiliyordu.
-  // Şimdi tek bir query builder kullanılıyor ve tüm chunk'lar .not() ile
-  // zincirleniyor, PostgREST bunları AND ile birleştiriyor.
+  // Filtreleme artık sunucu tarafında (get_new_sentences RPC) yapılıyor.
   const handleBuySentences = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
@@ -368,29 +344,15 @@ export function useHomeViewModel() {
     setBuying(true);
 
     try {
-      const { data: userSentences } = await supabase
-        .from("en_user_sentences")
-        .select("sentence_id")
-        .eq("user_id", user.id);
+      const { data: newSentences, error } = await supabase.rpc("get_new_sentences", {
+        p_user_id: user.id,
+        p_level: userLevel,
+        p_limit: 5,
+      });
 
-      // Set ile benzersizleştiriyoruz — en_user_sentences'ta olası
-      // duplicate satırlara karşı ekstra güvenlik.
-      const learnedIds = [...new Set((userSentences || []).map((s) => s.sentence_id))];
-
-      let query = supabase
-        .from("en_example_sentences")
-        .select("*")
-        .eq("is_approved", true)
-        .eq("level", userLevel);
-
-      query = excludeLearnedIds(query, learnedIds);
-
-      const { data, error } = await query.limit(200);
       if (error) throw error;
 
-      const selectedSentences = shuffleArray(data || []).slice(0, 5);
-
-      if (selectedSentences.length === 0) {
+      if (!newSentences || newSentences.length === 0) {
         alert(`Bu seviyede (${userLevel}) açılacak cümle kalmadı! 🎉`);
         setBuying(false);
         return;
@@ -399,7 +361,7 @@ export function useHomeViewModel() {
       // Tanıtım ekranını aç. Henüz hiçbir şey kaydedilmedi, coin düşmedi.
       setIntroKind("sentence");
       setIntroItems(
-        selectedSentences.map((s) => ({ id: s.id, front: s.sentence_en, back: s.sentence_tr }))
+        newSentences.map((s) => ({ id: s.id, front: s.sentence_en, back: s.sentence_tr }))
       );
     } catch (error) {
       console.error("Hata:", error);
