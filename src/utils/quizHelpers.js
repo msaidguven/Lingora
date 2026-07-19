@@ -2,9 +2,25 @@ export function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
-export function buildWordOptions(correct, allCards, count) {
-  const others = allCards.filter(c => c.id !== correct.id).map(c => c.meaning);
-  const wrong = shuffle(others).slice(0, count - 1);
+// wordPool: yanlış şıkların çekileceği havuz (session kuyruğu DEĞİL,
+// aynı seviyedeki geniş bir kelime havuzu - bkz. useWordQuiz.js -> distractorPool)
+export function buildWordOptions(correct, wordPool, count) {
+  // Doğru cevabın kendisini havuzdan çıkar, anlamı olmayanları ele
+  const candidates = wordPool.filter(
+    w => w.id !== correct.id && w.meaning
+  );
+
+  // Aynı anlama sahip kelimeleri tekilleştir (aynı şık iki kez çıkmasın)
+  const seenMeanings = new Set([correct.meaning]);
+  const uniqueCandidates = [];
+  for (const w of shuffle(candidates)) {
+    if (!seenMeanings.has(w.meaning)) {
+      seenMeanings.add(w.meaning);
+      uniqueCandidates.push(w);
+    }
+  }
+
+  const wrong = uniqueCandidates.slice(0, count - 1).map(w => w.meaning);
   return shuffle([correct.meaning, ...wrong]);
 }
 

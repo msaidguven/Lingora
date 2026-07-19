@@ -6,12 +6,14 @@ import { calculateNextReview, calculateNextMasteryLevel } from "../utils/spacedR
 import { useAuth } from "../contexts/AuthContext";
 
 const SESSION_WORD_LIMIT = 10;
+const DISTRACTOR_POOL_LIMIT = 500;
 
 export function useWordQuiz(userLevel) {
   const { user } = useAuth();
   const userId = user?.id;
 
   const [allCards, setAllCards] = useState([]);
+  const [distractorPool, setDistractorPool] = useState([]);
   const [examplesMap, setExamplesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +26,34 @@ export function useWordQuiz(userLevel) {
   const [saving, setSaving] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
 
-  const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4 }[userLevel];
+  // Tüm seviyelerde 5 şıklı soru gösteriliyor.
+  const choiceCount = 5;
+
+  // Yanlış şıkların çekileceği geniş havuz — session kuyruğundan (10
+  // kelime) DEĞİL, aynı seviyedeki en_words tablosundan geliyor. Bu sayede
+  // yanlış şıklar her seferinde farklı ve daha geniş bir kelime setinden
+  // seçiliyor. Sadece userLevel değiştiğinde çekiliyor (her oturum
+  // yeniden başlatıldığında değil) — gereksiz sorgu yükünü önlemek için.
+  useEffect(() => {
+    async function fetchDistractorPool() {
+      if (!userLevel) return;
+      try {
+        const { data, error } = await supabase
+          .from("en_words")
+          .select("id, meaning")
+          .eq("level", userLevel)
+          .eq("type", "word")
+          .limit(DISTRACTOR_POOL_LIMIT);
+
+        if (error) throw error;
+        setDistractorPool(data || []);
+      } catch (err) {
+        console.error("Yanlış şık havuzu yüklenemedi:", err);
+        setDistractorPool([]);
+      }
+    }
+    fetchDistractorPool();
+  }, [userLevel]);
 
   // Verileri yükle
   useEffect(() => {
@@ -106,13 +135,16 @@ export function useWordQuiz(userLevel) {
     setAnswered(false);
   }, [userLevel, sessionKey, userId]);
 
-  // Şıkları oluştur
+  // Şıkları oluştur — havuz (distractorPool) hazırsa oradan, henüz
+  // yüklenmediyse (ör. ilk render sırasında bir yarış durumu) geçici
+  // olarak session kuyruğundan (allCards) besleniyor.
   useEffect(() => {
     if (!currentQuestion) return;
-    setOptions(buildWordOptions(currentQuestion, allCards, choiceCount));
+    const pool = distractorPool.length > 0 ? distractorPool : allCards;
+    setOptions(buildWordOptions(currentQuestion, pool, choiceCount));
     setSelected(null);
     setAnswered(false);
-  }, [currentQuestion, allCards, choiceCount]);
+  }, [currentQuestion, distractorPool, allCards, choiceCount]);
 
   // 🔥 ARKA PLANDA KELİME KAYDETME
   // Zamanlama (review_count/ease_factor/next_review_at) ortak SM-2
