@@ -4,18 +4,6 @@ import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
 import { getTurkeyTodayString } from "../utils/turkeyDate";
 
-// Basit Fisher-Yates karıştırma — satın alınan kelime/cümlelerin her
-// seferinde farklı 5'ini göstermek için. Havuzdan geniş bir aday listesi
-// çekip burada karıştırıyoruz, DB tarafında ORDER BY random() gerekmiyor.
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 // Reklam merdiveni — hesap ömrü boyunca izlenen TOPLAM reklam sayısına göre
 // ödül belirler (günlük sıfırlanmıyor, limit yok; kullanıcı istediği kadar
 // izleyebilir). adNumber = bu reklam kaçıncı reklam (1'den başlar).
@@ -28,23 +16,6 @@ function getAdReward(adNumber) {
     return AD_REWARD_LADDER[adNumber - 1];
   }
   return AD_REWARD_STANDARD;
-}
-
-// Kullanıcının zaten sahip olduğu id'leri, verilen tabloda/kolonda hariç
-// tutan bir sorgu inşa eder. TÜM chunk'lar AYNI query builder üzerine
-// .not() ile ZİNCİRLENİR (ayrı ayrı sorgu atıp sonuçları birleştirmek
-// yerine) — böylece PostgREST tüm koşulları AND ile birleştirir ve
-// "chunk1'de yok VE chunk2'de yok VE ..." doğru şekilde uygulanır.
-// (Önceki implementasyonda her chunk için ayrı bir sorgu atılıyordu; bu
-// da bir chunk'ın sorgusunda başka bir chunk'taki öğrenilmiş id'lerin hariç
-// tutulmaması yüzünden, öğrenilmiş öğelerin sonuca sızmasına yol açıyordu.)
-function excludeLearnedIds(query, learnedIds, chunkSize = 500) {
-  let q = query;
-  for (let i = 0; i < learnedIds.length; i += chunkSize) {
-    const chunk = learnedIds.slice(i, i + chunkSize);
-    q = q.not("id", "in", `(${chunk.join(",")})`);
-  }
-  return q;
 }
 
 export function useHomeViewModel() {
@@ -285,9 +256,10 @@ export function useHomeViewModel() {
   };
 
   // 5 Kelime Al — SADECE ADAY KELİMELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // Filtreleme artık sunucu tarafında (get_new_words RPC) yapılıyor, bu
-  // yüzden client'tan öğrenilen id listesi göndermiyoruz — URL uzunluk
-  // limitine takılma sorunu tamamen ortadan kalktı.
+  // Filtreleme ve rastgele seçim artık sunucu tarafında (get_new_words RPC,
+  // NOT EXISTS + ORDER BY random()) yapılıyor. Client'tan öğrenilen id
+  // listesi göndermiyoruz — büyük id listelerinde URL uzunluk limitine
+  // takılma (400 Bad Request) sorunu tamamen ortadan kalktı.
   const handleBuyWords = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
@@ -329,7 +301,8 @@ export function useHomeViewModel() {
   };
 
   // 5 Cümle Al — SADECE ADAY CÜMLELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // Filtreleme artık sunucu tarafında (get_new_sentences RPC) yapılıyor.
+  // Filtreleme ve rastgele seçim artık sunucu tarafında (get_new_sentences
+  // RPC) yapılıyor.
   const handleBuySentences = async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
