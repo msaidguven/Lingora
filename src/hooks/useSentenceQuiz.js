@@ -6,12 +6,17 @@ import { calculateNextReview } from "../utils/spacedRepetition.js";
 import { useAuth } from "../contexts/AuthContext";
 
 const SESSION_SENTENCE_LIMIT = 10;
+// Yanlış şıkların çekileceği havuzun üst sınırı. Bu, review kuyruğundan (10 cümle)
+// bağımsız - şıklar tekrar etmesin diye seviyedeki çok daha geniş bir cümle
+// setinden rastgele seçiliyor.
+const DISTRACTOR_POOL_LIMIT = 300;
 
 export function useSentenceQuiz(userLevel) {
   const { user } = useAuth();
   const userId = user?.id;
 
   const [allSentences, setAllSentences] = useState([]);
+  const [distractorPool, setDistractorPool] = useState([]);
   const [allCards, setAllCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +29,7 @@ export function useSentenceQuiz(userLevel) {
   const [saving, setSaving] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
 
-  const choiceCount = { A1: 3, A2: 3, B1: 4, B2: 4, C1: 4 }[userLevel] || 3;
+  const choiceCount = { A1: 4, A2: 4, B1: 5, B2: 5, C1: 5 }[userLevel] || 4;
 
   // Verileri yükle
   useEffect(() => {
@@ -49,6 +54,7 @@ export function useSentenceQuiz(userLevel) {
 
         if (!userSentences || userSentences.length === 0) {
           setAllSentences([]);
+          setDistractorPool([]);
           setQueue([]);
           setCurrentQuestion(null);
           setQueueIndex(0);
@@ -78,6 +84,20 @@ export function useSentenceQuiz(userLevel) {
         setCurrentQuestion(sessionQueue[0] || null);
         setQueueIndex(0);
 
+        // 🎯 Yanlış şıklar için ayrı ve geniş bir havuz: aynı seviyedeki TÜM
+        // onaylı cümleler (session'daki 10 cümleyle sınırlı değil), böylece
+        // şıklar oturumdan oturuma / sorudan soruya tekrar etmiyor.
+        const { data: distractors, error: dError } = await supabase
+          .from("en_example_sentences")
+          .select("id, sentence_tr")
+          .eq("is_approved", true)
+          .eq("level", userLevel)
+          .not("sentence_tr", "is", null)
+          .limit(DISTRACTOR_POOL_LIMIT);
+
+        if (dError) throw dError;
+        setDistractorPool(distractors || []);
+
         const { data: words } = await supabase
           .from("en_words")
           .select("*")
@@ -94,13 +114,13 @@ export function useSentenceQuiz(userLevel) {
     setAnswered(false);
   }, [userLevel, sessionKey, userId]);
 
-  // Şıkları oluştur
+  // Şıkları oluştur - havuz olarak session kuyruğu değil, geniş distractorPool kullanılır
   useEffect(() => {
     if (!currentQuestion) return;
-    setOptions(buildSentenceOptions(currentQuestion, allSentences, currentQuestion.id, choiceCount));
+    setOptions(buildSentenceOptions(currentQuestion, distractorPool, choiceCount));
     setSelected(null);
     setAnswered(false);
-  }, [currentQuestion, allSentences, choiceCount]);
+  }, [currentQuestion, distractorPool, choiceCount]);
 
   // 🔥 ARKA PLANDA CÜMLE KAYDETME
   // Zamanlama (review_count/ease_factor/next_review_at) ortak SM-2
