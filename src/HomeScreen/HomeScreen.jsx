@@ -1,7 +1,6 @@
 // src/HomeScreen.jsx
 import { useState } from "react";
 import { useHomeViewModel } from "./viewModel";
-import QuizOptionButton from "../components/Quiz/QuizOptionButton";
 import NewItemsIntro from "./NewItemsIntro";
 import {
   DOGEAR,
@@ -17,14 +16,13 @@ import {
 // Design language: "graded notebook" — spiral binding, ruled paper, a red-pen
 // stamp for level, dog-eared flashcard corners, a punch-hole coin ticket.
 //
-// Theming: colors are custom CSS variables defined with the `light-dark()`
-// function (see <NotebookTheme /> below), instead of daisyUI's tokens. This
-// keeps the exact look you liked, but it still flips automatically with
-// daisyUI's light/dark theme — daisyUI sets `color-scheme: light` or `dark`
-// on the themed root element, and `light-dark()` reads that automatically,
-// so no theme name has to be hardcoded here. A few brand accents (the navy
-// spine, the red pen) stay fixed in both modes on purpose — like a logo
-// color that doesn't change with the theme.
+// HIERARCHY CHANGE (this version):
+// The "start practicing" action is the core loop of the app, so it is now
+// the HERO block near the top — big, high-contrast, unmissable.
+// The coin store (buy words/sentences, watch ad) is a monetization/side
+// path, so it's been collapsed into one compact, low-saturation strip
+// further down — still discoverable, but it no longer visually competes
+// with the primary action.
 // ---------------------------------------------------------------------------
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
@@ -67,20 +65,13 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
   } = viewModel;
 
   // Demo reklam izleme durumu — gerçek reklam SDK'sı entegre olana kadar
-  // burada 3 saniyelik sahte bir "izleniyor" bekletmesi yapıyoruz. SDK
-  // entegre edildiğinde, bu setTimeout'u SDK'nın "reklam tamamlandı"
-  // callback'iyle değiştirmen yeterli — handleWatchAd() çağrısı ve ödül
-  // toast'ı aynı kalabilir.
+  // burada 3 saniyelik sahte bir "izleniyor" bekletmesi yapıyoruz.
   const [watchingAd, setWatchingAd] = useState(false);
 
   const handleDemoWatchAd = async () => {
     if (watchingAd) return;
     setWatchingAd(true);
-
-    // DEMO: gerçek reklam yerine sahte bekleme. Gerçek SDK'da bu blok,
-    // reklamın "tamamlandı" event'ine taşınmalı.
     await new Promise((resolve) => setTimeout(resolve, 3000));
-
     const result = await handleWatchAd();
     setWatchingAd(false);
 
@@ -121,18 +112,16 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
         <NewItemsIntro items={introItems} kind={introKind} onFinish={finishIntro} onCancel={cancelIntro} />
       )}
 
-      {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-[var(--lg-red)]/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-[var(--lg-gold)]/10 blur-3xl" />
 
-      {/* Spiral binding strip — fixed brand color in both themes */}
       <SpiralStrip />
 
       <div
         className={`relative z-10 mx-auto max-w-md px-5 pb-8 pt-5 transition-all duration-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
           }`}
       >
-        {/* Header: notebook cover label + level stamp */}
+        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div
             className="inline-flex items-center gap-2 bg-[var(--lg-card)] px-3 py-1.5 font-mono text-[11px] font-bold tracking-[3px] text-[var(--lg-ink)] shadow-sm"
@@ -152,7 +141,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           </div>
         </div>
 
-        {/* Günlük Hedef — today's word/sentence attempt goal */}
+        {/* Günlük Hedef */}
         <div className={`mb-5 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
           <div className="flex items-center justify-between border-b border-dashed border-[var(--lg-border)] px-3 py-2">
             <div className="flex items-center gap-2">
@@ -168,51 +157,54 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
             )}
           </div>
           <div className="flex divide-x divide-dashed divide-[var(--lg-border)]">
-            <DailyGoalRow
+            <DailyGoalRow icon="📖" label="Kelime" correct={dailyWordCorrect} wrong={dailyWordWrong} goal={dailyWordGoal} />
+            <DailyGoalRow icon="📝" label="Cümle" correct={dailySentenceCorrect} wrong={dailySentenceWrong} goal={dailySentenceGoal} />
+          </div>
+        </div>
+
+        {/* ================= HERO: ÇALIŞMAYA BAŞLA ================= */}
+        {/* Bu artık sayfanın en görsel-ağırlıklı elemanı — asıl aksiyon burada. */}
+        <div className="mb-5">
+          <SectionTitle emoji="✏️" title="Çalışmaya Başla" />
+          <div className="grid grid-cols-2 gap-3">
+            <HeroPracticeButton
               icon="📖"
               label="Kelime"
-              correct={dailyWordCorrect}
-              wrong={dailyWordWrong}
-              goal={dailyWordGoal}
+              count={dueCount}
+              accent="var(--lg-red)"
+              onClick={() => onStartQuiz("word")}
             />
-            <DailyGoalRow
+            <HeroPracticeButton
               icon="📝"
               label="Cümle"
-              correct={dailySentenceCorrect}
-              wrong={dailySentenceWrong}
-              goal={dailySentenceGoal}
+              count={dueSentenceCount}
+              accent="var(--lg-blue)"
+              onClick={() => onStartQuiz("sentence")}
             />
           </div>
         </div>
 
-        {/* Dersler — table of contents */}
+        {/* Dersler */}
         <div className="mb-5">
           <SectionTitle emoji="📚" title="Dersler" />
-
           {lessonsLoading ? (
             <div className="space-y-2">
               <div className="h-16 w-full animate-pulse rounded-md bg-[var(--lg-card)]" />
               <div className="h-16 w-full animate-pulse rounded-md bg-[var(--lg-card)]" />
             </div>
           ) : recentLessons.length > 0 ? (
-            <div
-              className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 ${DOGEAR}`}
-            >
+            <div className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 ${DOGEAR}`}>
               {recentLessons.map((lesson, i) => {
                 const isCompleted = lesson.progress?.completed;
                 return (
                   <button
                     key={lesson.id}
                     onClick={() => onGoToLesson?.(lesson.id)}
-                    className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[var(--lg-border)] ${i !== recentLessons.length - 1
-                      ? "border-b border-dashed border-[var(--lg-border)]"
-                      : ""
+                    className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[var(--lg-border)] ${i !== recentLessons.length - 1 ? "border-b border-dashed border-[var(--lg-border)]" : ""
                       }`}
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted
-                        ? "border-[var(--lg-green)] text-[var(--lg-green)]"
-                        : "border-[var(--lg-red)] text-[var(--lg-red)]"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted ? "border-[var(--lg-green)] text-[var(--lg-green)]" : "border-[var(--lg-red)] text-[var(--lg-red)]"
                         }`}
                     >
                       {isCompleted ? "✓" : lesson.lesson_number}
@@ -221,10 +213,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
                       {lesson.title}
                     </span>
                     <span className="mx-1 h-px flex-1 border-t border-dotted border-[var(--lg-border-strong)]" />
-                    <span
-                      className={`shrink-0 font-mono text-[10px] font-bold tracking-wide ${isCompleted ? "text-[var(--lg-green)]" : "text-[var(--lg-ink-muted)]"
-                        }`}
-                    >
+                    <span className={`shrink-0 font-mono text-[10px] font-bold tracking-wide ${isCompleted ? "text-[var(--lg-green)]" : "text-[var(--lg-ink-muted)]"}`}>
                       {isCompleted ? "BİTTİ" : "DEVAM →"}
                     </span>
                   </button>
@@ -239,181 +228,113 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           )}
         </div>
 
-        {/* Progress — ruled page with red margin line */}
+        {/* Progress */}
         <div
           className={`mb-4 rounded-md border border-[var(--lg-border)] border-l-4 border-l-[var(--lg-red)] bg-[var(--lg-card)] py-4 pl-7 pr-4 ${DOGEAR}`}
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)",
-          }}
+          style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)" }}
         >
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">
-                KELİME HAZNEN
-              </div>
+              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">KELİME HAZNEN</div>
               <div className="font-serif text-[28px] font-black leading-tight text-[var(--lg-ink)]">
                 {myWordsCount}
-                <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]">
-                  {" "}
-                  / {totalWords}
-                </span>
+                <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]"> / {totalWords}</span>
               </div>
             </div>
             <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-red)] bg-[var(--lg-bg)]">
-              <span className="font-mono text-[13px] font-black text-[var(--lg-red)]">
-                {Math.round(progress)}%
-              </span>
+              <span className="font-mono text-[13px] font-black text-[var(--lg-red)]">{Math.round(progress)}%</span>
             </div>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
-            <div
-              className="h-full rounded-full bg-[var(--lg-red)] transition-all duration-700"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
+            <div className="h-full rounded-full bg-[var(--lg-red)] transition-all duration-700" style={{ width: `${Math.min(progress, 100)}%` }} />
           </div>
         </div>
 
-        {/* Sentence Progress — same language, blue margin line */}
+        {/* Sentence Progress */}
         <div
           className={`mb-4 rounded-md border border-[var(--lg-border)] border-l-4 border-l-[var(--lg-blue)] bg-[var(--lg-card)] py-4 pl-7 pr-4 ${DOGEAR}`}
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)",
-          }}
+          style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)" }}
         >
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">
-                CÜMLE HAZNEN
-              </div>
+              <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">CÜMLE HAZNEN</div>
               <div className="font-serif text-[28px] font-black leading-tight text-[var(--lg-ink)]">
                 {mySentencesCount}
-                <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]">
-                  {" "}
-                  / {totalSentences}
-                </span>
+                <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]"> / {totalSentences}</span>
               </div>
             </div>
             <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-blue)] bg-[var(--lg-bg)]">
-              <span className="font-mono text-[13px] font-black text-[var(--lg-blue)]">
-                {Math.round(sentenceProgress)}%
-              </span>
+              <span className="font-mono text-[13px] font-black text-[var(--lg-blue)]">{Math.round(sentenceProgress)}%</span>
             </div>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
-            <div
-              className="h-full rounded-full bg-[var(--lg-blue)] transition-all duration-700"
-              style={{ width: `${Math.min(sentenceProgress, 100)}%` }}
-            />
+            <div className="h-full rounded-full bg-[var(--lg-blue)] transition-all duration-700" style={{ width: `${Math.min(sentenceProgress, 100)}%` }} />
           </div>
         </div>
 
-        {/* Coins — punch-hole ticket */}
-        <div className="relative mb-4 flex items-center justify-between rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)] px-4 py-3 before:absolute before:-left-[7px] before:top-1/2 before:h-3.5 before:w-3.5 before:-translate-y-1/2 before:rounded-full before:bg-[var(--lg-bg)] before:content-[''] after:absolute after:-right-[7px] after:top-1/2 after:h-3.5 after:w-3.5 after:-translate-y-1/2 after:rounded-full after:bg-[var(--lg-bg)] after:content-['']">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🪙</span>
-            <span className="font-mono text-sm font-bold text-[var(--lg-ink)]">
-              {coins} COIN
-            </span>
+        {/* ================= COIN MAĞAZASI — kompakt, ikincil ================= */}
+        {/* Tek şerit: coin sayacı solda, satın alma "chip" butonları sağda,
+            reklam izleme küçük bir metin-buton olarak altında. Doygun solid
+            renkler yerine outline/ghost stil kullanıldı ki hero'nun önüne
+            geçmesin. */}
+        <div className={`mb-4 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)]/60 px-4 py-3 ${DOGEAR}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">🪙</span>
+              <span className="font-mono text-[13px] font-bold text-[var(--lg-ink)]">{coins} coin</span>
+            </div>
+            <span className="text-[10px] text-[var(--lg-ink-muted)]">50 coin = 5 kelime / cümle</span>
           </div>
-          <span className="text-right text-[10.5px] leading-tight text-[var(--lg-ink-muted)]">
-            Her 50 Coin
-            <br />= 5 kelime / cümle
-          </span>
-        </div>
 
-        {/* Coin redeem buttons */}
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <button
-            onClick={handleBuyWords}
-            disabled={buying || coins < 50}
-            className={`rounded-md bg-[var(--lg-red)] py-3 text-center font-serif font-bold text-white shadow-lg shadow-[var(--lg-red)]/20 transition-transform ${DOGEAR_ON_COLOR} ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "cursor-not-allowed opacity-40"
-              }`}
-          >
-            <span className="block text-lg">📖</span>
-            <span className="block text-sm">5 Kelime Al</span>
-            <span className="block font-mono text-[10px] font-normal opacity-75">50 COIN</span>
-          </button>
-          <button
-            onClick={handleBuySentences}
-            disabled={buying || coins < 50}
-            className={`rounded-md bg-[var(--lg-blue)] py-3 text-center font-serif font-bold text-white shadow-lg shadow-[var(--lg-blue)]/20 transition-transform ${DOGEAR_ON_COLOR} ${coins >= 50 ? "hover:scale-[1.02] active:scale-[0.98]" : "cursor-not-allowed opacity-40"
-              }`}
-          >
-            <span className="block text-lg">📝</span>
-            <span className="block text-sm">5 Cümle Al</span>
-            <span className="block font-mono text-[10px] font-normal opacity-75">50 COIN</span>
-          </button>
-        </div>
-
-        {/* Reklam izle (DEMO) — gerçek reklam SDK'sı entegre olana kadar
-            sahte bir bekleme ile ödül veriyor. handleDemoWatchAd fonksiyonundaki
-            setTimeout'u SDK callback'i ile değiştirince gerçek reklama geçilir. */}
-        <button
-          onClick={handleDemoWatchAd}
-          disabled={watchingAd}
-          className={`mb-4 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-[var(--lg-gold)] bg-[var(--lg-gold)]/10 py-3 font-serif font-bold text-[var(--lg-gold)] transition-transform ${!watchingAd ? "hover:scale-[1.01] active:scale-[0.99]" : "opacity-60"
-            }`}
-        >
-          {watchingAd ? (
-            <>
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-dashed border-[var(--lg-gold)]" />
-              <span className="text-sm">Reklam izleniyor (demo)…</span>
-            </>
-          ) : (
-            <>
-              <span className="text-lg">🎬</span>
-              <span className="text-sm">Reklam İzle, Coin Kazan (DEMO)</span>
-            </>
-          )}
-        </button>
-
-        {coins < 50 && (
-          <div className="mb-4 rounded-md border border-dashed border-[var(--lg-red)]/50 bg-[var(--lg-red)]/10 px-4 py-2.5 text-center text-sm text-[var(--lg-red)]">
-            ⚡ Yetersiz coin. Ders çalışarak coin kazanabilirsin!
-          </div>
-        )}
-
-        {/* Quiz launch cards */}
-        <div className="mb-4">
-          <SectionTitle emoji="✏️" title="Çalışmaya Başla" />
-          <div className="flex flex-col gap-2.5">
-            <QuizOptionButton
+          <div className="flex gap-2">
+            <CoinChipButton
               icon="📖"
-              label="Kelime Çalış"
-              subLabel="kelime hazır"
-              count={dueCount}
-              gradient="from-indigo-500 to-purple-500"
-              onClick={() => onStartQuiz("word")}
+              label="+5 Kelime"
+              disabled={buying || coins < 50}
+              accent="var(--lg-red)"
+              onClick={handleBuyWords}
             />
-            <QuizOptionButton
+            <CoinChipButton
               icon="📝"
-              label="Cümle Çalış"
-              subLabel="cümle hazır"
-              count={dueSentenceCount}
-              gradient="from-blue-500 to-indigo-500"
-              onClick={() => onStartQuiz("sentence")}
+              label="+5 Cümle"
+              disabled={buying || coins < 50}
+              accent="var(--lg-blue)"
+              onClick={handleBuySentences}
             />
           </div>
+
+          <button
+            onClick={handleDemoWatchAd}
+            disabled={watchingAd}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded py-1.5 font-mono text-[11px] font-semibold text-[var(--lg-gold)] transition-opacity hover:opacity-80 disabled:opacity-50"
+          >
+            {watchingAd ? (
+              <>
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-dashed border-[var(--lg-gold)]" />
+                Reklam izleniyor (demo)…
+              </>
+            ) : (
+              <>🎬 Reklam izle, coin kazan</>
+            )}
+          </button>
+
+          {coins < 50 && (
+            <div className="mt-2 rounded border border-dashed border-[var(--lg-red)]/40 bg-[var(--lg-red)]/5 px-2 py-1.5 text-center text-[10.5px] text-[var(--lg-red)]">
+              ⚡ Yetersiz coin — ders çalışarak kazanabilirsin
+            </div>
+          )}
         </div>
 
-        {/* Stat tiles — stamped figures */}
-        <div
-          className={`mb-4 grid grid-cols-2 divide-x divide-dashed divide-[var(--lg-border)] rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] py-3 ${DOGEAR}`}
-        >
+        {/* Stat tiles */}
+        <div className={`mb-4 grid grid-cols-2 divide-x divide-dashed divide-[var(--lg-border)] rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] py-3 ${DOGEAR}`}>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-lg opacity-80">📊</span>
-            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">
-              {Math.round(progress)}%
-            </span>
+            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">{Math.round(progress)}%</span>
             <span className="text-[11px] text-[var(--lg-ink-muted)]">Tamamlanma</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-lg opacity-80">⏳</span>
-            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">
-              {remainingWords}
-            </span>
+            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">{remainingWords}</span>
             <span className="text-[11px] text-[var(--lg-ink-muted)]">Kalan Kelime</span>
           </div>
         </div>
@@ -424,22 +345,59 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           <span className="h-6 w-px bg-[var(--lg-border)]" />
           <LegendDot colorVar="var(--lg-blue)" label="Cümle" value={dueSentenceCount} />
           <span className="h-6 w-px bg-[var(--lg-border)]" />
-          <LegendDot
-            colorVar="var(--lg-gold)"
-            label="Toplam"
-            value={dueCount + dueSentenceCount}
-          />
+          <LegendDot colorVar="var(--lg-gold)" label="Toplam" value={dueCount + dueSentenceCount} />
         </div>
       </div>
     </div>
   );
 }
 
-// ============ ALT BİLEŞENLER (bu ekrana özel) ============
+// ============ ALT BİLEŞENLER ============
 
-// Today's attempt count toward the daily goal. Total is the headline number
-// (the thing that matters most); correct/wrong is the smaller supporting
-// detail, shown both as a two-color bar segment and as a ✓/✗ readout.
+// HERO CTA — asıl aksiyon. Büyük dokunma alanı, yüksek kontrast, sayı
+// (kaç kelime/cümle hazır) net görünür, hover/active ile "canlı" hissediyor.
+function HeroPracticeButton({ icon, label, count, accent, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ borderColor: accent }}
+      className="group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 bg-[var(--lg-card)] px-3 py-5 text-center shadow-md transition-transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+    >
+      <span
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{ background: accent }}
+      />
+      <span className="text-3xl">{icon}</span>
+      <span className="font-serif text-[15px] font-bold text-[var(--lg-ink)]">{label} Çalış</span>
+      <span
+        style={{ color: accent }}
+        className="mt-0.5 font-mono text-[22px] font-black leading-none"
+      >
+        {count}
+      </span>
+      <span className="font-mono text-[9px] font-semibold tracking-wide text-[var(--lg-ink-muted)]">HAZIR</span>
+    </button>
+  );
+}
+
+// Küçük, düşük doygunluklu "chip" — mağaza aksiyonları için. Hero'nun önüne
+// geçmemesi için outline stil ve küçük yazı kullanılıyor.
+function CoinChipButton({ icon, label, disabled, accent, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{ borderColor: accent, color: accent }}
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-full border py-1.5 font-mono text-[11px] font-bold transition-opacity ${disabled ? "cursor-not-allowed opacity-35" : "hover:opacity-75"
+        }`}
+    >
+      <span>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+// Today's attempt count toward the daily goal.
 function DailyGoalRow({ icon, label, correct, wrong, goal }) {
   const total = correct + wrong;
   const filledPct = Math.min((total / goal) * 100, 100);
@@ -463,31 +421,18 @@ function DailyGoalRow({ icon, label, correct, wrong, goal }) {
       </div>
 
       <div className="mb-1.5 flex items-baseline gap-1">
-        <span
-          className={`font-mono text-[26px] font-black leading-none ${goalMet ? "text-[var(--lg-green)]" : "text-[var(--lg-ink)]"
-            }`}
-        >
+        <span className={`font-mono text-[26px] font-black leading-none ${goalMet ? "text-[var(--lg-green)]" : "text-[var(--lg-ink)]"}`}>
           {total}
         </span>
-        <span className="font-mono text-xs font-semibold text-[var(--lg-ink-muted)]">
-          / {goal}
-        </span>
+        <span className="font-mono text-xs font-semibold text-[var(--lg-ink-muted)]">/ {goal}</span>
         {overflow > 0 && (
-          <span className="ml-0.5 font-mono text-[10px] font-bold text-[var(--lg-gold)]">
-            +{overflow} 🔥
-          </span>
+          <span className="ml-0.5 font-mono text-[10px] font-bold text-[var(--lg-gold)]">+{overflow} 🔥</span>
         )}
       </div>
 
       <div className="mb-1.5 flex h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
-        <div
-          className="h-full bg-[var(--lg-green)] transition-all duration-500"
-          style={{ width: `${correctPct}%` }}
-        />
-        <div
-          className="h-full bg-[var(--lg-red)] transition-all duration-500"
-          style={{ width: `${wrongPct}%` }}
-        />
+        <div className="h-full bg-[var(--lg-green)] transition-all duration-500" style={{ width: `${correctPct}%` }} />
+        <div className="h-full bg-[var(--lg-red)] transition-all duration-500" style={{ width: `${wrongPct}%` }} />
       </div>
 
       <div className="flex items-center gap-3 font-mono text-[10.5px]">
