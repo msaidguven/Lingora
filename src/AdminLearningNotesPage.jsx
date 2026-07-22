@@ -1,9 +1,7 @@
 // src/AdminLearningNotesPage.jsx
 import { useEffect, useState, useCallback } from "react";
-// AYARLAMAN GEREKEN TEK YER: projendeki supabase client'ının gerçek yolu.
-// Örn: import { supabase } from "../lib/supabaseClient";
-import { supabase } from "../lib/supabaseClient";
-import { SectionTitle, DOGEAR, NotebookTheme, SpiralStrip } from "../theme/notebook";
+import { supabase } from "./config.js";
+import { SectionTitle, DOGEAR, NotebookTheme, SpiralStrip } from "./theme/notebook";
 
 // ---------------------------------------------------------------------------
 // AMAÇ
