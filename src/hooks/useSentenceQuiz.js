@@ -10,6 +10,8 @@ const SESSION_SENTENCE_LIMIT = 10;
 // bağımsız - şıklar tekrar etmesin diye seviyedeki çok daha geniş bir cümle
 // setinden rastgele seçiliyor.
 const DISTRACTOR_POOL_LIMIT = 300;
+// Tüm seviyelerde sabit 5 şık.
+const CHOICE_COUNT = 5;
 
 export function useSentenceQuiz(userLevel) {
   const { user } = useAuth();
@@ -29,8 +31,6 @@ export function useSentenceQuiz(userLevel) {
   const [saving, setSaving] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
 
-  const choiceCount = { A1: 4, A2: 4, B1: 5, B2: 5, C1: 5 }[userLevel] || 4;
-
   // Verileri yükle
   useEffect(() => {
     async function fetchData() {
@@ -42,6 +42,8 @@ export function useSentenceQuiz(userLevel) {
       setLoading(true);
       setError(null);
       try {
+        // en geciken next_review_at önce — tamamen spaced-repetition sırası,
+        // "yeni cümle önce" gibi ekstra bir kural yok.
         const { data: userSentences, error: usError } = await supabase
           .from("en_user_sentences")
           .select("sentence_id, next_review_at")
@@ -62,6 +64,8 @@ export function useSentenceQuiz(userLevel) {
           return;
         }
 
+        // Seçim next_review_at'e göre yapıldı (DB tarafında); shuffle burada
+        // sadece seçilen bu cümlelerin sunum sırasını karıştırıyor.
         const sentenceIds = shuffle(userSentences.map(s => s.sentence_id));
 
         const { data: sentences, error: sError } = await supabase
@@ -117,10 +121,10 @@ export function useSentenceQuiz(userLevel) {
   // Şıkları oluştur - havuz olarak session kuyruğu değil, geniş distractorPool kullanılır
   useEffect(() => {
     if (!currentQuestion) return;
-    setOptions(buildSentenceOptions(currentQuestion, distractorPool, choiceCount));
+    setOptions(buildSentenceOptions(currentQuestion, distractorPool, CHOICE_COUNT));
     setSelected(null);
     setAnswered(false);
-  }, [currentQuestion, distractorPool, choiceCount]);
+  }, [currentQuestion, distractorPool]);
 
   // 🔥 ARKA PLANDA CÜMLE KAYDETME
   // Zamanlama (review_count/ease_factor/next_review_at) ortak SM-2

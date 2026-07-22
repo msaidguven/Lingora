@@ -7,7 +7,6 @@ import {
   DOGEAR_ON_COLOR,
   formatStudyDuration,
   SectionTitle,
-  LegendDot,
   SpiralStrip,
   NotebookTheme,
 } from "../theme/notebook";
@@ -325,28 +324,9 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
           )}
         </div>
 
-        {/* Stat tiles */}
-        <div className={`mb-4 grid grid-cols-2 divide-x divide-dashed divide-[var(--lg-border)] rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] py-3 ${DOGEAR}`}>
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-lg opacity-80">📊</span>
-            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">{Math.round(progress)}%</span>
-            <span className="text-[11px] text-[var(--lg-ink-muted)]">Tamamlanma</span>
-          </div>
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-lg opacity-80">⏳</span>
-            <span className="font-mono text-xl font-black text-[var(--lg-ink)]">{remainingWords}</span>
-            <span className="text-[11px] text-[var(--lg-ink-muted)]">Kalan Kelime</span>
-          </div>
-        </div>
-
-        {/* Summary bar */}
-        <div className="flex items-center justify-around rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] px-3 py-3">
-          <LegendDot colorVar="var(--lg-green)" label="Kelime" value={dueCount} />
-          <span className="h-6 w-px bg-[var(--lg-border)]" />
-          <LegendDot colorVar="var(--lg-blue)" label="Cümle" value={dueSentenceCount} />
-          <span className="h-6 w-px bg-[var(--lg-border)]" />
-          <LegendDot colorVar="var(--lg-gold)" label="Toplam" value={dueCount + dueSentenceCount} />
-        </div>
+        {/* Stat tiles ve Summary bar kaldırıldı — hero bölümü zaten bu
+            sayıları (kelime/cümle "hazır" adetleri) gösteriyor, tekrar
+            olmasınlar diye buradan çıkarıldı. */}
       </div>
     </div>
   );
