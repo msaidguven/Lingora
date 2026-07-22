@@ -49,7 +49,6 @@ export default function Header(props) {
             toggleTheme={vm.toggleTheme}
             isActive={vm.isActive}
             goToStats={vm.goToStats}
-            goToAdminNotes={vm.goToAdminNotes}
             handleLogout={vm.handleLogout}
             streakDays={vm.streakDays}
           />
