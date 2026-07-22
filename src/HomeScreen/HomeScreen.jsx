@@ -11,6 +11,7 @@ import {
   NotebookTheme,
 } from "../theme/notebook";
 
+
 // ---------------------------------------------------------------------------
 // Design language: "graded notebook" — spiral binding, ruled paper, a red-pen
 // stamp for level, dog-eared flashcard corners, a punch-hole coin ticket.
@@ -24,7 +25,7 @@ import {
 // with the primary action.
 // ---------------------------------------------------------------------------
 
-export default function HomeScreen({ onStartQuiz, onGoToLesson }) {
+export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes }) {
   const viewModel = useHomeViewModel();
 
   const {
@@ -419,6 +420,18 @@ function DailyGoalRow({ icon, label, correct, wrong, goal }) {
         <span className="text-[var(--lg-green)]">✓ {correct}</span>
         <span className="text-[var(--lg-red)]">✗ {wrong}</span>
       </div>
+
+      {/* Geçici: cümlelere learning_notes ekleme aracı — iş bitince silinecek */}
+      {onGoToAdminNotes && (
+        <button
+          onClick={onGoToAdminNotes}
+          className={`mb-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)]/60 py-2.5 font-mono text-[11px] font-semibold text-[var(--lg-ink-muted)] transition-colors hover:text-[var(--lg-ink)] ${DOGEAR}`}
+        >
+          🛠️ Learning Notes Aracı
+        </button>
+      )}
+
+
     </div>
   );
 }

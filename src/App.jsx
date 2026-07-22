@@ -15,6 +15,9 @@ import Admin from "./Admin.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
 
+import AdminLearningNotesPage from "./AdminLearningNotesPage.jsx";
+
+
 // AppContent bileşeni - AuthProvider içinde çalışır
 function AppContent() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -228,6 +231,7 @@ function AppContent() {
             }}
             onNavigate={handleNavigate}
             onGoToLesson={handleGoToLesson}
+            onGoToAdminNotes={() => handleNavigate("notesTool")}
           />
         )}
 
@@ -248,6 +252,10 @@ function AppContent() {
 
         {currentScreen === "admin" && (
           <Admin onBack={handleBackToHome} />
+        )}
+
+        {currentScreen === "notesTool" && (
+          <AdminLearningNotesPage onBack={handleBackToHome} />
         )}
       </main>
     </div>
