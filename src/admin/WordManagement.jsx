@@ -3,76 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../config.js";
 import {
   styles, colors, PageHeader, Tabs, Card, Message,
-  Input, TextArea, Badge, JsonDisplay, SearchInput
+  Input, TextArea, Badge, SearchInput
 } from "./adminStyles.jsx";
-
-const WORD_EXAMPLE_JSON = `[
-  {
-    "word": "happy",
-    "meaning": "mutlu",
-    "level": "A1",
-    "type": "word",
-    "part_of_speech": ["adjective"],
-    "category": ["daily", "emotion"],
-    "difficulty": 1,
-    "synonyms": ["joyful", "cheerful"],
-    "antonyms": ["sad", "unhappy"],
-    "examples": [
-      {
-        "en": "She felt very happy today.",
-        "tr": "Bugün çok mutlu hissetti.",
-        "level": "A1",
-        "learning_notes": ["'felt' kullanımı: hissetmek fiilinin geçmiş zamanı", "'very' + sıfat yapısı"]
-      },
-      {
-        "en": "I am happy to see you.",
-        "tr": "Seni gördüğüme mutluyum.",
-        "level": "A1",
-        "learning_notes": ["'happy to + fiil' kalıbı: bir şey yapmaktan mutlu olmak"]
-      }
-    ]
-  }
-]`;
-
-const PROMPT_TEXT = `Aşağıdaki kelimeleri analiz et. SADECE JSON array döndür, başka hiçbir şey yazma.
-
-Her kelime için:
-- 5 adet örnek cümle üret (examples array'i içinde)
-- Bu cümleler kelimenin seviyesine (A1, A2, B1, B2, C1) uygun olsun
-- A1 ise tamamen A1 seviyesinde 5 cümle
-- A2 ise A2 seviyesinde 5 cümle vb.
-- Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
-- Her cümle için level belirt (A1, A2, B1, B2, C1)
-- Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). İngilizce öğrenmeye çalışan birisi için yardımcı olacak açıklamalar. kelime ve kullanım alanı ayrıca neden ve niçin böyle kullanıldığı vb.
-- Doğru json formatında ver, parse ederken hata olmasın.
-
-kelimenin diğer anlamlarını virgül ile ayır.
-bu verdiğim kelimeler A1 seviyesinde.
-Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt. önce en çok kullanılan anlamını ver.
-örnek: "run" kelimesi için: "koşmak, çalıştırmak, işletmek"
-
-[
-  {
-    "word": "kelime",
-    "meaning": "türkçe anlam (birden fazla ise virgülle ayır)",
-    "level": "A1",
-    "type": "word",
-    "part_of_speech": ["noun", "verb", "adjective", "adverb"],
-    "category": ["daily", "business", "travel", "food", "emotion", "health", "technology", "education", "social"],
-    "difficulty": 1,
-    "synonyms": ["eş1", "eş2"],
-    "antonyms": ["zıt1", "zıt2"],
-    "examples": [
-      {"en": "English sentence 1", "tr": "Türkçe çeviri 1", "level": "A1", "learning_notes": ["not1", "not2"]},
-      {"en": "English sentence 2", "tr": "Türkçe çeviri 2", "level": "A1", "learning_notes": []},
-      {"en": "English sentence 3", "tr": "Türkçe çeviri 3", "level": "A1", "learning_notes": []},
-      {"en": "English sentence 4", "tr": "Türkçe çeviri 4", "level": "A1", "learning_notes": []},
-      {"en": "English sentence 5", "tr": "Türkçe çeviri 5", "level": "A1", "learning_notes": []}
-    ]
-  }
-]
-
-Kelimeler: `;
+import { WORD_PROMPT_TEXT } from "./wordPrompt.js";
 
 export default function WordManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
@@ -104,16 +37,12 @@ function WordAdder() {
   const [jsonInput, setJsonInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [showExample, setShowExample] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [results, setResults] = useState([]);
-  const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [recentWords, setRecentWords] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
-
-  const EXAMPLE_JSON = WORD_EXAMPLE_JSON;
 
   const fetchRecentWords = async () => {
     setLoadingRecent(true);
@@ -409,21 +338,9 @@ function WordAdder() {
   };
 
   const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(PROMPT_TEXT);
+    navigator.clipboard.writeText(WORD_PROMPT_TEXT);
     setPromptCopied(true);
     setTimeout(() => setPromptCopied(false), 2000);
-  };
-
-  const handleCopyExample = () => {
-    navigator.clipboard.writeText(EXAMPLE_JSON);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleUseExample = () => {
-    setJsonInput(EXAMPLE_JSON);
-    setMessage({ type: "success", text: "✅ Örnek JSON yüklendi! 'JSON Kontrol Et' butonuna tıklayın." });
-    setTimeout(() => setMessage(null), 3000);
   };
 
   return (
@@ -488,7 +405,7 @@ function WordAdder() {
             </button>
           </div>
         </div>
-        {showPrompt && <div style={styles.promptBox}>{PROMPT_TEXT}</div>}
+        {showPrompt && <div style={styles.promptBox}>{WORD_PROMPT_TEXT}</div>}
         {!showPrompt && (
           <div style={{ fontSize: 12, color: colors.textSecondary, padding: "8px 0" }}>
             💡 Prompt'u görmek için "Göster" butonuna tıklayın. AI'ya kelimeleri analiz ettirmek için kullanabilirsiniz.
@@ -497,39 +414,7 @@ function WordAdder() {
       </Card>
 
       <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <label style={styles.label}>JSON Verisi</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={handleUseExample}
-              style={{
-                background: colors.surfaceLight,
-                border: "none",
-                borderRadius: 6,
-                color: colors.textSecondary,
-                fontSize: 10,
-                padding: "4px 10px",
-                cursor: "pointer"
-              }}
-            >
-              Örnek Yükle
-            </button>
-            <button
-              onClick={() => setShowExample(!showExample)}
-              style={{
-                background: "none",
-                border: `1px solid ${colors.border}`,
-                borderRadius: 6,
-                color: colors.textSecondary,
-                fontSize: 10,
-                padding: "4px 10px",
-                cursor: "pointer"
-              }}
-            >
-              {showExample ? "Gizle" : "Örnek JSON"}
-            </button>
-          </div>
-        </div>
+        <label style={styles.label}>JSON Verisi</label>
 
         <TextArea
           value={jsonInput}
@@ -537,30 +422,6 @@ function WordAdder() {
           placeholder='[ { "word": "...", "meaning": "...", "examples": [ { "en": "...", "tr": "...", "level": "A1", "learning_notes": [] } ] } ]'
           rows={10}
         />
-
-        {showExample && (
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: colors.textSecondary }}>📄 Örnek JSON Formatı</span>
-              <button
-                onClick={handleCopyExample}
-                style={{
-                  background: copied ? colors.successBg : colors.surfaceLight,
-                  border: "none",
-                  borderRadius: 4,
-                  color: copied ? colors.success : colors.textSecondary,
-                  fontSize: 10,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                  transition: "all 0.2s"
-                }}
-              >
-                {copied ? "✓ Kopyalandı!" : "📋 Kopyala"}
-              </button>
-            </div>
-            <JsonDisplay data={EXAMPLE_JSON} />
-          </div>
-        )}
 
         {results.length > 0 && (
           <div style={{ marginTop: 16 }}>
