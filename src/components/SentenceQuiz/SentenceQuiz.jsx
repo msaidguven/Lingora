@@ -26,17 +26,6 @@ const playCoinSound = () => {
   }
 };
 
-// Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
-const cancelPendingSpeech = () => {
-  try {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-  } catch (e) {
-    // no-op
-  }
-};
-
 export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
@@ -57,6 +46,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const [speaking, setSpeaking] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
+
+  // Şu an telaffuz edilen kelimenin wordParts içindeki index'i (kelime kelime renklendirme için)
+  const [activeWordIndex, setActiveWordIndex] = useState(null);
 
   // Cümle çevirisi (Google Translate modalı)
   const [showTranslationModal, setShowTranslationModal] = useState(false);
@@ -80,11 +72,18 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const levelColor = LEVEL_COLOR[userLevel] || "#8b5cf6";
   const levelLabel = LEVEL_LABEL[userLevel] || "Orta";
 
-  // Cümleyi kelimelere ayırma (noktalama işaretlerini koruyarak)
+  // Cümleyi kelimelere ayırma (noktalama işaretlerini koruyarak).
+  // Her parçanın orijinal cümledeki başlangıç/bitiş karakter index'ini de tutuyoruz,
+  // böylece speechSynthesis'in verdiği charIndex ile hangi kelimenin okunduğunu eşleştirebiliyoruz.
   const splitSentenceIntoWords = (sentence) => {
     if (!sentence) return [];
-    const parts = sentence.match(/[\w']+|[.,!?;:]/g);
-    return parts || [];
+    const regex = /[\w']+|[.,!?;:]/g;
+    const result = [];
+    let match;
+    while ((match = regex.exec(sentence)) !== null) {
+      result.push({ text: match[0], start: match.index, end: match.index + match[0].length });
+    }
+    return result;
   };
 
   // Kelime listesini oluştur
@@ -92,6 +91,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     if (!currentQuestion?.sentence_en) return [];
     return splitSentenceIntoWords(currentQuestion.sentence_en);
   }, [currentQuestion]);
+
+  // handleWordBoundary her render'da wordParts'ın güncel halini görebilsin diye ref'te tutuyoruz.
+  const wordPartsRef = useRef([]);
+  useEffect(() => {
+    wordPartsRef.current = wordParts;
+  }, [wordParts]);
 
   // Tek kelime çevirisi - artık wordTranslations state'ine yazıyor (modal yok)
   const VALID_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
@@ -312,8 +317,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     if (!currentQuestion?.sentence_en) return;
 
     const words = wordParts
-      .filter((w) => !/^[.,!?;:]$/.test(w))
-      .map((w) => w.trim())
+      .filter((w) => !/^[.,!?;:]$/.test(w.text))
+      .map((w) => w.text.trim())
       .filter(Boolean);
 
     if (words.length === 0) return;
@@ -358,16 +363,39 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  // Ortak telaffuz oynatma fonksiyonu
+  // speechSynthesis'ten gelen charIndex'i, wordParts içindeki ilgili kelimenin index'ine çevirir.
+  const handleWordBoundary = (charIndex) => {
+    const parts = wordPartsRef.current;
+    let found = null;
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].start <= charIndex) {
+        found = i;
+      } else {
+        break;
+      }
+    }
+    setActiveWordIndex(found);
+  };
+
+  // Ortak telaffuz oynatma fonksiyonu.
+  // Artık "speaking" durumu telaffuzu ENGELLEMİYOR: her tıklamada mevcut konuşma
+  // anında kesilip (speak() içindeki cancel() ile) yeniden baştan başlıyor.
   const playPronunciation = (text, event) => {
     if (event) {
       event.stopPropagation();
     }
-    if (speaking || !text) return;
-    cancelPendingSpeech();
+    if (!text) return;
+
     setSpeaking(true);
-    speak(text);
-    setTimeout(() => setSpeaking(false), 1800);
+    setActiveWordIndex(null);
+
+    speak(text, {
+      onWordBoundary: handleWordBoundary,
+      onEnd: () => {
+        setSpeaking(false);
+        setActiveWordIndex(null);
+      },
+    });
   };
 
   // Kopyalama fonksiyonu
@@ -496,8 +524,9 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
-    cancelPendingSpeech();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     setSpeaking(false);
+    setActiveWordIndex(null);
     setIsFinished(false);
     setRevealed(false);
     restartQuizSession();
@@ -616,7 +645,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
   const isCorrect = selected === correctAnswer;
 
   const handleCardClick = () => {
-    if (currentQuestion && !speaking) {
+    if (currentQuestion) {
       playPronunciation(currentQuestion.sentence_en);
     }
   };
@@ -672,12 +701,12 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               setOpenWord(null);
               return;
             }
-            if (!speaking) playPronunciation(currentQuestion.sentence_en);
+            playPronunciation(currentQuestion.sentence_en);
           }}
           role="button"
           tabIndex={0}
           aria-label="Cümlenin telaffuzunu dinle"
-          onKeyDown={(e) => e.key === "Enter" && !speaking && playPronunciation(currentQuestion.sentence_en)}
+          onKeyDown={(e) => e.key === "Enter" && playPronunciation(currentQuestion.sentence_en)}
         >
           {/* Sağ üst: Kopyala butonu */}
           <button
@@ -721,24 +750,25 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
             </span>
           </div>
 
-          {/* Cümle içeriği - Her kelime ayrı ayrı tıklanabilir, çeviri daisyUI dropdown ile gösterilir */}
+          {/* Cümle içeriği - Her kelime ayrı ayrı tıklanabilir, çeviri daisyUI dropdown ile gösterilir.
+              Telaffuz sırasında okunan kelime activeWordIndex ile eşleşip tek başına renkleniyor. */}
           <div className="flex flex-wrap items-center justify-center gap-0.5">
             {wordParts.map((part, index) => {
-              const isPunctuation = /^[.,!?;:]$/.test(part);
+              const isPunctuation = /^[.,!?;:]$/.test(part.text);
+              const isActive = speaking && index === activeWordIndex;
 
               if (isPunctuation) {
                 return (
                   <span
                     key={index}
                     className="text-lg font-medium leading-relaxed text-base-content select-text"
-                    style={speaking ? { color: levelColor } : {}}
                   >
-                    {part}
+                    {part.text}
                   </span>
                 );
               }
 
-              const key = part.trim();
+              const key = part.text.trim();
               const wordState = wordTranslations[key];
               const isOpen = openWord === index;
 
@@ -746,7 +776,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               // - DB'de bulunduysa (veya daha önce çevrildiyse) -> anlamı direkt göster
               // - DB kontrol edildi ama bulunamadıysa -> "Çevirisi için tıkla"
               // - Henüz hiç kontrol edilmediyse -> genel ipucu
-              let tooltipText = `"${part}" kelimesinin çevirisine bak`;
+              let tooltipText = `"${part.text}" kelimesinin çevirisine bak`;
               if (wordState?.loading) {
                 tooltipText = 'Kontrol ediliyor...';
               } else if (wordState?.text) {
@@ -761,19 +791,24 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
                   data-card-ignore
                   tabIndex={0}
                   role="button"
-                  onClick={(e) => handleWordClick(index, part, e)}
-                  onMouseEnter={() => handleWordHover(part)}
-                  onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part, e)}
+                  onClick={(e) => handleWordClick(index, part.text, e)}
+                  onMouseEnter={() => handleWordHover(part.text)}
+                  onKeyDown={(e) => e.key === "Enter" && handleWordClick(index, part.text, e)}
                   className={`dropdown dropdown-top inline-block text-lg font-medium leading-relaxed
-                             text-base-content select-text
+                             select-text
                              hover:text-blue-500 dark:hover:text-blue-400
                              hover:bg-blue-50/50 dark:hover:bg-blue-900/20
-                             cursor-pointer transition-all duration-200
-                             px-1 rounded-lg ${isOpen ? 'dropdown-open' : 'tooltip tooltip-top'}`}
-                  style={speaking ? { color: levelColor } : {}}
+                             cursor-pointer transition-all duration-150
+                             px-1 rounded-lg ${isOpen ? 'dropdown-open' : 'tooltip tooltip-top'}
+                             ${isActive ? '' : 'text-base-content'}`}
+                  style={
+                    isActive
+                      ? { color: levelColor, backgroundColor: `${levelColor}18` }
+                      : {}
+                  }
                   data-tip={!isOpen ? tooltipText : undefined}
                 >
-                  {part}
+                  {part.text}
 
                   {/* daisyUI dropdown-content: sadece Türkçe anlamı gösterir, modal yok.
                       Görünürlük artık focus'a değil, yukarıdaki "dropdown-open" class'ına bağlı.
@@ -806,9 +841,7 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
           <div className="mt-4 flex items-center justify-center gap-3">
             <button
               data-card-ignore
-              onClick={(e) => {
-                if (!speaking) playPronunciation(currentQuestion.sentence_en);
-              }}
+              onClick={() => playPronunciation(currentQuestion.sentence_en)}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
               style={{ backgroundColor: `${levelColor}15`, color: levelColor }}
               aria-label="Telaffuzu tekrar dinle"
