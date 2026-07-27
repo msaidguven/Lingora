@@ -1,6 +1,6 @@
 // src/HomeScreen.jsx
 import { useState, useEffect } from "react";
-import { useHomeViewModel } from "./viewModel";
+import { useHomeViewModel } from "./HomeScreen.viewModel";
 import NewItemsIntro from "./NewItemsIntro";
 import {
   DOGEAR,
@@ -62,7 +62,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
     introKind = null,
     finishIntro,
     cancelIntro,
-    // Yeni eklediğimiz reload fonksiyonu
     reloadData,
   } = viewModel;
 
@@ -103,8 +102,30 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
     };
   }, [loading, reloadData]);
 
-  // Eğer loading true ise ve sayfa görünür durumdaysa loading göster
-  // Ama loading false ise ve sayfa görünür durumdaysa içeriği göster
+  const handleDemoWatchAd = async () => {
+    if (watchingAd) return;
+    setWatchingAd(true);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const result = await handleWatchAd();
+    setWatchingAd(false);
+
+    if (result) {
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: `🎬 Reklam tamamlandı! +${result.reward} coin kazandın (${result.adNumber}. reklam)`,
+          type: 'success'
+        }
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: {
+          message: '⚠️ Reklam ödülü alınamadı, tekrar dener misin?',
+          type: 'error'
+        }
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--lg-bg)]">
@@ -200,7 +221,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
         </div>
 
         {/* ================= HERO: ÇALIŞMAYA BAŞLA ================= */}
-        {/* Bu artık sayfanın en görsel-ağırlıklı elemanı — asıl aksiyon burada. */}
         <div className="mb-5">
           <SectionTitle emoji="✏️" title="Çalışmaya Başla" />
           <div className="grid grid-cols-2 gap-3">
@@ -309,11 +329,7 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
           </div>
         </div>
 
-        {/* ================= COIN MAĞAZASI — kompakt, ikincil ================= */}
-        {/* Tek şerit: coin sayacı solda, satın alma "chip" butonları sağda,
-            reklam izleme küçük bir metin-buton olarak altında. Doygun solid
-            renkler yerine outline/ghost stil kullanıldı ki hero'nun önüne
-            geçmesin. */}
+        {/* ================= COIN MAĞAZASI ================= */}
         <div className={`mb-4 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)]/60 px-4 py-3 ${DOGEAR}`}>
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -361,13 +377,9 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
             </div>
           )}
         </div>
-
-        {/* Stat tiles ve Summary bar kaldırıldı — hero bölümü zaten bu
-            sayıları (kelime/cümle "hazır" adetleri) gösteriyor, tekrar
-            olmasınlar diye buradan çıkarıldı. */}
       </div>
 
-      {/* Geçici: cümlelere learning_notes ekleme aracı — iş bitince silinecek */}
+      {/* Geçici: cümlelere learning_notes ekleme aracı */}
       {onGoToAdminNotes && (
         <button
           onClick={onGoToAdminNotes}
@@ -383,8 +395,6 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
 // ============ ALT BİLEŞENLER ============
 
-// HERO CTA — asıl aksiyon. Büyük dokunma alanı, yüksek kontrast, sayı
-// (kaç kelime/cümle hazır) net görünür, hover/active ile "canlı" hissediyor.
 function HeroPracticeButton({ icon, label, count, accent, onClick }) {
   return (
     <button
@@ -409,8 +419,6 @@ function HeroPracticeButton({ icon, label, count, accent, onClick }) {
   );
 }
 
-// Küçük, düşük doygunluklu "chip" — mağaza aksiyonları için. Hero'nun önüne
-// geçmemesi için outline stil ve küçük yazı kullanılıyor.
 function CoinChipButton({ icon, label, disabled, accent, onClick }) {
   return (
     <button
@@ -426,7 +434,6 @@ function CoinChipButton({ icon, label, disabled, accent, onClick }) {
   );
 }
 
-// Today's attempt count toward the daily goal.
 function DailyGoalRow({ icon, label, correct, wrong, goal }) {
   const total = correct + wrong;
   const filledPct = Math.min((total / goal) * 100, 100);
