@@ -1,22 +1,20 @@
 // WordQuiz.jsx
 import { useEffect, useState, useRef } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
-import { speak, stopSpeaking } from "../../utils/speechUtils.js"; // Değişti
+import { speak, stopSpeaking, loadVoices, getVoices, testSpeech } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import ProgressBar from "../common/ProgressBar.jsx";
-import OptionButton from "../common/OptionButton.jsx";
 import ExampleModal from "./ExampleModal.jsx";
 import FeedbackModal from "./FeedbackModal.jsx";
 import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
-
 import { useStudyTimer } from "../../hooks/useStudyTimer";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
-// Coin sesi - Capacitor için (Web Audio API)
+// Coin sesi
 const playCoinSound = () => {
   try {
     const audio = new Audio('/sounds/coin.mp3');
@@ -64,40 +62,125 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [isFinished, setIsFinished] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const menuRef = useRef(null);
   const speechTimeoutRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
 
-  // Ortak telaffuz oynatma fonksiyonu
-  const playPronunciation = () => {
-    if (!currentQuestion || speaking) return;
+  // TTS'i başlat
+  useEffect(() => {
+    const initSpeech = async () => {
+      console.log('🔊 TTS başlatılıyor...');
+      
+      // Sesleri yükle
+      const voices = await loadVoices();
+      console.log('🔊 Sesler yüklendi:', voices.length);
+      
+      if (voices.length > 0) {
+        setVoicesLoaded(true);
+        console.log('🔊 Sesler:', voices.map(v => `${v.name} (${v.lang})`));
+      } else {
+        console.warn('⚠️ Hiç ses yüklenemedi!');
+        // Sesler yüklenmezse tekrar dene
+        setTimeout(async () => {
+          const retryVoices = await loadVoices();
+          console.log('🔊 Yeniden denendi:', retryVoices.length);
+          if (retryVoices.length > 0) {
+            setVoicesLoaded(true);
+          }
+        }, 2000);
+      }
+    };
+    
+    initSpeech();
+    
+    return () => {
+      stopSpeaking();
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Ses çalma fonksiyonu
+  const speakWord = async (word, callback) => {
+    console.log('🔊 speakWord çağrıldı:', word);
     
     // Önceki konuşmayı durdur
     stopSpeaking();
     
-    // Önceki timeout'u temizle
+    // Timeout'u temizle
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
     }
     
     setSpeaking(true);
     
-    speak(currentQuestion.word, {
-      onEnd: () => {
+    try {
+      await speak(word, {
+        onStart: () => {
+          console.log('🔊 Konuşma başladı (callback)');
+        },
+        onEnd: () => {
+          console.log('✅ Konuşma bitti (callback)');
+          setSpeaking(false);
+          if (callback) callback();
+        },
+        onWordBoundary: (charIndex) => {
+          console.log('📝 Kelime sınırı:', charIndex);
+        },
+        rate: 0.85,
+        language: 'en-US'
+      });
+      
+      // Fallback timeout
+      speechTimeoutRef.current = setTimeout(() => {
+        console.log('⚠️ Fallback timeout - speaking false');
         setSpeaking(false);
-      },
-      onWordBoundary: (charIndex) => {
-        // Kelime sınırında yapılacak işlemler (opsiyonel)
-      },
-      rate: 0.85,
-      language: 'en-US'
-    });
-    
-    // Fallback timeout (Android'de bazen onEnd çalışmıyor)
-    speechTimeoutRef.current = setTimeout(() => {
+        if (callback) callback();
+      }, 5000);
+      
+    } catch (error) {
+      console.error('❌ speakWord hatası:', error);
       setSpeaking(false);
-    }, 3000);
+      if (callback) callback();
+    }
+  };
+
+  // Telaffuzu çal
+  const playPronunciation = () => {
+    if (!currentQuestion) {
+      console.log('⚠️ currentQuestion yok');
+      return;
+    }
+    
+    if (speaking) {
+      console.log('⚠️ Zaten konuşuyor');
+      return;
+    }
+    
+    console.log('🔊 playPronunciation çağrıldı:', currentQuestion.word);
+    speakWord(currentQuestion.word);
+  };
+
+  // Click handler
+  const handleCardClick = (e) => {
+    e.stopPropagation();
+    console.log('🖱️ Card tıklandı');
+    
+    if (currentQuestion && !speaking) {
+      playPronunciation();
+    } else {
+      console.log('⚠️ Card tıklandı ama konuşma çalınamıyor');
+    }
+  };
+
+  // Hoparlör butonu click handler
+  const handleSpeakerClick = (e) => {
+    e.stopPropagation();
+    console.log('🔊 Hoparlör tıklandı');
+    playPronunciation();
   };
 
   useEffect(() => {
@@ -120,56 +203,22 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion]);
 
-  // Auto-speak when question loads.
+  // Auto-speak
   useEffect(() => {
     if (
       !loading &&
       currentQuestion &&
       !answered &&
       !speaking &&
+      voicesLoaded &&
       lastSpokenIdRef.current !== currentQuestion.id
     ) {
+      console.log('🔊 Auto-speak tetiklendi:', currentQuestion.word);
       lastSpokenIdRef.current = currentQuestion.id;
-      
-      // Önceki konuşmayı durdur
-      stopSpeaking();
-      
-      // Önceki timeout'u temizle
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-      }
-      
-      setSpeaking(true);
-      
-      speak(currentQuestion.word, {
-        onEnd: () => {
-          setSpeaking(false);
-        },
-        rate: 0.85,
-        language: 'en-US'
-      });
-      
-      // Fallback timeout
-      speechTimeoutRef.current = setTimeout(() => {
-        setSpeaking(false);
-      }, 3000);
+      speakWord(currentQuestion.word);
     }
-    
-    // Cleanup
-    return () => {
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-      }
-    };
-  }, [currentQuestion, answered, loading]);
+  }, [currentQuestion, answered, loading, voicesLoaded]);
 
-  const handleCardClick = () => {
-    if (currentQuestion && !speaking) {
-      playPronunciation();
-    }
-  };
-
-  // ✅ onSelect - ANINDA GERİ BİLDİRİM
   const onSelect = (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
 
@@ -178,9 +227,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     const isCorrect = opt === currentQuestion.meaning;
     const correctAnswer = currentQuestion.meaning;
 
-    handleSelect(opt, (isCorrectResult) => {
-      // UI güncellendikten sonra
-    });
+    handleSelect(opt, (isCorrectResult) => {});
 
     if (isCorrect) {
       window.dispatchEvent(new CustomEvent('showToast', {
@@ -241,7 +288,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
-    stopSpeaking(); // Güncellendi
+    stopSpeaking();
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
     }
@@ -255,8 +302,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     restartQuizSession();
   };
 
-  // ... rest of the component (aynı kalacak)
-  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
@@ -334,6 +379,22 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-base-100 to-base-200/50 text-base-content font-sans max-w-md mx-auto px-5 py-6">
+      {/* Debug Info */}
+      <div className="text-xs text-base-content/30 mb-2 p-2 bg-base-200/50 rounded-lg flex items-center justify-between">
+        <span>
+          {voicesLoaded ? '✅ Sesler yüklendi' : '⏳ Sesler yükleniyor...'}
+        </span>
+        <button 
+          onClick={async () => {
+            const result = await testSpeech();
+            console.log('Test sonucu:', result);
+          }}
+          className="px-3 py-1 bg-primary/20 rounded text-primary text-xs font-medium"
+        >
+          Test Ses
+        </button>
+      </div>
+
       {/* Progress */}
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs font-semibold text-base-content/40 tracking-wider">
@@ -348,14 +409,13 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
       {/* Word Card */}
       <div
-        className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl ${revealed
-          ? 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
-          : 'cursor-pointer hover:scale-[1.02] hover:border-primary/20'
-          }`}
+        className={`relative rounded-2xl p-8 text-center transition-all duration-300 bg-base-100 border border-base-200 shadow-lg hover:shadow-xl cursor-pointer ${
+          revealed ? 'hover:scale-[1.02] hover:border-primary/20' : 'hover:scale-[1.02] hover:border-primary/20'
+        }`}
         onClick={handleCardClick}
         style={{ marginTop: 20, marginBottom: 20 }}
       >
-        {/* Menu Button - 3 dots */}
+        {/* Menu Button */}
         {revealed && (
           <div className="absolute top-3 right-3" ref={menuRef}>
             <button
@@ -371,7 +431,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               </svg>
             </button>
 
-            {/* Dropdown Menu */}
             {menuOpen && (
               <div className={`absolute right-0 top-full mt-1.5 w-52 rounded-2xl shadow-2xl border p-1.5 z-50 bg-base-100 border-base-200`}>
                 <button
@@ -439,14 +498,12 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
                 {currentQuestion.word}
               </span>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playPronunciation();
-                }}
-                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${speaking
-                  ? 'bg-primary/20 text-primary animate-pulse'
-                  : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
-                  }`}
+                onClick={handleSpeakerClick}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  speaking
+                    ? 'bg-primary/20 text-primary animate-pulse'
+                    : 'text-base-content/40 hover:text-primary hover:bg-primary/10'
+                }`}
                 aria-label="Telaffuzu dinle"
                 title="Telaffuzu dinle"
                 disabled={speaking}
