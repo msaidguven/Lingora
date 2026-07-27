@@ -1,5 +1,5 @@
 // src/HomeScreen.viewModel.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
 import { getTurkeyTodayString } from "../utils/turkeyDate";
@@ -47,7 +47,7 @@ export function useHomeViewModel() {
   const [introKind, setIntroKind] = useState(null); // "word" | "sentence" | null
 
   // Günlük bonus kontrolü (her gün ilk girişte +100 coin)
-  const checkDailyBonus = async () => {
+  const checkDailyBonus = useCallback(async () => {
     if (!user) return;
 
     const today = getTurkeyTodayString();
@@ -78,12 +78,12 @@ export function useHomeViewModel() {
     } else {
       setCoins(userData.coins || 0);
     }
-  };
+  }, [user]);
 
   // Reklam izleme ödülü — reklam SDK'sının "reklam başarıyla tamamlandı"
   // callback'i içinden çağrılmalı. Günlük limit yok; her reklam, hesap
   // ömrü boyunca kaçıncı reklam olduğuna göre merdivenden ödül alır.
-  const handleWatchAd = async () => {
+  const handleWatchAd = useCallback(async () => {
     if (!user) return;
 
     const { data: userData } = await supabase
@@ -115,11 +115,15 @@ export function useHomeViewModel() {
     window.dispatchEvent(new CustomEvent('coinUpdated', { detail: { coins: newCoins } }));
 
     return { reward, adNumber: nextAdNumber };
-  };
+  }, [user]);
 
-  // Verileri çek
-  const fetchData = async () => {
-    if (!user) return;
+  // Verileri çek - Ana veri yükleme fonksiyonu
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -152,11 +156,6 @@ export function useHomeViewModel() {
           .select("*", { count: "exact", head: true })
           .eq("level", level)
           .eq("type", "word"),
-        // NOT: en_words ile inner join yapıp sadece MEVCUT SEVİYEDEKİ
-        // kelimeleri sayıyoruz. Önceden burada seviye filtresi yoktu,
-        // bu yüzden kullanıcı birden fazla seviyede kelime öğrenmişse
-        // (örn. A1'den B1'e geçmişse) ilerleme yüzdesi (myWordsCount/
-        // totalWords) yanlış hesaplanıyor, hatta %100'ü aşabiliyordu.
         supabase
           .from("en_user_words")
           .select("word_id, en_words!inner(level)", { count: "exact", head: true })
@@ -167,8 +166,6 @@ export function useHomeViewModel() {
           .select("*", { count: "exact", head: true })
           .eq("level", level)
           .eq("is_approved", true),
-        // Aynı düzeltme cümleler için de geçerli — en_example_sentences
-        // ile inner join yapıp sadece mevcut seviyedeki cümleleri sayıyoruz.
         supabase
           .from("en_user_sentences")
           .select("sentence_id, en_example_sentences!inner(level)", { count: "exact", head: true })
@@ -210,10 +207,10 @@ export function useHomeViewModel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, checkDailyBonus]);
 
   // Dersleri çek
-  const fetchRecentLessons = async () => {
+  const fetchRecentLessons = useCallback(async () => {
     if (!user) return;
     setLessonsLoading(true);
 
@@ -253,14 +250,16 @@ export function useHomeViewModel() {
     } finally {
       setLessonsLoading(false);
     }
-  };
+  }, [user]);
+
+  // reloadData - Tüm verileri yeniden yükler (sayfa görünür olduğunda çağrılacak)
+  const reloadData = useCallback(async () => {
+    console.log('🔄 Veriler yeniden yükleniyor...');
+    await Promise.all([fetchData(), fetchRecentLessons()]);
+  }, [fetchData, fetchRecentLessons]);
 
   // 5 Kelime Al — SADECE ADAY KELİMELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // Filtreleme ve rastgele seçim artık sunucu tarafında (get_new_words RPC,
-  // NOT EXISTS + ORDER BY random()) yapılıyor. Client'tan öğrenilen id
-  // listesi göndermiyoruz — büyük id listelerinde URL uzunluk limitine
-  // takılma (400 Bad Request) sorunu tamamen ortadan kalktı.
-  const handleBuyWords = async () => {
+  const handleBuyWords = useCallback(async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
       return;
@@ -288,8 +287,6 @@ export function useHomeViewModel() {
         return;
       }
 
-      // Tanıtım ekranını aç. Henüz hiçbir şey kaydedilmedi, coin düşmedi —
-      // kullanıcı sayfayı şimdi kapatsa bile hiçbir şey kaybetmez.
       setIntroKind("word");
       setIntroItems(newWords.map((w) => ({ id: w.id, front: w.word, back: w.meaning })));
     } catch (error) {
@@ -298,12 +295,10 @@ export function useHomeViewModel() {
     }
 
     setBuying(false);
-  };
+  }, [user, coins, userLevel]);
 
-  // 5 Cümle Al — SADECE ADAY CÜMLELERİ ÇEKER, henüz kaydetmez/coin düşmez.
-  // Filtreleme ve rastgele seçim artık sunucu tarafında (get_new_sentences
-  // RPC) yapılıyor.
-  const handleBuySentences = async () => {
+  // 5 Cümle Al
+  const handleBuySentences = useCallback(async () => {
     if (!user) {
       alert("Lütfen giriş yapın!");
       return;
@@ -331,7 +326,6 @@ export function useHomeViewModel() {
         return;
       }
 
-      // Tanıtım ekranını aç. Henüz hiçbir şey kaydedilmedi, coin düşmedi.
       setIntroKind("sentence");
       setIntroItems(
         newSentences.map((s) => ({ id: s.id, front: s.sentence_en, back: s.sentence_tr }))
@@ -342,17 +336,12 @@ export function useHomeViewModel() {
     }
 
     setBuying(false);
-  };
+  }, [user, coins, userLevel]);
 
-  // Tanıtım ekranı bitince çağrılır — kelimeleri/cümleleri GERÇEKTEN burada
-  // kaydediyoruz ve coin'i şimdi düşüyoruz. Bu ana kadar hiçbir şey
-  // kalıcı değildi, yani kullanıcı buraya gelmeden vazgeçtiyse (cancelIntro)
-  // veya sayfayı kapattıysa hiçbir kayıp/artık veri olmuyor.
-  const finishIntro = async () => {
+  // Tanıtım ekranı bitince çağrılır
+  const finishIntro = useCallback(async () => {
     if (!user || introItems.length === 0) return;
 
-    // Akış sırasında coin durumu değişmiş olabilir (başka sekme vb.),
-    // son anda tekrar kontrol edelim.
     if (coins < 50) {
       alert("⚠️ Coin yetersiz kaldı. Daha fazla çalışıp coin kazanman gerekiyor.");
       setIntroItems([]);
@@ -402,22 +391,20 @@ export function useHomeViewModel() {
 
       setIntroItems([]);
       setIntroKind(null);
-      await fetchData();
+      await reloadData(); // Verileri yeniden yükle
     } catch (error) {
       console.error("Havuza eklenirken hata:", error);
       alert("Bir hata oluştu, tekrar dener misin?");
     }
 
     setBuying(false);
-  };
+  }, [user, introItems, introKind, coins, reloadData]);
 
-  // Kullanıcı tanıtım ekranını yarıda bırakmak isterse — hiçbir şey
-  // kaydedilmediği ve coin düşmediği için tamamen güvenli, sadece
-  // ekranı kapatıyoruz.
-  const cancelIntro = () => {
+  // Kullanıcı tanıtım ekranını yarıda bırakmak isterse
+  const cancelIntro = useCallback(() => {
     setIntroItems([]);
     setIntroKind(null);
-  };
+  }, []);
 
   // useEffect - user değiştiğinde çalış
   useEffect(() => {
@@ -426,11 +413,22 @@ export function useHomeViewModel() {
       return;
     }
 
-    fetchData();
-    fetchRecentLessons();
-    const t = setTimeout(() => setMounted(true), 50);
-    return () => clearTimeout(t);
-  }, [user]);
+    // Verileri yükle
+    Promise.all([fetchData(), fetchRecentLessons()]).finally(() => {
+      setMounted(true);
+    });
+
+    // Her 5 dakikada bir verileri yenile (opsiyonel)
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        reloadData();
+      }
+    }, 300000); // 5 dakika
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [user, fetchData, fetchRecentLessons, reloadData]);
 
   // Hesaplamalar
   const progress = totalWords > 0 ? (myWordsCount / totalWords) * 100 : 0;
@@ -470,6 +468,7 @@ export function useHomeViewModel() {
     introKind,
     finishIntro,
     cancelIntro,
+    reloadData, // YENİ: reload fonksiyonu eklendi
     onStartQuiz: null,
     onGoToLesson: null
   };

@@ -1,5 +1,5 @@
 // src/HomeScreen.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useHomeViewModel } from "./viewModel";
 import NewItemsIntro from "./NewItemsIntro";
 import {
@@ -62,36 +62,49 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
     introKind = null,
     finishIntro,
     cancelIntro,
+    // Yeni eklediğimiz reload fonksiyonu
+    reloadData,
   } = viewModel;
 
   // Demo reklam izleme durumu — gerçek reklam SDK'sı entegre olana kadar
   // burada 3 saniyelik sahte bir "izleniyor" bekletmesi yapıyoruz.
   const [watchingAd, setWatchingAd] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
-  const handleDemoWatchAd = async () => {
-    if (watchingAd) return;
-    setWatchingAd(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    const result = await handleWatchAd();
-    setWatchingAd(false);
-
-    if (result) {
-      window.dispatchEvent(new CustomEvent('showToast', {
-        detail: {
-          message: `🎬 Reklam tamamlandı! +${result.reward} coin kazandın (${result.adNumber}. reklam)`,
-          type: 'success'
+  // Sayfa görünürlüğünü takip et - ekran kapatılıp açıldığında verileri yenile
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setIsVisible(true);
+        // Sayfa görünür olduğunda ve loading false ise verileri yenile
+        if (!loading && reloadData) {
+          console.log('🔄 Sayfa görünür oldu, veriler yenileniyor...');
+          reloadData();
         }
-      }));
-    } else {
-      window.dispatchEvent(new CustomEvent('showToast', {
-        detail: {
-          message: '⚠️ Reklam ödülü alınamadı, tekrar dener misin?',
-          type: 'error'
-        }
-      }));
-    }
-  };
+      } else {
+        setIsVisible(false);
+      }
+    };
 
+    // Sayfa yeniden yüklendiğinde veya focus geldiğinde de verileri yenile
+    const handleFocus = () => {
+      if (!loading && reloadData) {
+        console.log('🔄 Sayfa focus aldı, veriler yenileniyor...');
+        reloadData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loading, reloadData]);
+
+  // Eğer loading true ise ve sayfa görünür durumdaysa loading göster
+  // Ama loading false ise ve sayfa görünür durumdaysa içeriği göster
   if (loading) {
     return (
       <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--lg-bg)]">
@@ -100,6 +113,30 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
         <span className="font-mono text-[12px] font-semibold tracking-[4px] text-[var(--lg-ink-muted)]">
           SAYFA AÇILIYOR…
         </span>
+      </div>
+    );
+  }
+
+  // Data yoksa veya boşsa reload butonu göster
+  if (!loading && !totalWords && !myWordsCount && !recentLessons?.length) {
+    return (
+      <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--lg-bg)] p-6">
+        <NotebookTheme />
+        <div className="text-center">
+          <span className="text-6xl block mb-4">📚</span>
+          <h2 className="font-serif text-2xl font-bold text-[var(--lg-ink)] mb-2">
+            Veriler Yüklenemedi
+          </h2>
+          <p className="text-[var(--lg-ink-muted)] mb-4">
+            Lütfen sayfayı yenileyin veya tekrar deneyin
+          </p>
+          <button
+            onClick={reloadData}
+            className="px-6 py-3 bg-[var(--lg-red)] text-white rounded-lg font-mono text-sm font-bold hover:opacity-80 transition-opacity"
+          >
+            🔄 Sayfayı Yenile
+          </button>
+        </div>
       </div>
     );
   }
@@ -431,10 +468,6 @@ function DailyGoalRow({ icon, label, correct, wrong, goal }) {
         <span className="text-[var(--lg-green)]">✓ {correct}</span>
         <span className="text-[var(--lg-red)]">✗ {wrong}</span>
       </div>
-
-
-
-
     </div>
   );
 }
