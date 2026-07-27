@@ -1,7 +1,7 @@
 // WordQuiz.jsx
 import { useEffect, useState, useRef } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
-import { speak } from "../../utils/speechUtils.js";
+import { speak, stopSpeaking } from "../../utils/speechUtils.js"; // Değişti
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,7 +16,7 @@ import { useStudyTimer } from "../../hooks/useStudyTimer";
 
 const LEVEL_COLOR = { A1: "#10b981", A2: "#3b82f6", B1: "#8b5cf6", B2: "#f59e0b" };
 
-// Coin sesi
+// Coin sesi - Capacitor için (Web Audio API)
 const playCoinSound = () => {
   try {
     const audio = new Audio('/sounds/coin.mp3');
@@ -27,17 +27,6 @@ const playCoinSound = () => {
   }
 };
 
-// Tarayıcının bekleyen/oynayan konuşma sentezini güvenli şekilde iptal eder.
-const cancelPendingSpeech = () => {
-  try {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-  } catch (e) {
-    // no-op
-  }
-};
-
 export default function WordQuiz({ userLevel, onChangeLevel }) {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -45,7 +34,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const isUpdatingRef = useRef(false);
 
   useStudyTimer();
-
 
   const isAdmin = user?.role === 'admin';
 
@@ -77,18 +65,39 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const menuRef = useRef(null);
+  const speechTimeoutRef = useRef(null);
 
   const levelColor = LEVEL_COLOR[userLevel];
 
   // Ortak telaffuz oynatma fonksiyonu
   const playPronunciation = () => {
     if (!currentQuestion || speaking) return;
-    cancelPendingSpeech();
+    
+    // Önceki konuşmayı durdur
+    stopSpeaking();
+    
+    // Önceki timeout'u temizle
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+    }
+    
     setSpeaking(true);
-    speak(currentQuestion.word);
-    setTimeout(() => {
+    
+    speak(currentQuestion.word, {
+      onEnd: () => {
+        setSpeaking(false);
+      },
+      onWordBoundary: (charIndex) => {
+        // Kelime sınırında yapılacak işlemler (opsiyonel)
+      },
+      rate: 0.85,
+      language: 'en-US'
+    });
+    
+    // Fallback timeout (Android'de bazen onEnd çalışmıyor)
+    speechTimeoutRef.current = setTimeout(() => {
       setSpeaking(false);
-    }, 1800);
+    }, 3000);
   };
 
   useEffect(() => {
@@ -121,13 +130,37 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       lastSpokenIdRef.current !== currentQuestion.id
     ) {
       lastSpokenIdRef.current = currentQuestion.id;
-      cancelPendingSpeech();
+      
+      // Önceki konuşmayı durdur
+      stopSpeaking();
+      
+      // Önceki timeout'u temizle
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+      
       setSpeaking(true);
-      speak(currentQuestion.word);
-      setTimeout(() => {
+      
+      speak(currentQuestion.word, {
+        onEnd: () => {
+          setSpeaking(false);
+        },
+        rate: 0.85,
+        language: 'en-US'
+      });
+      
+      // Fallback timeout
+      speechTimeoutRef.current = setTimeout(() => {
         setSpeaking(false);
-      }, 1800);
+      }, 3000);
     }
+    
+    // Cleanup
+    return () => {
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+      }
+    };
   }, [currentQuestion, answered, loading]);
 
   const handleCardClick = () => {
@@ -136,37 +169,28 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   };
 
-  // ✅ YENİDEN YAZILAN onSelect - ANINDA GERİ BİLDİRİM
+  // ✅ onSelect - ANINDA GERİ BİLDİRİM
   const onSelect = (opt) => {
     if (answered || saving || isUpdatingRef.current) return;
 
     isUpdatingRef.current = true;
 
-    // 1️⃣ HEMEN doğru/yanlış kontrolü
     const isCorrect = opt === currentQuestion.meaning;
     const correctAnswer = currentQuestion.meaning;
 
-    // 2️⃣ HEMEN UI'ı güncelle (handleSelect senkron çalışır)
     handleSelect(opt, (isCorrectResult) => {
-      // Bu callback UI güncellendikten sonra çalışır
-      // Artık burada sadece ekstra işlemler yapılır
+      // UI güncellendikten sonra
     });
 
-    // 3️⃣ HEMEN Toast mesajını göster (async beklemeden)
     if (isCorrect) {
-      // Doğru cevap için toast
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
           message: '✅ Doğru cevap! +1 coin kazandın!',
           type: 'success'
         }
       }));
-
-      // Coin sesini HEMEN çal (async beklemeden)
       playCoinSound();
-
     } else {
-      // Yanlış cevap için toast
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
           message: `❌ Yanlış cevap. Doğrusu: "${correctAnswer}"`,
@@ -175,14 +199,11 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       }));
     }
 
-    // 4️⃣ ARKA PLANDA istatistik ve coin güncelle
     (async () => {
       try {
         if (user) {
-          // İstatistik güncelle
           await updateDailyStats(user.id, 'word', isCorrect);
 
-          // Doğruysa coin ekle
           if (isCorrect) {
             const { data: currentUser } = await supabase
               .from("en_users")
@@ -197,7 +218,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
               .update({ coins: newCoins })
               .eq("id", user.id);
 
-            // Header'daki coin sayısını güncelle
             window.dispatchEvent(new CustomEvent('coinUpdated', {
               detail: { coins: newCoins }
             }));
@@ -221,7 +241,10 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   };
 
   const handleRestart = () => {
-    cancelPendingSpeech();
+    stopSpeaking(); // Güncellendi
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+    }
     setSpeaking(false);
     setIsFinished(false);
     setShowExampleModal(false);
@@ -232,6 +255,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     restartQuizSession();
   };
 
+  // ... rest of the component (aynı kalacak)
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
