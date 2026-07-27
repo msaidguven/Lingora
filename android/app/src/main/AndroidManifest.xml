@@ -39,4 +39,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Android 11+ paket görünürlüğü: TTS motorunu bulabilmek için gerekli -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
 </manifest>
