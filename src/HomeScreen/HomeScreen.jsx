@@ -1,6 +1,6 @@
 // src/HomeScreen.jsx
 import { useState, useEffect } from "react";
-import { useHomeViewModel } from "./HomeScreen.viewModel";
+import { useHomeViewModel } from "./viewModel";
 import NewItemsIntro from "./NewItemsIntro";
 import {
   DOGEAR,
