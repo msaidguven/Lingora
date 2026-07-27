@@ -1,7 +1,7 @@
 // WordQuiz.jsx
 import { useEffect, useState, useRef } from "react";
 import { useWordQuiz } from "../../hooks/useWordQuiz.js";
-import { speak, stopSpeaking, testSpeech } from "../../utils/speechUtils.js";
+import { speak, stopSpeaking } from "../../utils/speechUtils.js";
 import { updateDailyStats } from "../../utils/dailyStats.js";
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -75,9 +75,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   useEffect(() => {
     const initTTS = async () => {
       console.log('🔊 TTS başlatılıyor... Platform:', Capacitor.getPlatform());
-      
+
       if (isNative) {
-        // Native'de TTS'i test et
         try {
           // TTS'in hazır olmasını bekle
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -90,7 +89,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       } else {
         // Web'de speech synthesis'i kontrol et
         if (typeof window !== 'undefined' && window.speechSynthesis) {
-          // Seslerin yüklenmesini bekle
           const voices = window.speechSynthesis.getVoices();
           if (voices.length > 0) {
             setTtsReady(true);
@@ -98,7 +96,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             window.speechSynthesis.onvoiceschanged = () => {
               setTtsReady(true);
             };
-            // Timeout
             setTimeout(() => setTtsReady(true), 3000);
           }
         } else {
@@ -106,9 +103,9 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         }
       }
     };
-    
+
     initTTS();
-    
+
     return () => {
       stopSpeaking();
       if (speechTimeoutRef.current) {
@@ -120,22 +117,22 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   // Ses çalma fonksiyonu
   const speakWord = async (word, callback) => {
     console.log('🔊 speakWord çağrıldı:', word, 'Platform:', Capacitor.getPlatform());
-    
+
     if (!word) {
       console.log('⚠️ Konuşulacak kelime yok');
       return;
     }
-    
+
     // Önceki konuşmayı durdur
     await stopSpeaking();
-    
+
     // Timeout'u temizle
     if (speechTimeoutRef.current) {
       clearTimeout(speechTimeoutRef.current);
     }
-    
+
     setSpeaking(true);
-    
+
     try {
       await speak(word, {
         onStart: () => {
@@ -149,7 +146,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
         language: 'en-US',
         rate: 0.85
       });
-      
+
       // Fallback timeout (sadece web için)
       if (!isNative) {
         speechTimeoutRef.current = setTimeout(() => {
@@ -158,7 +155,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
           if (callback) callback();
         }, 5000);
       }
-      
+
     } catch (error) {
       console.error('❌ speakWord hatası:', error);
       setSpeaking(false);
@@ -172,41 +169,33 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       console.log('⚠️ currentQuestion yok');
       return;
     }
-    
+
     if (speaking) {
       console.log('⚠️ Zaten konuşuyor');
       return;
     }
-    
+
     if (!ttsReady) {
       console.log('⚠️ TTS henüz hazır değil');
       return;
     }
-    
+
     console.log('🔊 playPronunciation çağrıldı:', currentQuestion.word);
     speakWord(currentQuestion.word);
   };
 
-  // Click handler
+  // Click handler - kelimeye tıklayınca tekrar dinlet
   const handleCardClick = (e) => {
     e?.stopPropagation();
-    console.log('🖱️ Card tıklandı');
-    
+
     if (currentQuestion && !speaking && ttsReady) {
       playPronunciation();
-    } else {
-      console.log('⚠️ Card tıklandı ama konuşma çalınamıyor', {
-        hasQuestion: !!currentQuestion,
-        speaking,
-        ttsReady
-      });
     }
   };
 
   // Hoparlör butonu click handler
   const handleSpeakerClick = (e) => {
     e?.stopPropagation();
-    console.log('🔊 Hoparlör tıklandı');
     playPronunciation();
   };
 
@@ -230,7 +219,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     }
   }, [currentQuestion]);
 
-  // Auto-speak (sadece web'de)
+  // Auto-speak: yeni kelime geldiğinde platform fark etmeksizin otomatik oku
   useEffect(() => {
     if (
       !loading &&
@@ -240,13 +229,8 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       ttsReady &&
       lastSpokenIdRef.current !== currentQuestion.id
     ) {
-      console.log('🔊 Auto-speak tetiklendi:', currentQuestion.word);
       lastSpokenIdRef.current = currentQuestion.id;
-      
-      // Native'de auto-speak yapma, kullanıcı tıklasın
-      if (!isNative) {
-        speakWord(currentQuestion.word);
-      }
+      speakWord(currentQuestion.word);
     }
   }, [currentQuestion, answered, loading, ttsReady]);
 
@@ -333,8 +317,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     restartQuizSession();
   };
 
-  // ... Loading, Error, Finished state'leri aynı kalacak
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
@@ -412,23 +394,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-base-100 to-base-200/50 text-base-content font-sans max-w-md mx-auto px-5 py-6">
-      {/* Debug Info */}
-      <div className="text-xs text-base-content/30 mb-2 p-2 bg-base-200/50 rounded-lg flex items-center justify-between">
-        <span>
-          {isNative ? '📱 Native' : '🌐 Web'} - 
-          {ttsReady ? '✅ TTS hazır' : '⏳ TTS yükleniyor...'}
-        </span>
-        <button 
-          onClick={async () => {
-            const result = await testSpeech();
-            console.log('Test sonucu:', result);
-          }}
-          className="px-3 py-1 bg-primary/20 rounded text-primary text-xs font-medium"
-        >
-          Test Ses
-        </button>
-      </div>
-
       {/* Progress */}
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs font-semibold text-base-content/40 tracking-wider">
@@ -570,7 +535,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             </div>
 
             <div className="text-xs font-semibold text-base-content/40 tracking-wider">
-              {isNative ? '📱 Kelimeye tıkla dinle' : 'Önce kelimeyi dinle'}
+              Kelimeye tıkla, tekrar dinle
             </div>
 
             {speaking ? (
