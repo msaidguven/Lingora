@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lingora – Hesap ve veri silme</title>
+<style>
+  :root { --bg:#f7f1e3; --card:#fffaf0; --ink:#1f2a44; --muted:#5b6478; --red:#b23a3a; --border:#d9cdb3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141a2a; --card:#1d2438; --ink:#f0e9d8; --muted:#a7afc2; --red:#e06b6b; --border:#323b55; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:32px 16px 48px; }
+  h1 { font-family: Georgia, serif; font-size:1.7rem; margin:0 0 4px; }
+  h2 { font-family: Georgia, serif; font-size:1.15rem; margin:28px 0 8px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px 20px; }
+  ol, ul { padding-left:1.3rem; margin:8px 0; }
+  li { margin:4px 0; }
+  b.warn { color:var(--red); }
+  a { color:var(--red); }
+  small { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lingora: Hesap ve veri silme</h1>
+  <p class="sub">Lingora hesabını ve bu hesaba ait tüm verileri istediğin zaman kendin silebilirsin.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Uygulamadan</h2>
+    <ol>
+      <li>Lingora uygulamasını aç ve giriş yap.</li>
+      <li>Sağ üstteki kullanıcı menüsüne dokun.</li>
+      <li><b>Hesap ve Ayarlar</b> bölümünü aç.</li>
+      <li><b>Hesabımı Sil</b>'e dokun, onay kutusuna <b>SİL</b> yaz ve <b>Kalıcı Olarak Sil</b>'e dokun.</li>
+    </ol>
+
+    <h2>Web'den (uygulama telefonunda yüklü değilse)</h2>
+    <ol>
+      <li><a href="/">Lingora web sürümünü</a> aç ve aynı e-posta ile giriş yap.</li>
+      <li>Yukarıdaki 2–4. adımları uygula.</li>
+    </ol>
+  </div>
+
+  <h2>Silinen veriler</h2>
+  <ul>
+    <li>Hesap ve giriş bilgileri (e-posta, şifre, kullanıcı adı)</li>
+    <li>Öğrenilen kelimeler ve cümleler, tekrar takvimi</li>
+    <li>Ders ilerlemesi, quiz cevapları, günlük ve genel istatistikler</li>
+    <li>Seviye, seri, puan ve jeton bilgileri</li>
+  </ul>
+  <p>Silme işlemi anında ve <b class="warn">kalıcı</b> olarak yapılır; geri alınamaz. Ayrıca bir bekleme süresi veya yedek saklama yoktur.</p>
+
+  <h2>Saklanan veriler</h2>
+  <p>Kelimeler hakkında gönderdiğin geri bildirimlerin metni (ör. "bu çeviri yanlış") içerik iyileştirmek için saklanır, ancak hesabınla ve e-postanla bağlantısı silinir.</p>
+
+  <h2>Hesabı silmeden yalnızca verileri silmek</h2>
+  <p><b>Hesap ve Ayarlar → İlerlememi Sıfırla</b> ile öğrenme verilerini silebilirsin; hesabın kalır.</p>
+
+  <p><small>Lingora</small></p>
+</main>
+</body>
+</html>
