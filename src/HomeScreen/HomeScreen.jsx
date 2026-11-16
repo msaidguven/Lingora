@@ -1,480 +1,1073 @@
 // src/HomeScreen.jsx
+
 import { useState, useEffect } from "react";
+
 import { useHomeViewModel } from "./viewModel";
+
 import NewItemsIntro from "./NewItemsIntro";
+
+import { showRewardedAd } from "./services/adMob";
+
+import { Capacitor } from "@capacitor/core";
+
+// AdMob yalnızca Android/iOS uygulamasında çalışır; web'de eklenti hiçbir olay
+// göndermediği için reklam düğmesi sonsuza kadar "yükleniyor"da kalırdı.
+const ADS_AVAILABLE = Capacitor.isNativePlatform();
+
 import {
+
   DOGEAR,
+
   DOGEAR_ON_COLOR,
+
   formatStudyDuration,
+
   SectionTitle,
+
   SpiralStrip,
+
   NotebookTheme,
+
 } from "../theme/notebook";
 
 
+
+
+
 // ---------------------------------------------------------------------------
+
 // Design language: "graded notebook" — spiral binding, ruled paper, a red-pen
+
 // stamp for level, dog-eared flashcard corners, a punch-hole coin ticket.
+
 //
+
 // HIERARCHY CHANGE (this version):
+
 // The "start practicing" action is the core loop of the app, so it is now
+
 // the HERO block near the top — big, high-contrast, unmissable.
-// The coin store (buy words/sentences, watch ad) is a monetization/side
-// path, so it's been collapsed into one compact, low-saturation strip
-// further down — still discoverable, but it no longer visually competes
-// with the primary action.
+
+//
+
+// QUOTA CHANGE (this version):
+
+// Coin store removed entirely. Replaced with a daily allowance system:
+
+// 5 new words + 20 new sentences per day (in batches of 5), refreshed on
+
+// the first load of a new day (server-side, `reset_daily_quota_if_needed`).
+
+// No coins, no purchases — when the daily allowance runs out, each card
+
+// offers its own "watch an ad for +5" top-up, scoped to that content type.
+
 // ---------------------------------------------------------------------------
+
+
 
 export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes }) {
+
   const viewModel = useHomeViewModel();
 
+
+
   const {
+
     loading,
+
     totalWords,
+
     myWordsCount,
+
     totalSentences = 0,
+
     mySentencesCount = 0,
+
     sentenceProgress = 0,
+
     remainingSentences = 0,
+
     dueCount,
+
     dueSentenceCount,
+
     userLevel,
-    opening,
+
     mounted,
+
     recentLessons,
+
     lessonsLoading,
+
     progress,
+
     remainingWords,
-    coins,
+
     buying,
-    handleOpenNewWords,
+
     handleBuyWords,
+
     handleBuySentences,
+
     handleWatchAd,
+
     dailyWordCorrect = 0,
+
     dailyWordWrong = 0,
+
     dailySentenceCorrect = 0,
+
     dailySentenceWrong = 0,
+
     dailyWordGoal = 100,
+
     dailySentenceGoal = 100,
+
     dailyStudySeconds = 0,
+
+    dailyWordQuota,
+
+    dailyWordQuotaUsed,
+
+    dailySentenceQuota,
+
+    dailySentenceQuotaUsed,
+
+    remainingWordAllowance,
+
+    remainingSentenceAllowance,
+
     introItems = [],
+
     introKind = null,
+
     finishIntro,
+
     cancelIntro,
+
     reloadData,
+
   } = viewModel;
 
-  // Demo reklam izleme durumu — gerçek reklam SDK'sı entegre olana kadar
-  // burada 3 saniyelik sahte bir "izleniyor" bekletmesi yapıyoruz.
-  const [watchingAd, setWatchingAd] = useState(false);
+
+
+  // Hangi tür için ödüllü reklam izleniyor.
+
+  const [watchingAdKind, setWatchingAdKind] = useState(null); // "word" | "sentence" | null
+
   const [isVisible, setIsVisible] = useState(true);
 
+
+
   // Sayfa görünürlüğünü takip et - ekran kapatılıp açıldığında verileri yenile
+
   useEffect(() => {
+
     const handleVisibilityChange = () => {
+
       if (document.visibilityState === 'visible') {
+
         setIsVisible(true);
+
         // Sayfa görünür olduğunda ve loading false ise verileri yenile
+
         if (!loading && reloadData) {
+
           console.log('🔄 Sayfa görünür oldu, veriler yenileniyor...');
+
           reloadData();
+
         }
+
       } else {
+
         setIsVisible(false);
+
       }
+
     };
+
+
 
     // Sayfa yeniden yüklendiğinde veya focus geldiğinde de verileri yenile
+
     const handleFocus = () => {
+
       if (!loading && reloadData) {
+
         console.log('🔄 Sayfa focus aldı, veriler yenileniyor...');
+
         reloadData();
+
       }
+
     };
+
+
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
     window.addEventListener('focus', handleFocus);
 
+
+
     return () => {
+
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+
       window.removeEventListener('focus', handleFocus);
+
     };
+
   }, [loading, reloadData]);
 
-  const handleDemoWatchAd = async () => {
-    if (watchingAd) return;
-    setWatchingAd(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    const result = await handleWatchAd();
-    setWatchingAd(false);
+
+
+  const handleDemoWatchAd = async (kind) => {
+
+    if (watchingAdKind) return;
+
+    setWatchingAdKind(kind);
+
+
+
+    const adResult = await showRewardedAd();
+
+
+
+    if (!adResult.rewarded) {
+
+      setWatchingAdKind(null);
+
+      // Kullanıcı reklamı yarıda kapattıysa sessizce çık, hata gibi gösterme
+
+      if (adResult.reason !== "dismissed") {
+
+        window.dispatchEvent(new CustomEvent('showToast', {
+
+          detail: { message: '⚠️ Reklam yüklenemedi, tekrar dener misin?', type: 'error' }
+
+        }));
+
+      }
+
+      return;
+
+    }
+
+
+
+    const result = await handleWatchAd(kind);
+
+    setWatchingAdKind(null);
+
+
 
     if (result) {
+
+      const label = kind === "word" ? "kelime" : "cümle";
+
       window.dispatchEvent(new CustomEvent('showToast', {
+
         detail: {
-          message: `🎬 Reklam tamamlandı! +${result.reward} coin kazandın (${result.adNumber}. reklam)`,
+
+          message: `🎬 Reklam tamamlandı! +${result.reward} ${label} hakkı kazandın`,
+
           type: 'success'
+
         }
+
       }));
+
     } else {
+
       window.dispatchEvent(new CustomEvent('showToast', {
+
         detail: {
+
           message: '⚠️ Reklam ödülü alınamadı, tekrar dener misin?',
+
           type: 'error'
+
         }
+
       }));
+
     }
+
   };
 
+
+
   if (loading) {
+
     return (
+
       <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--lg-bg)]">
+
         <NotebookTheme />
+
         <span className="h-14 w-14 animate-spin rounded-full border-[3px] border-dashed border-[var(--lg-red)]" />
+
         <span className="font-mono text-[12px] font-semibold tracking-[4px] text-[var(--lg-ink-muted)]">
+
           SAYFA AÇILIYOR…
+
         </span>
+
       </div>
+
     );
+
   }
+
+
 
   // Data yoksa veya boşsa reload butonu göster
+
   if (!loading && !totalWords && !myWordsCount && !recentLessons?.length) {
+
     return (
+
       <div className="lg-notebook flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--lg-bg)] p-6">
+
         <NotebookTheme />
+
         <div className="text-center">
+
           <span className="text-6xl block mb-4">📚</span>
+
           <h2 className="font-serif text-2xl font-bold text-[var(--lg-ink)] mb-2">
+
             Veriler Yüklenemedi
+
           </h2>
+
           <p className="text-[var(--lg-ink-muted)] mb-4">
+
             Lütfen sayfayı yenileyin veya tekrar deneyin
+
           </p>
+
           <button
+
             onClick={reloadData}
+
             className="px-6 py-3 bg-[var(--lg-red)] text-white rounded-lg font-mono text-sm font-bold hover:opacity-80 transition-opacity"
+
           >
+
             🔄 Sayfayı Yenile
+
           </button>
+
         </div>
+
       </div>
+
     );
+
   }
 
+
+
   return (
+
     <div className="lg-notebook relative min-h-screen overflow-hidden bg-[var(--lg-bg)] text-[var(--lg-ink)]">
+
       <NotebookTheme />
 
+
+
       {introItems.length > 0 && (
+
         <NewItemsIntro items={introItems} kind={introKind} onFinish={finishIntro} onCancel={cancelIntro} />
+
       )}
 
+
+
       <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[34rem] -translate-x-1/2 rounded-full bg-[var(--lg-red)]/10 blur-3xl" />
+
       <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-[22rem] rounded-full bg-[var(--lg-gold)]/10 blur-3xl" />
+
+
 
       <SpiralStrip />
 
+
+
       <div
+
         className={`relative z-10 mx-auto max-w-md px-5 pb-8 pt-5 transition-all duration-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+
           }`}
+
       >
+
         {/* Header */}
+
         <div className="mb-6 flex items-center justify-between">
+
           <div
+
             className="inline-flex items-center gap-2 bg-[var(--lg-card)] px-3 py-1.5 font-mono text-[11px] font-bold tracking-[3px] text-[var(--lg-ink)] shadow-sm"
+
             style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}
+
           >
+
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--lg-red)]" />
+
             LINGORA
+
           </div>
+
+
 
           <div className="flex h-16 w-16 -rotate-6 flex-col items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-red)] bg-[var(--lg-card)] text-center shadow-sm">
+
             <span className="font-serif text-xl font-black leading-none text-[var(--lg-red)]">
+
               {userLevel}
+
             </span>
+
             <span className="mt-0.5 font-mono text-[8px] font-bold tracking-[1.5px] text-[var(--lg-red)]/80">
+
               SEVİYE
+
             </span>
+
           </div>
+
         </div>
+
+
 
         {/* Günlük Hedef */}
+
         <div className={`mb-5 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
+
           <div className="flex items-center justify-between border-b border-dashed border-[var(--lg-border)] px-3 py-2">
+
             <div className="flex items-center gap-2">
+
               <span className="text-[15px]">🎯</span>
+
               <span className="font-serif text-[14px] font-bold text-[var(--lg-ink)]">
+
                 Günlük Hedef
+
               </span>
+
             </div>
+
             {dailyStudySeconds > 0 && (
+
               <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-[var(--lg-ink-muted)]">
+
                 ⏱ {formatStudyDuration(dailyStudySeconds)}
+
               </span>
+
             )}
+
           </div>
+
           <div className="flex divide-x divide-dashed divide-[var(--lg-border)]">
+
             <DailyGoalRow icon="📖" label="Kelime" correct={dailyWordCorrect} wrong={dailyWordWrong} goal={dailyWordGoal} />
+
             <DailyGoalRow icon="📝" label="Cümle" correct={dailySentenceCorrect} wrong={dailySentenceWrong} goal={dailySentenceGoal} />
+
           </div>
+
         </div>
+
+
 
         {/* ================= HERO: ÇALIŞMAYA BAŞLA ================= */}
+
         <div className="mb-5">
+
           <SectionTitle emoji="✏️" title="Çalışmaya Başla" />
+
           <div className="grid grid-cols-2 gap-3">
+
             <HeroPracticeButton
+
               icon="📖"
+
               label="Kelime"
+
               count={dueCount}
+
               accent="var(--lg-red)"
+
               onClick={() => onStartQuiz("word")}
+
             />
+
             <HeroPracticeButton
+
               icon="📝"
+
               label="Cümle"
+
               count={dueSentenceCount}
+
               accent="var(--lg-blue)"
+
               onClick={() => onStartQuiz("sentence")}
+
             />
+
           </div>
+
         </div>
+
+
 
         {/* Dersler */}
+
         <div className="mb-5">
+
           <SectionTitle emoji="📚" title="Dersler" />
+
           {lessonsLoading ? (
+
             <div className="space-y-2">
+
               <div className="h-16 w-full animate-pulse rounded-md bg-[var(--lg-card)]" />
+
               <div className="h-16 w-full animate-pulse rounded-md bg-[var(--lg-card)]" />
+
             </div>
+
           ) : recentLessons.length > 0 ? (
+
             <div className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] p-2 ${DOGEAR}`}>
+
               {recentLessons.map((lesson, i) => {
+
                 const isCompleted = lesson.progress?.completed;
+
                 return (
+
                   <button
+
                     key={lesson.id}
+
                     onClick={() => onGoToLesson?.(lesson.id)}
+
                     className={`group flex w-full items-center gap-3 rounded px-2 py-2.5 text-left transition-colors hover:bg-[var(--lg-border)] ${i !== recentLessons.length - 1 ? "border-b border-dashed border-[var(--lg-border)]" : ""
+
                       }`}
+
                   >
+
                     <span
+
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 font-mono text-[11px] font-bold ${isCompleted ? "border-[var(--lg-green)] text-[var(--lg-green)]" : "border-[var(--lg-red)] text-[var(--lg-red)]"
+
                         }`}
+
                     >
+
                       {isCompleted ? "✓" : lesson.lesson_number}
+
                     </span>
+
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[var(--lg-ink)]">
+
                       {lesson.title}
+
                     </span>
+
                     <span className="mx-1 h-px flex-1 border-t border-dotted border-[var(--lg-border-strong)]" />
+
                     <span className={`shrink-0 font-mono text-[10px] font-bold tracking-wide ${isCompleted ? "text-[var(--lg-green)]" : "text-[var(--lg-ink-muted)]"}`}>
+
                       {isCompleted ? "BİTTİ" : "DEVAM →"}
+
                     </span>
+
                   </button>
+
                 );
+
               })}
+
             </div>
+
           ) : (
+
             <div className="flex items-center justify-center gap-2 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] py-6 text-sm text-[var(--lg-ink-muted)]">
+
               <span className="text-lg">📖</span>
+
               Henüz ders eklenmemiş
+
             </div>
+
           )}
+
         </div>
+
+
 
         {/* Progress */}
+
         <div
+
           className={`mb-4 rounded-md border border-[var(--lg-border)] border-l-4 border-l-[var(--lg-red)] bg-[var(--lg-card)] py-4 pl-7 pr-4 ${DOGEAR}`}
+
           style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)" }}
+
         >
+
           <div className="mb-3 flex items-center justify-between">
+
             <div>
+
               <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">KELİME HAZNEN</div>
+
               <div className="font-serif text-[28px] font-black leading-tight text-[var(--lg-ink)]">
+
                 {myWordsCount}
+
                 <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]"> / {totalWords}</span>
+
               </div>
+
             </div>
+
             <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-red)] bg-[var(--lg-bg)]">
+
               <span className="font-mono text-[13px] font-black text-[var(--lg-red)]">{Math.round(progress)}%</span>
+
             </div>
+
           </div>
+
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+
             <div className="h-full rounded-full bg-[var(--lg-red)] transition-all duration-700" style={{ width: `${Math.min(progress, 100)}%` }} />
+
           </div>
+
         </div>
+
+
 
         {/* Sentence Progress */}
+
         <div
+
           className={`mb-4 rounded-md border border-[var(--lg-border)] border-l-4 border-l-[var(--lg-blue)] bg-[var(--lg-card)] py-4 pl-7 pr-4 ${DOGEAR}`}
+
           style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--lg-rule) 28px)" }}
+
         >
+
           <div className="mb-3 flex items-center justify-between">
+
             <div>
+
               <div className="font-mono text-[11px] font-bold tracking-[2px] text-[var(--lg-ink-muted)]">CÜMLE HAZNEN</div>
+
               <div className="font-serif text-[28px] font-black leading-tight text-[var(--lg-ink)]">
+
                 {mySentencesCount}
+
                 <span className="text-[15px] font-semibold text-[var(--lg-ink-muted)]"> / {totalSentences}</span>
+
               </div>
+
             </div>
+
             <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--lg-blue)] bg-[var(--lg-bg)]">
+
               <span className="font-mono text-[13px] font-black text-[var(--lg-blue)]">{Math.round(sentenceProgress)}%</span>
+
             </div>
+
           </div>
+
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+
             <div className="h-full rounded-full bg-[var(--lg-blue)] transition-all duration-700" style={{ width: `${Math.min(sentenceProgress, 100)}%` }} />
+
           </div>
+
         </div>
 
-        {/* ================= COIN MAĞAZASI ================= */}
-        <div className={`mb-4 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)]/60 px-4 py-3 ${DOGEAR}`}>
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-base">🪙</span>
-              <span className="font-mono text-[13px] font-bold text-[var(--lg-ink)]">{coins} coin</span>
-            </div>
-            <span className="text-[10px] text-[var(--lg-ink-muted)]">50 coin = 5 kelime / cümle</span>
-          </div>
 
-          <div className="flex gap-2">
-            <CoinChipButton
+
+        {/* ================= GÜNLÜK HAK (eski coin mağazasının yerine) ================= */}
+
+        <div className="mb-4">
+
+          <SectionTitle emoji="🎟️" title="Bugünkü Hakların" />
+
+          <div className={`rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
+
+            <QuotaRow
+
               icon="📖"
-              label="+5 Kelime"
-              disabled={buying || coins < 50}
+
+              label="Kelime"
+
               accent="var(--lg-red)"
-              onClick={handleBuyWords}
+
+              used={dailyWordQuotaUsed}
+
+              quota={dailyWordQuota}
+
+              remaining={remainingWordAllowance}
+
+              buying={buying}
+
+              watchingAd={watchingAdKind === "word"}
+
+              onTake={handleBuyWords}
+
+              onWatchAd={() => handleDemoWatchAd("word")}
+
             />
-            <CoinChipButton
+
+            <div className="border-t border-dashed border-[var(--lg-border)]" />
+
+            <QuotaRow
+
               icon="📝"
-              label="+5 Cümle"
-              disabled={buying || coins < 50}
+
+              label="Cümle"
+
               accent="var(--lg-blue)"
-              onClick={handleBuySentences}
+
+              used={dailySentenceQuotaUsed}
+
+              quota={dailySentenceQuota}
+
+              remaining={remainingSentenceAllowance}
+
+              buying={buying}
+
+              watchingAd={watchingAdKind === "sentence"}
+
+              onTake={handleBuySentences}
+
+              onWatchAd={() => handleDemoWatchAd("sentence")}
+
+              batchNote="5'li alınır"
+
             />
+
           </div>
 
-          <button
-            onClick={handleDemoWatchAd}
-            disabled={watchingAd}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded py-1.5 font-mono text-[11px] font-semibold text-[var(--lg-gold)] transition-opacity hover:opacity-80 disabled:opacity-50"
-          >
-            {watchingAd ? (
-              <>
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-dashed border-[var(--lg-gold)]" />
-                Reklam izleniyor (demo)…
-              </>
-            ) : (
-              <>🎬 Reklam izle, coin kazan</>
-            )}
-          </button>
-
-          {coins < 50 && (
-            <div className="mt-2 rounded border border-dashed border-[var(--lg-red)]/40 bg-[var(--lg-red)]/5 px-2 py-1.5 text-center text-[10.5px] text-[var(--lg-red)]">
-              ⚡ Yetersiz coin — ders çalışarak kazanabilirsin
-            </div>
-          )}
         </div>
+
       </div>
 
+
+
       {/* Geçici: cümlelere learning_notes ekleme aracı */}
+
       {onGoToAdminNotes && (
+
         <button
+
           onClick={onGoToAdminNotes}
+
           className={`mb-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-[var(--lg-border-strong)] bg-[var(--lg-card)]/60 py-2.5 font-mono text-[11px] font-semibold text-[var(--lg-ink-muted)] transition-colors hover:text-[var(--lg-ink)] ${DOGEAR}`}
+
         >
+
           🛠️ Learning Notes Aracı
+
         </button>
+
       )}
 
+
+
     </div>
+
   );
+
 }
+
+
 
 // ============ ALT BİLEŞENLER ============
 
+
+
 function HeroPracticeButton({ icon, label, count, accent, onClick }) {
+
   return (
+
     <button
+
       onClick={onClick}
+
       style={{ borderColor: accent }}
+
       className="group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 bg-[var(--lg-card)] px-3 py-5 text-center shadow-md transition-transform hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+
     >
+
       <span
+
         className="pointer-events-none absolute inset-0 opacity-[0.07]"
+
         style={{ background: accent }}
+
       />
+
       <span className="text-3xl">{icon}</span>
+
       <span className="font-serif text-[15px] font-bold text-[var(--lg-ink)]">{label} Çalış</span>
+
       <span
+
         style={{ color: accent }}
+
         className="mt-0.5 font-mono text-[22px] font-black leading-none"
+
       >
+
         {count}
+
       </span>
+
       <span className="font-mono text-[9px] font-semibold tracking-wide text-[var(--lg-ink-muted)]">HAZIR</span>
+
     </button>
+
   );
+
 }
 
-function CoinChipButton({ icon, label, disabled, accent, onClick }) {
+
+
+// Günlük kota satırı — kelime/cümle için kalan hak, "Al" butonu ve
+
+// hak tükendiğinde o türe özel reklam CTA'sı.
+
+function QuotaRow({ icon, label, accent, used, quota, remaining, buying, watchingAd, onTake, onWatchAd, batchNote }) {
+
+  const exhausted = remaining <= 0;
+
+  const filledPct = quota > 0 ? Math.min((used / quota) * 100, 100) : 0;
+
+
+
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{ borderColor: accent, color: accent }}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-full border py-1.5 font-mono text-[11px] font-bold transition-opacity ${disabled ? "cursor-not-allowed opacity-35" : "hover:opacity-75"
-        }`}
-    >
-      <span>{icon}</span>
-      {label}
-    </button>
+
+    <div className="px-3 py-3">
+
+      <div className="mb-2 flex items-center justify-between">
+
+        <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--lg-ink)]">
+
+          <span>{icon}</span>
+
+          {label}
+
+          {batchNote && (
+
+            <span className="font-mono text-[9px] font-medium text-[var(--lg-ink-muted)]">({batchNote})</span>
+
+          )}
+
+        </span>
+
+        <span className="font-mono text-[11px] font-bold" style={{ color: accent }}>
+
+          {Math.min(used, quota)} / {quota}
+
+        </span>
+
+      </div>
+
+
+
+      <div className="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+
+        <div
+
+          className="h-full rounded-full transition-all duration-500"
+
+          style={{ width: `${filledPct}%`, background: accent }}
+
+        />
+
+      </div>
+
+
+
+      {!exhausted ? (
+
+        <button
+
+          onClick={onTake}
+
+          disabled={buying}
+
+          style={{ borderColor: accent, color: accent }}
+
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border py-1.5 font-mono text-[11px] font-bold transition-opacity hover:opacity-75 disabled:opacity-40"
+
+        >
+
+          {buying ? "Alınıyor…" : `+${Math.min(5, remaining)} ${label} Al`}
+
+        </button>
+
+      ) : (
+
+        <div className="space-y-1.5">
+
+          <div className="rounded border border-dashed px-2 py-1.5 text-center text-[10.5px]" style={{ borderColor: `${accent}66`, color: accent }}>
+
+            ⚡ Bugünkü {label.toLowerCase()} hakkın bitti
+
+          </div>
+
+          {ADS_AVAILABLE ? (
+          <button
+
+            onClick={onWatchAd}
+
+            disabled={watchingAd}
+
+            className="flex w-full items-center justify-center gap-1.5 rounded py-1.5 font-mono text-[11px] font-semibold text-[var(--lg-gold)] transition-opacity hover:opacity-80 disabled:opacity-50"
+
+          >
+
+            {watchingAd ? (
+
+              <>
+
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-dashed border-[var(--lg-gold)]" />
+
+                Reklam yükleniyor…
+
+              </>
+
+            ) : (
+
+              <>🎬 Reklam izle, +5 {label.toLowerCase()} hakkı</>
+
+            )}
+
+          </button>
+          ) : (
+            <div className="py-1 text-center font-mono text-[10.5px] text-[var(--lg-ink-muted)]">
+              📱 Reklam izleyip ek hak almak mobil uygulamada
+            </div>
+          )}
+
+        </div>
+
+      )}
+
+    </div>
+
   );
+
 }
+
+
 
 function DailyGoalRow({ icon, label, correct, wrong, goal }) {
+
   const total = correct + wrong;
+
   const filledPct = Math.min((total / goal) * 100, 100);
+
   const correctPct = total > 0 ? (correct / total) * filledPct : 0;
+
   const wrongPct = total > 0 ? (wrong / total) * filledPct : 0;
+
   const goalMet = total >= goal;
+
   const overflow = total - goal;
 
+
+
   return (
+
     <div className="flex-1 px-3 py-2.5">
+
       <div className="mb-1.5 flex items-center justify-between">
+
         <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--lg-ink)]">
+
           <span>{icon}</span>
+
           {label}
+
         </span>
+
         {goalMet && (
+
           <span className="-rotate-3 rounded-full border border-dashed border-[var(--lg-green)] px-1.5 py-0.5 font-mono text-[8px] font-bold tracking-wide text-[var(--lg-green)]">
+
             HEDEF ✓
+
           </span>
+
         )}
+
       </div>
+
+
 
       <div className="mb-1.5 flex items-baseline gap-1">
+
         <span className={`font-mono text-[26px] font-black leading-none ${goalMet ? "text-[var(--lg-green)]" : "text-[var(--lg-ink)]"}`}>
+
           {total}
+
         </span>
+
         <span className="font-mono text-xs font-semibold text-[var(--lg-ink-muted)]">/ {goal}</span>
+
         {overflow > 0 && (
+
           <span className="ml-0.5 font-mono text-[10px] font-bold text-[var(--lg-gold)]">+{overflow} 🔥</span>
+
         )}
+
       </div>
+
+
 
       <div className="mb-1.5 flex h-2 w-full overflow-hidden rounded-full bg-[var(--lg-border-strong)]">
+
         <div className="h-full bg-[var(--lg-green)] transition-all duration-500" style={{ width: `${correctPct}%` }} />
+
         <div className="h-full bg-[var(--lg-red)] transition-all duration-500" style={{ width: `${wrongPct}%` }} />
+
       </div>
 
+
+
       <div className="flex items-center gap-3 font-mono text-[10.5px]">
+
         <span className="text-[var(--lg-green)]">✓ {correct}</span>
+
         <span className="text-[var(--lg-red)]">✗ {wrong}</span>
+
       </div>
+
     </div>
+
   );
+
 }

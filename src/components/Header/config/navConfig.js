@@ -5,15 +5,15 @@
 
 export const NAV_ITEMS = [
   { key: "home", icon: "ti-home", label: "Anasayfa" },
-  { key: "statsscreen", icon: "ti-layout-statsscreen", label: "statsscreen" },
-  { key: "quiz", icon: "ti-tournament", label: "Kelime/Cümle" },
+  { key: "statsscreen", icon: "ti-chart-bar", label: "İstatistik" },
+  { key: "quiz", icon: "ti-tournament", label: "Test" },
 ];
 
 // Quiz sekmesi aktifken quizType'a göre ikon/label değişimi
 export const QUIZ_VARIANTS = {
   word: { icon: "ti-book", label: "Kelime" },
   sentence: { icon: "ti-message", label: "Cümle" },
-  default: { icon: "ti-tournament", label: "Kelime/Cümle" },
+  default: { icon: "ti-tournament", label: "Test" },
 };
 
 export const LEVEL_COLOR = {

@@ -1,6 +1,13 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '../config';
+
+// Mobilde Google girişi Chrome sekmesinde açılır, bitince bu adresle uygulamaya döner
+// (AndroidManifest'teki intent-filter; Supabase'in izinli yönlendirmelerinde de kayıtlı).
+const NATIVE_AUTH_CALLBACK = 'com.lingora.language://auth-callback';
 
 const AuthContext = createContext();
 
@@ -30,10 +37,33 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============ PROFİL YOKSA OLUŞTUR ============
+  // E-postayla kayıtta profil register() içinde açılır; Google ile ilk girişte açılmamıştır.
+  const ensureProfile = async (authUser) => {
+    const { data } = await supabase
+      .from("en_users")
+      .select("id")
+      .eq("id", authUser.id)
+      .maybeSingle();
+    if (data) return;
+    const meta = authUser.user_metadata || {};
+    const { error } = await supabase.from("en_users").upsert([{
+      id: authUser.id,
+      email: authUser.email,
+      level: "A1",
+      username: meta.full_name || meta.name || authUser.email?.split('@')[0] || 'Öğrenci',
+      role: 'user',
+      streak_days: 0,
+      created_at: new Date().toISOString(),
+    }], { onConflict: 'id', ignoreDuplicates: true });
+    if (error) console.error("❌ Profil oluşturulamadı:", error);
+  };
+
   // ============ USER'ı ROLE İLE ZENGİNLEŞTİR ============
   const enrichUserWithRole = async (authUser) => {
     if (!authUser) return null;
-    
+
+    await ensureProfile(authUser).catch((e) => console.error("❌ Profil kontrolü:", e));
     const role = await fetchUserRole(authUser.id);
     return {
       ...authUser,
@@ -42,37 +72,69 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      
-      // User'ı role ile zenginleştir
-      if (session?.user) {
-        const enrichedUser = await enrichUserWithRole(session.user);
-        setUser(enrichedUser);
-      } else {
-        setUser(null);
-      }
-      
-      setLoading(false);
-    });
+    let active = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+    // Oturumu role ile zenginleştirir; hata olsa bile loading kapanır.
+    const applySession = async (nextSession) => {
+      try {
+        const enriched = nextSession?.user
+          ? await enrichUserWithRole(nextSession.user)
+          : null;
+        if (active) setUser(enriched);
+      } catch (err) {
+        console.error("❌ Oturum yükleme hatası:", err);
+        if (active) setUser(nextSession?.user ? { ...nextSession.user, role: 'user' } : null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
         setSession(session);
-        
-        // User'ı role ile zenginleştir
-        if (session?.user) {
-          const enrichedUser = await enrichUserWithRole(session.user);
-          setUser(enrichedUser);
-        } else {
-          setUser(null);
-        }
-        
-        setLoading(false);
+        return applySession(session);
+      })
+      .catch((err) => {
+        console.error("❌ getSession hatası:", err);
+        if (active) setLoading(false);
+      });
+
+    // ÖNEMLİ: callback içinde supabase çağrısı await EDİLMEMELİ (auth kilidi
+    // kilitlenir, uygulama sonsuz yüklemede kalır). İşi sonraya erteliyoruz.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setTimeout(() => applySession(session), 0);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Mobil: Google girişinden uygulamaya dönüş. ?code= oturuma çevrilir; oturum
+    // değişikliği yukarıdaki onAuthStateChange ile ekrana yansır.
+    let urlListener;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appUrlOpen', async ({ url }) => {
+        if (!url?.startsWith(NATIVE_AUTH_CALLBACK)) return;
+        Browser.close().catch(() => {});
+        const params = new URL(url).searchParams;
+        const code = params.get('code');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error("❌ Google girişi tamamlanamadı:", error);
+            setError(error.message);
+          }
+        } else if (params.get('error')) {
+          setError(params.get('error_description') || params.get('error'));
+        }
+      }).then((l) => { urlListener = l; });
+    }
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+      urlListener?.remove();
+    };
   }, []);
 
   // ============ LOGIN ============
@@ -205,17 +267,45 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============ İLERLEMEYİ SIFIRLA (hesap kalır) ============
+  const resetProgress = async () => {
+    const { error } = await supabase.rpc("reset_my_progress");
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  };
+
+  // ============ HESABI KALICI OLARAK SİL ============
+  const deleteAccount = async () => {
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) return { success: false, error: error.message };
+    // Sunucuda kullanıcı artık yok; yerel oturumu da temizle.
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    setUser(null);
+    setSession(null);
+    return { success: true };
+  };
+
   // ============ GOOGLE LOGIN ============
+  // Web: Google sayfasına yönlendirir, dönüşte oturum adresteki koddan otomatik açılır.
+  // Mobil: Google'ın uygulama içi web görünümünü engellemesi yüzünden giriş Chrome
+  // sekmesinde açılır; dönüş appUrlOpen dinleyicisinde tamamlanır (yukarıda).
+  // Her iki durumda da sonuç "redirecting": giriş, oturum değişince ekrana yansır.
   const loginWithGoogle = async () => {
     try {
+      setError(null);
+      const native = Capacitor.isNativePlatform();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: native ? NATIVE_AUTH_CALLBACK : window.location.origin,
+          skipBrowserRedirect: native,
+          // Her seferinde hesap seçme ekranı çıksın (tek hesapla otomatik girmesin).
+          queryParams: { prompt: 'select_account' },
         },
       });
       if (error) throw error;
-      return { success: true, data };
+      if (native) await Browser.open({ url: data.url });
+      return { success: true, redirecting: true, data };
     } catch (error) {
       setError(error.message);
       return { success: false, error: error.message };
@@ -323,6 +413,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    resetProgress,
+    deleteAccount,
     loginWithGoogle,
     loginWithFacebook,
     fetchUserData,

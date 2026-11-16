@@ -9,7 +9,6 @@ import { Capacitor } from '@capacitor/core';
 import ProgressBar from "../common/ProgressBar.jsx";
 import ExampleModal from "./ExampleModal.jsx";
 import FeedbackModal from "./FeedbackModal.jsx";
-import { supabase } from "../../config.js";
 import Toast from "../common/Toast.jsx";
 import { useStudyTimer } from "../../hooks/useStudyTimer";
 
@@ -247,7 +246,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     if (isCorrect) {
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: {
-          message: '✅ Doğru cevap! +1 coin kazandın!',
+          message: '✅ Doğru cevap!',
           type: 'success'
         }
       }));
@@ -265,25 +264,6 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
       try {
         if (user) {
           await updateDailyStats(user.id, 'word', isCorrect);
-
-          if (isCorrect) {
-            const { data: currentUser } = await supabase
-              .from("en_users")
-              .select("coins")
-              .eq("id", user.id)
-              .single();
-
-            const newCoins = (currentUser?.coins || 0) + 1;
-
-            await supabase
-              .from("en_users")
-              .update({ coins: newCoins })
-              .eq("id", user.id);
-
-            window.dispatchEvent(new CustomEvent('coinUpdated', {
-              detail: { coins: newCoins }
-            }));
-          }
         }
       } catch (error) {
         console.error('İstatistik güncelleme hatası:', error);

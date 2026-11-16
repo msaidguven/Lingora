@@ -4,13 +4,19 @@ import { Capacitor } from '@capacitor/core';
 
 // Platform kontrolü
 const isNative = Capacitor.isNativePlatform();
-const isAndroid = Capacitor.getPlatform() === 'android';
-const isWeb = !isNative;
 
 let isSpeaking = false;
+let activeTimers = [];
+
+const clearWordTimers = () => {
+  activeTimers.forEach(clearTimeout);
+  activeTimers = [];
+};
 
 /**
- * Web için speech synthesis
+ * Web için speech synthesis.
+ * Tarayıcı gerçek "kelime sınırı" (word boundary) event'i verdiği için
+ * kelime kelime highlight burada tam senkrondur.
  */
 const speakWeb = (text, options = {}) => {
   return new Promise((resolve) => {
@@ -73,14 +79,54 @@ const speakWeb = (text, options = {}) => {
 };
 
 /**
+ * @capacitor-community/text-to-speech (Android/iOS native motor) kelime sınırı
+ * event'i VERMİYOR. Bu yüzden gerçek zamanlı senkron highlight native'de mümkün
+ * değil. Bunun yerine metindeki kelimelerin uzunluğuna göre TAHMİNİ bir zamanlama
+ * kurup, o zamanlamaya göre sırayla "aktif kelime" bildiriyoruz. Konuşma hızıyla
+ * birebir eşleşmez ama görsel olarak yeterince yakın takip eder.
+ */
+const estimateWordTimings = (text, rate = 0.85) => {
+  const regex = /[\w']+|[.,!?;:]/g;
+  const words = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (/^[.,!?;:]$/.test(match[0])) continue; // noktalama işaretlerini atla
+    words.push({ start: match.index, length: match[0].length });
+  }
+  if (words.length === 0) return [];
+
+  // Kabaca: karakter başına ~65ms + kelime arası ~110ms duraklama (rate=1 baz alınarak).
+  // rate arttıkça (konuşma hızlanınca) süreler orantılı olarak kısalır.
+  const msPerChar = 65 / rate;
+  const pauseMs = 110 / rate;
+
+  let cumulative = 250; // ilk kelime başlamadan önce küçük bir başlangıç gecikmesi
+  return words.map((w) => {
+    const delay = cumulative;
+    cumulative += w.length * msPerChar + pauseMs;
+    return { start: w.start, delay };
+  });
+};
+
+/**
  * Native (Android/iOS) için Capacitor TTS
  */
 const speakNative = async (text, options = {}) => {
   try {
     console.log('🔊 Native TTS ile konuşuyor:', text);
-    
+    clearWordTimers();
     isSpeaking = true;
     options.onStart?.();
+
+    if (options.onWordBoundary) {
+      const timings = estimateWordTimings(text, options.rate || 0.85);
+      timings.forEach(({ start, delay }) => {
+        const id = setTimeout(() => {
+          if (isSpeaking) options.onWordBoundary(start);
+        }, delay);
+        activeTimers.push(id);
+      });
+    }
 
     await TextToSpeech.speak({
       text: text,
@@ -90,11 +136,13 @@ const speakNative = async (text, options = {}) => {
       volume: 1.0,
     });
 
+    clearWordTimers();
     isSpeaking = false;
     options.onEnd?.();
     return true;
   } catch (error) {
     console.error('❌ Native TTS hatası:', error);
+    clearWordTimers();
     isSpeaking = false;
     options.onEnd?.();
     return false;
@@ -102,11 +150,16 @@ const speakNative = async (text, options = {}) => {
 };
 
 /**
- * Ana speak fonksiyonu - Platforma göre seçim yapar
+ * Ana speak fonksiyonu - Platforma göre seçim yapar.
+ * Her çağrıda önce mevcut konuşmayı kesin şekilde durdurur (hem web hem native),
+ * böylece kart/hoparlöre art arda tıklanınca eski konuşma ANINDA kesilip
+ * yeni cümle baştan başlar.
  */
 export const speak = async (text, options = {}) => {
   console.log('🔊 speak çağrıldı:', text, 'Platform:', Capacitor.getPlatform());
-  
+
+  await stopSpeaking();
+
   if (isNative) {
     return await speakNative(text, options);
   } else {
@@ -118,8 +171,7 @@ export const speak = async (text, options = {}) => {
  * Konuşmayı durdur
  */
 export const stopSpeaking = async () => {
-  console.log('🔇 Konuşma durduruluyor...');
-  
+  clearWordTimers();
   if (isNative) {
     try {
       await TextToSpeech.stop();
@@ -135,7 +187,6 @@ export const stopSpeaking = async () => {
       console.log('❌ Web stop hatası:', e);
     }
   }
-  
   isSpeaking = false;
 };
 
@@ -151,7 +202,6 @@ export const isSpeakingNow = () => {
  */
 export const testSpeech = async () => {
   console.log('🧪 Test speech başlıyor... Platform:', Capacitor.getPlatform());
-  
   try {
     const result = await speak('Hello, this is a test', {
       onStart: () => console.log('✅ Test başladı'),

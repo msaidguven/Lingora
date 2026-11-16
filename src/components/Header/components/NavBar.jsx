@@ -17,7 +17,7 @@ export default function NavBar({ currentScreen, onNavigate, isActive, accent, qu
             aria-label={displayLabel}
             title={displayLabel}
             style={active ? { borderColor: accent.from } : undefined}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-t-md border-b-2 px-1.5 pb-2 pt-2.5 text-[11.5px] font-semibold transition-colors active:scale-95 ${active
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-t-md border-b-2 px-1 pb-2 pt-2.5 text-[11.5px] font-semibold transition-colors active:scale-95 ${active
                 ? "bg-[var(--lg-card)] text-[var(--lg-ink)] shadow-[0_-2px_6px_rgba(0,0,0,0.15)]"
                 : "border-transparent text-[#F0E9D8]/55 hover:bg-white/5 hover:text-[#F0E9D8]/85"
               }`}

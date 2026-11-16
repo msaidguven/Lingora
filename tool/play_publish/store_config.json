@@ -1,0 +1,20 @@
+{
+  "package_name": "com.lingora.language",
+  "key_file": "/home/msaid/keystores/konum-rehberi-play-publisher.json",
+  "default_locale": "tr-TR",
+  "listings": {
+    "tr-TR": {
+      "title": "Lingora: İngilizce Kelime",
+      "short_description": "Her gün yeni kelime ve cümle: dinle, tekrarla, İngilizceyi kalıcı öğren.",
+      "full_description": "Lingora ile İngilizceyi her gün biraz çalışarak kalıcı öğren.\n\n📖 KELİME ÇALIŞ\nHer gün yeni kelimeler al, anlamını gör, okunuşunu dinle. Öğrendiğin kelimeler aralıklı tekrar sistemiyle tam unutmak üzereyken karşına çıkar; böylece kısa sürede kalıcı hale gelir.\n\n📝 CÜMLE ÇALIŞ\nKelimeleri gerçek cümlelerin içinde gör. Cümleyi dinle, doğru Türkçe karşılığını seç, kalıpları doğal yoldan öğren.\n\n📚 DERSLER\nÖzne zamirleri, \"to be\" ve temel kalıplar gibi konuları adım adım, örneklerle anlatan kısa dersler.\n\n🎯 GÜNLÜK HEDEF VE İSTATİSTİK\nGünlük hedefini takip et, serini koru. Doğru-yanlış sayılarını, çalışma süreni ve öğrendiğin kelimeleri istatistik ekranında gör.\n\n🔊 OKUNUŞ\nHer kelime ve cümleyi telefonunun seslendirme motoruyla dinleyebilirsin.\n\n🌙 AÇIK VE KOYU TEMA\nDefter görünümlü, göz yormayan tasarım; açık ve koyu tema seçeneği.\n\nLingora A1 seviyesinden başlar; öğrendikçe seviyen yükselir. Günlük kelime ve cümle hakların her gün yenilenir, istersen kısa bir reklam izleyerek ek hak alabilirsin.\n\nHesabını ve verilerini istediğin zaman uygulama içinden silebilirsin."
+    }
+  },
+  "images": {
+    "icon": "store/icon-512.png",
+    "featureGraphic": "store/feature-1024x500.png",
+    "phoneScreenshots": "store/screens/*.png"
+  },
+  "release_notes": {
+    "tr-TR": "Lingora'nın ilk sürümü: kelime ve cümle çalışma, kısa dersler, günlük hedef ve istatistikler."
+  }
+}

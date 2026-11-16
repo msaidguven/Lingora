@@ -6,3 +6,10 @@ dist
 build
 .vercel
 .env*.local
+*.jks
+*.keystore
+
+# Play yayın aracı
+tool/play_publish/venv
+tool/play_publish/__pycache__/
+.firebase/

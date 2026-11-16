@@ -1,4 +1,4 @@
-package com.lingora.app;
+package com.lingora.language;
 
 import com.getcapacitor.BridgeActivity;
 

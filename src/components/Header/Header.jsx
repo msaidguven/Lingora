@@ -2,7 +2,6 @@
 import { useHeaderViewModel } from "./hooks/useHeaderViewModel";
 import NavBar from "./components/NavBar";
 import UserMenu from "./components/UserMenu";
-import CoinDisplay from "./components/CoinDisplay";
 import { NotebookTheme } from "../../theme/notebook";
 
 // Header, defterin sırtı/kapağı gibi davranıyor — sabit lacivert (--lg-cover),
@@ -14,7 +13,10 @@ export default function Header(props) {
   const vm = useHeaderViewModel(props);
 
   return (
-    <header className="lg-notebook sticky top-0 z-[1000] bg-[var(--lg-cover)] shadow-md">
+    <header
+      className="lg-notebook sticky top-0 z-[1000] bg-[var(--lg-cover)] shadow-md"
+      style={{ paddingTop: "max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px))" }}
+    >
       <NotebookTheme />
 
       {/* İnce spiral cilt şeridi */}
@@ -35,7 +37,6 @@ export default function Header(props) {
         />
 
         <div className="flex shrink-0 items-center gap-2 pb-2">
-          <CoinDisplay userId={vm.user?.id} />
           <UserMenu
             menuOpen={vm.menuOpen}
             setMenuOpen={vm.setMenuOpen}
@@ -49,6 +50,7 @@ export default function Header(props) {
             toggleTheme={vm.toggleTheme}
             isActive={vm.isActive}
             goToStats={vm.goToStats}
+            goToSettings={vm.goToSettings}
             goToAdmin={vm.goToAdmin}
             handleLogout={vm.handleLogout}
             streakDays={vm.streakDays}

@@ -7,87 +7,22 @@ const getTurkeyToday = () => {
   return turkeyTime.toISOString().split('T')[0];
 };
 
+// Sayaçlar sunucuda atomik artırılır (bump_daily_stat) — istemci "oku-hesapla-yaz"
+// yapmaz, hızlı cevaplarda sayı kaybolmaz.
 export async function updateDailyStats(userId, type, isCorrect) {
   if (!userId) {
     console.error('❌ updateDailyStats: userId gereklidir!');
     return;
   }
 
-  const todayStr = getTurkeyToday();
-  console.log(`📊 İstatistik güncelleniyor: userId=${userId}, type=${type}, isCorrect=${isCorrect}, date=${todayStr}`);
-  
-  try {
-    // 1. Mevcut kaydı kontrol et
-    const { data: existing, error: selectError } = await supabase
-      .from('en_user_daily_stats')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('stat_date', todayStr)
-      .maybeSingle();
+  const { error } = await supabase.rpc('bump_daily_stat', {
+    p_type: type,
+    p_correct: isCorrect,
+    p_date: getTurkeyToday(),
+  });
 
-    if (selectError) {
-      console.error('❌ Select hatası:', selectError);
-      return;
-    }
-
-    console.log('📝 Mevcut kayıt:', existing);
-
-    // 2. Güncel değerleri hesapla
-    let wordCorrect = existing?.word_correct || 0;
-    let wordWrong = existing?.word_wrong || 0;
-    let sentenceCorrect = existing?.sentence_correct || 0;
-    let sentenceWrong = existing?.sentence_wrong || 0;
-
-    if (type === 'word') {
-      if (isCorrect) {
-        wordCorrect += 1;
-      } else {
-        wordWrong += 1;
-      }
-    } else if (type === 'sentence') {
-      if (isCorrect) {
-        sentenceCorrect += 1;
-      } else {
-        sentenceWrong += 1;
-      }
-    }
-
-    const totalCorrect = wordCorrect + sentenceCorrect;
-    const totalWrong = wordWrong + sentenceWrong;
-    const totalAttempts = totalCorrect + totalWrong;
-    const accuracy = totalAttempts > 0 ? parseFloat(((totalCorrect / totalAttempts) * 100).toFixed(2)) : 0;
-
-    console.log('📊 Yeni değerler:', { wordCorrect, wordWrong, sentenceCorrect, sentenceWrong, totalCorrect, totalWrong, totalAttempts, accuracy });
-
-    // 3. Upsert işlemi - ✅ BOŞLUK KALDIRILDI
-    const { data, error } = await supabase
-      .from('en_user_daily_stats')
-      .upsert({
-        user_id: userId,
-        stat_date: todayStr,
-        word_correct: wordCorrect,
-        word_wrong: wordWrong,
-        sentence_correct: sentenceCorrect,
-        sentence_wrong: sentenceWrong,
-        total_correct: totalCorrect,
-        total_wrong: totalWrong,
-        total_attempts: totalAttempts,
-        accuracy: accuracy,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,stat_date'  // ✅ BOŞLUK YOK!
-      })
-      .select();
-
-    if (error) {
-      console.error('❌ Upsert hatası:', error);
-      return;
-    }
-
-    console.log('✅ İstatistik güncellendi:', data);
-
-  } catch (error) {
-    console.error('❌ İstatistik hatası:', error);
+  if (error) {
+    console.error('❌ İstatistik güncelleme hatası:', error);
   }
 }
 

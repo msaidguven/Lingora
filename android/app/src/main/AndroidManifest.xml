@@ -9,6 +9,11 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- AdMob uygulama kimliği (gerçek). Ödüllü reklam birimi .env.production'da. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8561144837504825~8828886825" />
+
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
@@ -20,6 +25,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Google girişinden dönüş: com.lingora.language://auth-callback?code=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.lingora.language" android:host="auth-callback" />
             </intent-filter>
 
         </activity>
@@ -45,5 +58,6 @@
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
     </queries>
+
 
 </manifest>

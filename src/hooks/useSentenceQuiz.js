@@ -42,8 +42,9 @@ export function useSentenceQuiz(userLevel) {
       setLoading(true);
       setError(null);
       try {
-        // en geciken next_review_at önce — tamamen spaced-repetition sırası,
-        // "yeni cümle önce" gibi ekstra bir kural yok.
+        // en geciken next_review_at önce — hangi 10 cümlenin bu oturuma
+        // seçileceğini belirleyen kısım tamamen spaced-repetition sırasında
+        // kalıyor, burada ekstra bir kural yok.
         const { data: userSentences, error: usError } = await supabase
           .from("en_user_sentences")
           .select("sentence_id, next_review_at")
@@ -81,7 +82,20 @@ export function useSentenceQuiz(userLevel) {
             .filter(s => s.sentence_en && s.sentence_tr)
             .map(sentence => [sentence.id, sentence])
         );
-        const sessionQueue = sentenceIds.map(id => sentencesById.get(id)).filter(Boolean);
+
+        // 🎬 Video önceliği: bu oturuma seçilen (zaten spaced-repetition'a göre
+        // "due" olan) 10 cümle arasında, youtube_video_id'si olanlar öne alınır.
+        // Hangi cümlelerin seçileceğini DEĞİŞTİRMİYOR - sadece aynı 10 cümlenin
+        // sunum sırasını değiştiriyor. Array.prototype.sort stable olduğu için
+        // her grup içindeki shuffle sırası korunuyor.
+        const sessionQueue = sentenceIds
+          .map(id => sentencesById.get(id))
+          .filter(Boolean)
+          .sort((a, b) => {
+            const aHasVideo = a.youtube_video_id ? 0 : 1;
+            const bHasVideo = b.youtube_video_id ? 0 : 1;
+            return aHasVideo - bHasVideo;
+          });
 
         setAllSentences(sessionQueue);
         setQueue(sessionQueue);

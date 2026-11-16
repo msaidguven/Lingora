@@ -5,7 +5,7 @@ import {
   styles, colors, PageHeader, Tabs, Card, Message,
   Input, TextArea, Badge, SearchInput
 } from "./adminStyles.jsx";
-import { WORD_PROMPT_TEXT } from "./wordPrompt.js";
+import { buildWordPrompt, WORD_LEVELS } from "./wordPrompt.js";
 
 export default function WordManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
@@ -43,6 +43,11 @@ function WordAdder() {
   const [promptCopied, setPromptCopied] = useState(false);
   const [recentWords, setRecentWords] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  // Prompt'un hangi seviye için üretileceği. Varsayılan: en son eklenen kelimenin seviyesi
+  // (null = admin henüz seçmedi; seçerse o seviye kalır).
+  const [promptLevel, setPromptLevel] = useState(null);
+  const activeLevel = promptLevel || recentWords[0]?.level || "A1";
+  const promptText = buildWordPrompt(activeLevel);
 
   const fetchRecentWords = async () => {
     setLoadingRecent(true);
@@ -338,7 +343,7 @@ function WordAdder() {
   };
 
   const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(WORD_PROMPT_TEXT);
+    navigator.clipboard.writeText(promptText);
     setPromptCopied(true);
     setTimeout(() => setPromptCopied(false), 2000);
   };
@@ -405,7 +410,31 @@ function WordAdder() {
             </button>
           </div>
         </div>
-        {showPrompt && <div style={styles.promptBox}>{WORD_PROMPT_TEXT}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          <span style={{ fontSize: 12, color: colors.textSecondary, marginRight: 4 }}>Kelime seviyesi:</span>
+          {WORD_LEVELS.map((lvl) => {
+            const selected = lvl === activeLevel;
+            return (
+              <button
+                key={lvl}
+                onClick={() => setPromptLevel(lvl)}
+                style={{
+                  background: selected ? colors.primary : colors.surfaceLight,
+                  border: `1px solid ${selected ? colors.primary : colors.border}`,
+                  borderRadius: 6,
+                  color: selected ? "#fff" : colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: selected ? 700 : 500,
+                  padding: "4px 12px",
+                  cursor: "pointer"
+                }}
+              >
+                {lvl}
+              </button>
+            );
+          })}
+        </div>
+        {showPrompt && <div style={styles.promptBox}>{promptText}</div>}
         {!showPrompt && (
           <div style={{ fontSize: 12, color: colors.textSecondary, padding: "8px 0" }}>
             💡 Prompt'u görmek için "Göster" butonuna tıklayın. AI'ya kelimeleri analiz ettirmek için kullanabilirsiniz.

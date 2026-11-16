@@ -14,6 +14,7 @@ export default function UserMenu({
   toggleTheme,
   isActive,
   goToStats,
+  goToSettings,
   goToAdmin,
   handleLogout,
   streakDays = 0,
@@ -27,7 +28,7 @@ export default function UserMenu({
         aria-label="Ayarları Aç"
       >
         <i className="ti ti-user-circle text-[20px]" />
-        <span className="max-w-[70px] truncate font-mono text-[11px] font-bold tracking-wide">
+        <span className="hidden max-w-[70px] truncate font-mono min-[420px]:inline text-[11px] font-bold tracking-wide">
           {displayName}
         </span>
         <i
@@ -160,16 +161,15 @@ export default function UserMenu({
             )}
           </button>
 
-          <button className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--lg-ink)] transition-transform hover:translate-x-1 hover:bg-[var(--lg-border)]">
-            <i className="ti ti-user w-5 text-center opacity-70" />
-            <span>Profil</span>
-            <span className="ml-auto h-px max-w-6 flex-1 border-t border-dotted border-[var(--lg-border-strong)]" />
-            <i className="ti ti-chevron-right text-sm opacity-40" />
-          </button>
-
-          <button className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--lg-ink)] transition-transform hover:translate-x-1 hover:bg-[var(--lg-border)]">
+          <button
+            className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13px] font-semibold transition-transform hover:translate-x-1 ${isActive("settings")
+                ? "border border-dashed border-[var(--lg-red)] text-[var(--lg-red)]"
+                : "text-[var(--lg-ink)] hover:bg-[var(--lg-border)]"
+              }`}
+            onClick={goToSettings}
+          >
             <i className="ti ti-settings w-5 text-center opacity-70" />
-            <span>Ayarlar</span>
+            <span>Hesap ve Ayarlar</span>
             <span className="ml-auto h-px max-w-6 flex-1 border-t border-dotted border-[var(--lg-border-strong)]" />
             <i className="ti ti-chevron-right text-sm opacity-40" />
           </button>

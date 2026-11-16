@@ -12,8 +12,10 @@ import Dashboard from "./Dashboard/Dashboard.jsx";
 import QuizScreen from "./components/Quiz/QuizScreen.jsx";
 import LessonPage from "./components/Lesson/LessonPage.jsx";
 import Admin from "./Admin.jsx";
+import AccountSettings from "./AccountSettings/AccountSettings.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
+import UpdatePrompt from "./components/common/UpdatePrompt.jsx";
 
 // AppContent bileşeni - AuthProvider içinde çalışır
 function AppContent() {
@@ -246,6 +248,10 @@ function AppContent() {
           />
         )}
 
+        {currentScreen === "settings" && (
+          <AccountSettings onBack={handleBackToHome} />
+        )}
+
         {currentScreen === "admin" && (
           <Admin onBack={handleBackToHome} />
         )}
@@ -261,6 +267,7 @@ export default function App() {
       <AuthProvider>
         <AppContent />
       </AuthProvider>
+      <UpdatePrompt />
     </ThemeProvider>
   );
 }

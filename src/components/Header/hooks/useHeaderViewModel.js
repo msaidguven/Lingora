@@ -76,6 +76,11 @@ export function useHeaderViewModel({
     setMenuOpen(false);
   };
 
+  const goToSettings = () => {
+    onNavigate("settings");
+    setMenuOpen(false);
+  };
+
   const goToAdmin = () => {
     setMenuOpen(false);
     if (onNavigateToAdmin) {
@@ -119,6 +124,7 @@ export function useHeaderViewModel({
     onNavigate,
     // aksiyonlar
     goToStats,
+    goToSettings,
     goToAdmin,
     handleLogout,
   };
