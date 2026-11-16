@@ -16,6 +16,8 @@ import AccountSettings from "./AccountSettings/AccountSettings.jsx";
 import { Login } from "./components/auth/Login.jsx";
 import { Register } from "./components/auth/Register.jsx";
 import UpdatePrompt from "./components/common/UpdatePrompt.jsx";
+import { ResetPassword, isResetPasswordPage } from "./components/auth/ResetPassword.jsx";
+import PlacementTest from "./Placement/PlacementTest.jsx";
 
 // AppContent bileşeni - AuthProvider içinde çalışır
 function AppContent() {
@@ -27,6 +29,10 @@ function AppContent() {
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  // Yeni kullanıcı: giriş testi ("bildiklerini atla") henüz yapılmadı/atlanmadı
+  const [needsPlacement, setNeedsPlacement] = useState(false);
+  // E-postadaki şifre sıfırlama bağlantısı (/sifre-yenile) her şeyden önce gelir.
+  const [resettingPassword, setResettingPassword] = useState(isResetPasswordPage);
 
   // ============ KULLANICI SEVİYESİNİ ÇEK ============
   useEffect(() => {
@@ -40,7 +46,7 @@ function AppContent() {
       try {
         const { data, error } = await supabase
           .from("en_users")
-          .select("level, role")
+          .select("level, role, placement_done_at")
           .eq("id", user.id)
           .single();
 
@@ -54,6 +60,7 @@ function AppContent() {
         if (data) {
           setUserLevel(data.level || "A1");
           setUserRole(data.role || "user");
+          setNeedsPlacement(data.placement_done_at == null);
           console.log("✅ Kullanıcı yüklendi - Level:", data.level, "Role:", data.role);
         }
       } catch (error) {
@@ -155,6 +162,8 @@ function AppContent() {
 
     if (quizType === "word") {
       return <WordQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
+    } else if (quizType === "mistakes") {
+      return <WordQuiz userLevel={userLevel} mode="mistakes" onChangeLevel={handleBackToHome} />;
     } else if (quizType === "sentence") {
       return <SentenceQuiz userLevel={userLevel} onChangeLevel={handleBackToHome} />;
     }
@@ -163,6 +172,11 @@ function AppContent() {
   };
 
   // ============ RENDER DURUMLARI ============
+
+  // 0. Şifre sıfırlama sayfası
+  if (resettingPassword) {
+    return <ResetPassword onDone={() => setResettingPassword(false)} />;
+  }
 
   // 1. Auth yükleniyor durumu
   if (authLoading) {
@@ -208,7 +222,12 @@ function AppContent() {
     );
   }
 
-  // 4. Ana uygulama
+  // 4. Yeni kullanıcı: önce giriş testi
+  if (needsPlacement) {
+    return <PlacementTest userLevel={userLevel} onDone={() => setNeedsPlacement(false)} />;
+  }
+
+  // 5. Ana uygulama
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
       <Header
@@ -249,7 +268,18 @@ function AppContent() {
         )}
 
         {currentScreen === "settings" && (
-          <AccountSettings onBack={handleBackToHome} />
+          <AccountSettings
+            onBack={handleBackToHome}
+            onOpenPlacement={() => setCurrentScreen("placement")}
+          />
+        )}
+
+        {currentScreen === "placement" && (
+          <PlacementTest
+            userLevel={userLevel}
+            onboarding={false}
+            onDone={handleBackToHome}
+          />
         )}
 
         {currentScreen === "admin" && (

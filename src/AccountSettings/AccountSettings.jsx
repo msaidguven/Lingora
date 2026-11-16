@@ -1,13 +1,88 @@
 // src/AccountSettings/AccountSettings.jsx
 // Hesap ekranı: çıkış, ilerlemeyi sıfırlama ve hesabı kalıcı silme.
 // Google Play, hesap açılan uygulamalarda silmenin uygulama içinden yapılabilmesini şart koşar.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { DOGEAR, SectionTitle, SpiralStrip, NotebookTheme } from "../theme/notebook";
+import {
+  getReminderPrefs,
+  saveReminderPrefs,
+  syncReminders,
+  reminderPermission,
+  requestReminderPermission,
+  remindersSupported,
+} from "../utils/reminders";
+
+const pad = (n) => String(n).padStart(2, "0");
+
+// Günlük hatırlatma ayarı (yalnızca mobil uygulamada).
+function ReminderSettings({ card }) {
+  const [prefs, setPrefs] = useState(getReminderPrefs);
+  const [permission, setPermission] = useState("prompt");
+
+  useEffect(() => {
+    reminderPermission().then(setPermission);
+  }, []);
+
+  const apply = async (next) => {
+    let perm = permission;
+    if (next.enabled && perm !== "granted") {
+      perm = await requestReminderPermission();
+      setPermission(perm);
+    }
+    setPrefs(next);
+    saveReminderPrefs(next);
+    await syncReminders();
+  };
+
+  if (!remindersSupported) {
+    return (
+      <div className={card}>
+        <p className="text-[13px] text-[var(--lg-ink-muted)]">
+          📱 Günlük hatırlatma bildirimleri mobil uygulamada.
+        </p>
+      </div>
+    );
+  }
+
+  const blocked = prefs.enabled && permission === "denied";
+  return (
+    <div className={card}>
+      <label className="flex items-center justify-between gap-3">
+        <span className="text-[13px] font-semibold text-[var(--lg-ink)]">Her gün hatırlat</span>
+        <input
+          type="checkbox"
+          className="toggle toggle-sm"
+          checked={prefs.enabled}
+          onChange={(e) => apply({ ...prefs, enabled: e.target.checked })}
+        />
+      </label>
+      {prefs.enabled && (
+        <label className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-[13px] text-[var(--lg-ink-muted)]">Saat</span>
+          <input
+            type="time"
+            className="rounded-md border border-[var(--lg-border-strong)] bg-[var(--lg-bg)] px-2 py-1 font-mono text-[14px] text-[var(--lg-ink)]"
+            value={`${pad(prefs.hour)}:${pad(prefs.minute)}`}
+            onChange={(e) => {
+              const [h, m] = e.target.value.split(":").map(Number);
+              if (!Number.isNaN(h) && !Number.isNaN(m)) apply({ ...prefs, hour: h, minute: m });
+            }}
+          />
+        </label>
+      )}
+      <p className="mt-2 text-[11.5px] leading-snug text-[var(--lg-ink-muted)]">
+        {blocked
+          ? "Bildirim izni kapalı. Telefonun Ayarlar → Uygulamalar → Lingora → Bildirimler bölümünden açabilirsin."
+          : "O gün zaten çalıştıysan hatırlatma gelmez."}
+      </p>
+    </div>
+  );
+}
 
 const CONFIRM_WORD = "SİL";
 
-export default function AccountSettings({ onBack }) {
+export default function AccountSettings({ onBack, onOpenPlacement }) {
   const { user, logout, resetProgress, deleteAccount } = useAuth();
   const [busy, setBusy] = useState(null); // "reset" | "delete" | "logout" | null
   const [message, setMessage] = useState(null); // { kind: "ok" | "error", text }
@@ -102,6 +177,29 @@ export default function AccountSettings({ onBack }) {
             </button>
           </div>
         </section>
+
+        <section>
+          <SectionTitle emoji="🔔" title="Hatırlatma" />
+          <ReminderSettings card={card} />
+        </section>
+
+        {onOpenPlacement && (
+          <section>
+            <SectionTitle emoji="🧭" title="Bildiğim Kelimeler" />
+            <div className={card}>
+              <p className="mb-3 text-[13px] leading-relaxed text-[var(--lg-ink-muted)]">
+                Kısa bir test çöz; doğru bildiğin kelimeler sana yeni kelime olarak gelmesin.
+              </p>
+              <button
+                className={`${btn} border border-dashed border-[var(--lg-border-strong)] text-[var(--lg-ink)]`}
+                onClick={onOpenPlacement}
+                disabled={busy !== null}
+              >
+                <i className="ti ti-list-check" /> Bildiklerimi Atla
+              </button>
+            </div>
+          </section>
+        )}
 
         <section>
           <SectionTitle emoji="🧹" title="Verilerim" />

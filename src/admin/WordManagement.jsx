@@ -721,13 +721,8 @@ function WordEditor() {
     setMessage(null);
 
     try {
-      const { error: sentenceError } = await supabase
-        .from("en_example_sentences")
-        .delete()
-        .eq("word_id", selectedWord.id);
-
-      if (sentenceError) throw sentenceError;
-
+      // Cümleler artık kelimeye bağlı değil (en_example_sentences.word_id yok);
+      // kelime silinince cümleler yerinde kalır.
       const { error: wordError } = await supabase
         .from("en_words")
         .delete()

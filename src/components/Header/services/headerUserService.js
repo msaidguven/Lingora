@@ -1,4 +1,6 @@
 // src/components/Header/services/headerUserService.js
+import { effectiveStreak } from "../../../utils/streak";
+
 // Header'ın ihtiyaç duyduğu kullanıcı verisini (username, streak_days) çeken servis.
 // Supabase çağrısı ve fallback mantığı component'in dışında, tek bir yerde yaşıyor.
 // Böylece ViewModel "nasıl çekiyorum" ile değil sadece "veriyi kullanma" ile ilgilenir.
@@ -14,7 +16,7 @@ export async function fetchHeaderUserData(supabase, user) {
   try {
     const { data, error } = await supabase
       .from("en_users")
-      .select("username, streak_days")
+      .select("username, streak_days, streak_last_date, streak_freezes")
       .eq("id", user.id)
       .single();
 
@@ -25,7 +27,7 @@ export async function fetchHeaderUserData(supabase, user) {
 
     return {
       username: data.username || fallback.username,
-      streak_days: data.streak_days || 0,
+      streak_days: effectiveStreak(data).days,
     };
   } catch (error) {
     console.error("Header - Catch hatası:", error);

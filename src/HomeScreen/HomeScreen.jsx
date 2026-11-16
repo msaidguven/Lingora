@@ -92,6 +92,8 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
     dueSentenceCount,
 
+    mistakeCount = 0,
+
     userLevel,
 
     mounted,
@@ -125,6 +127,8 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
     dailySentenceGoal = 100,
 
     dailyStudySeconds = 0,
+
+    streak = { days: 0, studiedToday: false, freezes: 0, usesFreeze: false },
 
     dailyWordQuota,
 
@@ -446,6 +450,9 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
 
 
+        {/* Seri */}
+        <StreakCard streak={streak} />
+
         {/* Günlük Hedef */}
 
         <div className={`mb-5 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] ${DOGEAR}`}>
@@ -525,6 +532,10 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
             />
 
           </div>
+
+          {mistakeCount > 0 && (
+            <MistakeNotebookButton count={mistakeCount} onClick={() => onStartQuiz("mistakes")} />
+          )}
 
         </div>
 
@@ -806,6 +817,25 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
 
 
+// Hata defteri — en az bir kez yanlış yapılmış, henüz oturmamış kelimeler.
+function MistakeNotebookButton({ count, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`mt-3 flex w-full items-center gap-3 rounded-md border border-dashed border-[var(--lg-red)]/70 bg-[var(--lg-card)] px-4 py-3 text-left shadow-sm transition-transform hover:translate-x-1 active:scale-[0.99] ${DOGEAR}`}
+    >
+      <span className="text-2xl">📕</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-serif text-[14px] font-bold text-[var(--lg-ink)]">Hata Defteri</span>
+        <span className="block text-[11.5px] text-[var(--lg-ink-muted)]">
+          Yanlış yaptığın kelimeleri yeniden çalış
+        </span>
+      </span>
+      <span className="font-mono text-[20px] font-black text-[var(--lg-red)]">{count}</span>
+    </button>
+  );
+}
+
 function HeroPracticeButton({ icon, label, count, accent, onClick }) {
 
   return (
@@ -1070,4 +1100,38 @@ function DailyGoalRow({ icon, label, correct, wrong, goal }) {
 
   );
 
+}
+// Seri kartı — kaç gündür üst üste çalışıldığı, bugün çalışılıp çalışılmadığı ve
+// dondurma hakları (bir gün kaçırınca serinin bozulmasını önler).
+function StreakCard({ streak }) {
+  const { days, studiedToday, freezes, usesFreeze } = streak;
+  const message = days === 0
+    ? "Bugün bir soru çöz, serini başlat!"
+    : studiedToday
+      ? "Bugünü tamamladın, yarın görüşürüz!"
+      : usesFreeze
+        ? "Dün kaçırdın ama dondurma hakkın serini koruyor. Bugün çalışmayı unutma!"
+        : "Serini korumak için bugün en az bir soru çöz.";
+  return (
+    <div className={`mb-5 flex items-center gap-3 rounded-md border border-[var(--lg-border)] bg-[var(--lg-card)] px-3 py-2.5 ${DOGEAR}`}>
+      <div
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-dashed text-[22px] ${
+          days > 0 ? "border-[var(--lg-gold)]" : "border-[var(--lg-border-strong)] grayscale"
+        }`}
+      >
+        🔥
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="font-serif text-[15px] font-bold text-[var(--lg-ink)]">
+          {days > 0 ? `${days} günlük seri` : "Seri yok"}
+          {studiedToday && <span className="ml-1.5 text-[12px] text-[var(--lg-green)]">✓</span>}
+        </div>
+        <div className="text-[11.5px] leading-snug text-[var(--lg-ink-muted)]">{message}</div>
+      </div>
+      <div className="shrink-0 text-center" title="Bir gün kaçırırsan serini korur. Her 7 günlük seride bir hak kazanırsın (en fazla 2).">
+        <div className="font-mono text-[13px] font-bold text-[var(--lg-blue)]">❄️ {freezes}</div>
+        <div className="font-mono text-[9px] text-[var(--lg-ink-muted)]">dondurma</div>
+      </div>
+    </div>
+  );
 }

@@ -1,5 +1,6 @@
 // src/utils/dailyStats.js
 import { supabase } from "../config.js";
+import { markStudiedToday } from "./reminders.js";
 
 const getTurkeyToday = () => {
   const now = new Date();
@@ -23,6 +24,8 @@ export async function updateDailyStats(userId, type, isCorrect) {
 
   if (error) {
     console.error('❌ İstatistik güncelleme hatası:', error);
+  } else {
+    markStudiedToday(); // bugünün hatırlatma bildirimi artık gereksiz
   }
 }
 

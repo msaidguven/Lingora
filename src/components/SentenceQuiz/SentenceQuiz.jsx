@@ -821,14 +821,14 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
         <ProgressBar current={queueIndex} total={queue.length} color={levelColor} />
       </div>
 
-      {/* ── Video Alanı ── */}
+      {/* ── Video Alanı (yalnızca cümlenin videosu varsa; yoksa boş "Video yakında" kutusu gösterilmez) ── */}
+      {hasVideo && (
       <div
         className={`relative w-full aspect-video rounded-2xl overflow-hidden mb-4 bg-base-300 ${
-          hasVideo && playerReady ? "cursor-pointer" : ""
+          playerReady ? "cursor-pointer" : ""
         }`}
-        onClick={hasVideo && playerReady ? toggleVideoPlay : undefined}
+        onClick={playerReady ? toggleVideoPlay : undefined}
       >
-        {hasVideo ? (
           <>
             <div className="yt-crop-wrapper absolute inset-0 overflow-hidden pointer-events-none">
               <div id={`yt-player-${currentQuestion.id}`} />
@@ -883,19 +883,8 @@ export default function SentenceQuiz({ userLevel, onChangeLevel }) {
               </div>
             )}
           </>
-        ) : (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-cover bg-center"
-            style={thumbnailUrl ? { backgroundImage: `url(${thumbnailUrl})` } : {}}
-          >
-            {!thumbnailUrl && (
-              <span className="text-base-content/30 text-xs font-medium tracking-wide">
-                Video yakında
-              </span>
-            )}
-          </div>
-        )}
       </div>
+      )}
 
       {/* ── Cümle / Ses satırı ── */}
       <div className="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-200 px-4 py-3.5 mb-5">

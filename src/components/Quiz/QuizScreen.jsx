@@ -35,6 +35,13 @@ export default function QuizScreen({ onStartQuiz, onBack }) {
             gradient="from-blue-500 to-indigo-500"
             onClick={() => onStartQuiz("sentence")}
           />
+          <QuizOptionButton
+            icon="📕"
+            label="Hata Defteri"
+            subLabel="Yanlış yaptığın kelimeler"
+            gradient="from-rose-500 to-red-500"
+            onClick={() => onStartQuiz("mistakes")}
+          />
 
           <BackButton onClick={onBack} />
         </div>

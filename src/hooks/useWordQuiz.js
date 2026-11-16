@@ -7,8 +7,11 @@ import { useAuth } from "../contexts/AuthContext";
 
 const SESSION_WORD_LIMIT = 10;
 const DISTRACTOR_POOL_LIMIT = 500;
+// Hata defteri: en az bir kez yanlış yapılmış ve henüz Bronz rütbesine
+// (mastery_level 3) ulaşmamış kelimeler. Rütbe 3'e çıkınca defterden düşer.
+export const MISTAKE_MAX_MASTERY = 3;
 
-export function useWordQuiz(userLevel) {
+export function useWordQuiz(userLevel, mode = "review") {
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -65,17 +68,24 @@ export function useWordQuiz(userLevel) {
 
       setLoading(true);
       setError(null);
-      setExamplesMap({});
       try {
         // en geciken next_review_at önce — useSentenceQuiz.js ile aynı
         // spaced-repetition önceliklendirmesi.
-        const { data: userWords, error: uwError } = await supabase
+        // Hata defteri modunda vadeye bakılmaz: en çok yanlış yapılanlar önce.
+        const base = supabase
           .from("en_user_words")
           .select("word_id, next_review_at")
-          .eq("user_id", userId)
-          .lt("next_review_at", new Date().toISOString())
-          .order("next_review_at", { ascending: true })
-          .limit(SESSION_WORD_LIMIT);
+          .eq("user_id", userId);
+        const { data: userWords, error: uwError } = await (mode === "mistakes"
+          ? base
+              .gt("total_wrong", 0)
+              .lt("mastery_level", MISTAKE_MAX_MASTERY)
+              .order("total_wrong", { ascending: false })
+              .order("last_reviewed_at", { ascending: false, nullsFirst: false })
+          : base
+              .lt("next_review_at", new Date().toISOString())
+              .order("next_review_at", { ascending: true })
+        ).limit(SESSION_WORD_LIMIT);
 
         if (uwError) throw uwError;
 
@@ -107,22 +117,6 @@ export function useWordQuiz(userLevel) {
         setCurrentQuestion(sessionQueue[0] || null);
         setQueueIndex(0);
 
-        if (sessionQueue.length > 0) {
-          const { data: examples } = await supabase
-            .from("en_example_sentences")
-            .select("*")
-            .in("word_id", wordIds)
-            .order("order_index");
-
-          if (examples) {
-            const map = {};
-            examples.forEach(ex => {
-              if (!map[ex.word_id]) map[ex.word_id] = [];
-              map[ex.word_id].push(ex);
-            });
-            setExamplesMap(map);
-          }
-        }
       } catch (err) {
         console.error("Veri yükleme hatası:", err);
         setError("Veriler yüklenemedi.");
@@ -133,7 +127,7 @@ export function useWordQuiz(userLevel) {
     fetchData();
     setSelected(null);
     setAnswered(false);
-  }, [userLevel, sessionKey, userId]);
+  }, [userLevel, sessionKey, userId, mode]);
 
   // Şıkları oluştur — havuz (distractorPool) hazırsa oradan, henüz
   // yüklenmediyse (ör. ilk render sırasında bir yarış durumu) geçici

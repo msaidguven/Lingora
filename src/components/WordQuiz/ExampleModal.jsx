@@ -55,10 +55,10 @@ Kelime: ${word}`;
         const { data: inserted, error } = await supabase
           .from("en_example_sentences")
           .insert({
-            word_id: word.id,
             sentence_en: item.sentence_en,
             sentence_tr: item.sentence_tr,
             order_index: i,
+            level: word.level || "A1",
             source: "ai",
             is_approved: true
           })
@@ -85,17 +85,6 @@ Kelime: ${word}`;
         
         await supabase.from("en_user_sentences").insert(inserts);
       }
-
-      const { data: newExamples } = await supabase
-        .from("en_example_sentences")
-        .select("*")
-        .eq("word_id", word.id)
-        .order("order_index");
-
-      setExamplesMap(prev => ({
-        ...prev,
-        [word.id]: newExamples || []
-      }));
 
       setExampleStatus("success");
       setTimeout(() => {

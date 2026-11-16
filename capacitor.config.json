@@ -1,5 +1,11 @@
 {
   "appId": "com.lingora.language",
   "appName": "Lingora",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_lingora",
+      "iconColor": "#D6303C"
+    }
+  }
 }

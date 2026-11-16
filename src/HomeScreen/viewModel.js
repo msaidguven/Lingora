@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../config.js";
 import { useAuth } from '../contexts/AuthContext';
 import { getTurkeyTodayString } from "../utils/turkeyDate";
+import { effectiveStreak } from "../utils/streak";
+import { syncReminders } from "../utils/reminders";
+import { MISTAKE_MAX_MASTERY } from "../hooks/useWordQuiz";
 
 export function useHomeViewModel() {
   const { user } = useAuth();
@@ -14,6 +17,7 @@ export function useHomeViewModel() {
   const [mySentencesCount, setMySentencesCount] = useState(0);
   const [dueCount, setDueCount] = useState(0);
   const [dueSentenceCount, setDueSentenceCount] = useState(0);
+  const [mistakeCount, setMistakeCount] = useState(0);
   const [userLevel, setUserLevel] = useState("A1");
   const [buying, setBuying] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -34,6 +38,7 @@ export function useHomeViewModel() {
   const [dailySentenceCorrect, setDailySentenceCorrect] = useState(0);
   const [dailySentenceWrong, setDailySentenceWrong] = useState(0);
   const [dailyStudySeconds, setDailyStudySeconds] = useState(0);
+  const [streak, setStreak] = useState(effectiveStreak(null));
 
   // Yeni satın alınan kelime/cümlelerin tanıtım ekranı için state
   const [introItems, setIntroItems] = useState([]);
@@ -86,10 +91,14 @@ export function useHomeViewModel() {
       const { data: userData } = await supabase
         .from("en_users")
         .select(
-          "level, daily_word_quota, daily_word_quota_used, daily_sentence_quota, daily_sentence_quota_used, bonus_words_today, bonus_sentences_today"
+          "level, daily_word_quota, daily_word_quota_used, daily_sentence_quota, daily_sentence_quota_used, bonus_words_today, bonus_sentences_today, streak_days, streak_last_date, streak_freezes"
         )
         .eq("id", user.id)
         .maybeSingle();
+
+      const currentStreak = effectiveStreak(userData);
+      setStreak(currentStreak);
+      syncReminders({ streakDays: currentStreak.days, studiedToday: currentStreak.studiedToday });
 
       const level = userData?.level || "A1";
       setUserLevel(level);
@@ -111,6 +120,7 @@ export function useHomeViewModel() {
         dueRes,
         dueSentencesRes,
         dailyStatsRes,
+        mistakesRes,
       ] = await Promise.all([
         supabase
           .from("en_words")
@@ -149,6 +159,12 @@ export function useHomeViewModel() {
           .eq("user_id", user.id)
           .eq("stat_date", today)
           .maybeSingle(),
+        supabase
+          .from("en_user_words")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gt("total_wrong", 0)
+          .lt("mastery_level", MISTAKE_MAX_MASTERY),
       ]);
 
       setTotalWords(totalRes.count || 0);
@@ -157,6 +173,7 @@ export function useHomeViewModel() {
       setMySentencesCount(mySentencesRes.count || 0);
       setDueCount(dueRes.count || 0);
       setDueSentenceCount(dueSentencesRes.count || 0);
+      setMistakeCount(mistakesRes.count || 0);
 
       const stats = dailyStatsRes.data;
       setDailyWordCorrect(stats?.word_correct || 0);
@@ -228,7 +245,7 @@ export function useHomeViewModel() {
     }
 
     if (remainingWordAllowance <= 0) {
-      alert("⚠️ Günlük kelime hakkın bitti. Reklam izleyerek veya premium ile artırabilirsin.");
+      alert("⚠️ Günlük kelime hakkın bitti. Yarın yenilenir; mobil uygulamada reklam izleyerek ek hak da alabilirsin.");
       return;
     }
 
@@ -268,7 +285,7 @@ export function useHomeViewModel() {
     }
 
     if (remainingSentenceAllowance <= 0) {
-      alert("⚠️ Günlük cümle hakkın bitti. Reklam izleyerek veya premium ile artırabilirsin.");
+      alert("⚠️ Günlük cümle hakkın bitti. Yarın yenilenir; mobil uygulamada reklam izleyerek ek hak da alabilirsin.");
       return;
     }
 
@@ -374,6 +391,7 @@ export function useHomeViewModel() {
     mySentencesCount,
     dueCount,
     dueSentenceCount,
+    mistakeCount,
     userLevel,
     buying,
     mounted,
@@ -388,6 +406,7 @@ export function useHomeViewModel() {
     dailySentenceCorrect,
     dailySentenceWrong,
     dailyStudySeconds,
+    streak,
     dailyWordGoal: 100,
     dailySentenceGoal: 100,
     // Kota alanları (coinlerin yerine geçti)

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -51,6 +52,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Günlük hatırlatma tam saatte olmak zorunda değil; local-notifications eklentisinin
+         eklediği tam zamanlı alarm iznini kaldırıyoruz (Play bu izni gerekçe ister). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 
     <!-- Android 11+ paket görünürlüğü: TTS motorunu bulabilmek için gerekli -->
     <queries>

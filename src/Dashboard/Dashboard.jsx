@@ -243,7 +243,7 @@ export default function Dashboard() {
             review_count,
             total_correct,
             total_wrong,
-            en_example_sentences (sentence_en, sentence_tr, word_id)
+            en_example_sentences (sentence_en, sentence_tr)
           `)
           .eq("user_id", userId),
       ]);
@@ -284,7 +284,6 @@ export default function Dashboard() {
             id: us.sentence_id,
             sentence: us.en_example_sentences.sentence_en,
             meaning: us.en_example_sentences.sentence_tr,
-            wordId: us.en_example_sentences.word_id,
             totalReviews,
             totalCorrect,
             totalWrong,

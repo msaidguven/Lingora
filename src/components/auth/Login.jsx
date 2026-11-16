@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 import { AuthLayout } from './AuthLayout';
+import { ForgotPassword } from './ForgotPassword';
 import '../../styles/auth.css';
 
 export const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
@@ -9,6 +10,7 @@ export const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgot, setForgot] = useState(false);
   const { login, loginWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -37,9 +39,13 @@ export const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
     setLoading(false);
   };
 
+  if (forgot) {
+    return <ForgotPassword defaultEmail={email} onBack={() => setForgot(false)} />;
+  }
+
   return (
-    <AuthLayout 
-      title="Hoş Geldiniz" 
+    <AuthLayout
+      title="Hoş Geldiniz"
       subtitle="Lingora ile dil öğrenmeye başlayın"
     >
       <form onSubmit={handleSubmit} className="auth-form">
@@ -67,6 +73,14 @@ export const Login = ({ onLoginSuccess, onSwitchToRegister }) => {
             required
             disabled={loading}
           />
+          <button
+            type="button"
+            onClick={() => setForgot(true)}
+            className="auth-switch"
+            style={{ marginTop: 6, fontSize: 12, alignSelf: 'flex-end' }}
+          >
+            Şifremi unuttum
+          </button>
         </div>
 
         <button 

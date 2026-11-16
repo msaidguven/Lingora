@@ -27,7 +27,8 @@ const playCoinSound = () => {
   }
 };
 
-export default function WordQuiz({ userLevel, onChangeLevel }) {
+export default function WordQuiz({ userLevel, onChangeLevel, mode = "review" }) {
+  const isMistakes = mode === "mistakes";
   const { user } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -52,7 +53,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
     handleNext,
     restartQuizSession,
     setExamplesMap
-  } = useWordQuiz(userLevel);
+  } = useWordQuiz(userLevel, mode);
 
   const lastSpokenIdRef = useRef(null);
 
@@ -337,7 +338,7 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
             onClick={handleRestart}
             className="btn btn-primary btn-lg rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
           >
-            10 Kelime Daha Çalış
+            {isMistakes ? "Defterden Devam Et" : "10 Kelime Daha Çalış"}
           </button>
           <button
             onClick={onChangeLevel}
@@ -353,11 +354,15 @@ export default function WordQuiz({ userLevel, onChangeLevel }) {
   if (!currentQuestion || queue.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-6 p-8 text-center bg-base-100">
-        <div className="text-6xl">📝</div>
+        <div className="text-6xl">{isMistakes ? "📕" : "📝"}</div>
         <div className="space-y-2">
-          <h3 className="text-xl font-bold text-base-content">Tekrarlanacak kelime yok!</h3>
+          <h3 className="text-xl font-bold text-base-content">
+            {isMistakes ? "Hata defterin boş!" : "Tekrarlanacak kelime yok!"}
+          </h3>
           <p className="text-sm text-base-content/50 font-medium">
-            Ana sayfadan yeni kelime ekleyebilirsin.
+            {isMistakes
+              ? "Yanlış yaptığın kelimeler burada toplanır; birkaç kez doğru bilince (Bronz rütbe) defterden çıkar."
+              : "Ana sayfadan yeni kelime ekleyebilirsin."}
           </p>
         </div>
         <button
