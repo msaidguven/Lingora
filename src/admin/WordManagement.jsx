@@ -5,7 +5,7 @@ import {
   styles, colors, PageHeader, Tabs, Card, Message,
   Input, TextArea, Badge, SearchInput
 } from "./adminStyles.jsx";
-import { buildWordPrompt, WORD_LEVELS } from "./wordPrompt.js";
+import { buildWordPrompt, buildPromptForWords, WORD_LEVELS } from "./wordPrompt.js";
 
 export default function WordManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
@@ -48,6 +48,33 @@ function WordAdder() {
   const [promptLevel, setPromptLevel] = useState(null);
   const activeLevel = promptLevel || recentWords[0]?.level || "A1";
   const promptText = buildWordPrompt(activeLevel);
+
+  // Cümlesi olmayan kelimeler (Oxford listesinden toplu yüklenenler): sıradaki N
+  // kelimeyi promptla birlikte kopyala → AI cevabını aşağıya yapıştır.
+  const [batchSize, setBatchSize] = useState(5);
+  const [pending, setPending] = useState({ words: [], total: 0, loading: true });
+  const [batchCopied, setBatchCopied] = useState(false);
+
+  const fetchPending = useCallback(async () => {
+    setPending((p) => ({ ...p, loading: true }));
+    const { data, error } = await supabase.rpc("words_without_sentences", {
+      p_level: activeLevel,
+      p_limit: batchSize,
+    });
+    if (error) console.error("Cümlesiz kelimeler alınamadı:", error);
+    setPending({ words: data || [], total: data?.[0]?.total ?? 0, loading: false });
+  }, [activeLevel, batchSize]);
+
+  useEffect(() => {
+    fetchPending();
+  }, [fetchPending]);
+
+  const handleCopyBatch = () => {
+    if (pending.words.length === 0) return;
+    navigator.clipboard.writeText(buildPromptForWords(activeLevel, pending.words));
+    setBatchCopied(true);
+    setTimeout(() => setBatchCopied(false), 2000);
+  };
 
   const fetchRecentWords = async () => {
     setLoadingRecent(true);
@@ -153,7 +180,8 @@ function WordAdder() {
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
           .select("id, word")
-          .eq("word", item.word)
+          .ilike("word", item.word.replace(/[%_\\]/g, "\\$&"))
+          .limit(1)
           .maybeSingle();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -166,6 +194,22 @@ function WordAdder() {
         if (existing) {
           wordId = existing.id;
           wordStatus = "zaten var";
+
+          // Listeden gelen kaba anlamı ve boş alanları AI'ın verdiğiyle güncelle
+          // (seviye korunur: kelimenin seviyesi listeden gelir).
+          const { error: updateError } = await supabase
+            .from("en_words")
+            .update({
+              meaning: item.meaning,
+              ...(item.type && { type: item.type }),
+              ...(item.part_of_speech && { part_of_speech: item.part_of_speech }),
+              ...(item.category && { category: item.category }),
+              ...(item.difficulty && { difficulty: item.difficulty }),
+              ...(item.synonyms && { synonyms: item.synonyms }),
+              ...(item.antonyms && { antonyms: item.antonyms }),
+            })
+            .eq("id", wordId);
+          if (updateError) throw updateError;
 
           let addedExampleCount = 0;
           let existingExampleCount = 0;
@@ -312,6 +356,7 @@ function WordAdder() {
 
     setResults(resultList);
     setLoading(false);
+    fetchPending();
 
     const successCount = resultList.filter(r => r.ok).length;
     const failCount = resultList.filter(r => !r.ok).length;
@@ -324,9 +369,9 @@ function WordAdder() {
     if (addedCount > 0 && existsCount === 0) {
       successMessage = `✅ ${addedCount} kelime eklendi`;
     } else if (addedCount === 0 && existsCount > 0) {
-      successMessage = `ℹ️ ${existsCount} kelime zaten mevcut`;
+      successMessage = `🔄 ${existsCount} kelime güncellendi`;
     } else if (addedCount > 0 && existsCount > 0) {
-      successMessage = `✅ ${addedCount} kelime eklendi, ⏭️ ${existsCount} kelime zaten mevcut`;
+      successMessage = `✅ ${addedCount} kelime eklendi, 🔄 ${existsCount} kelime güncellendi`;
     }
 
     if (totalAddedExamples > 0 || totalExistingExamples > 0) {
@@ -376,6 +421,58 @@ function WordAdder() {
         ) : (
           <div style={{ fontSize: 12, color: colors.textSecondary }}>Henüz kelime eklenmemiş</div>
         )}
+      </Card>
+
+      <Card small>
+        <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, marginBottom: 6 }}>
+          🧩 Cümlesi Olmayan Kelimeler ({activeLevel})
+        </div>
+        <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 10 }}>
+          {pending.loading
+            ? "Yükleniyor..."
+            : pending.total > 0
+              ? `${pending.total} kelimenin cümlesi yok. Bunlar öğrencilere henüz gösterilmiyor. Sıradakiler: ${pending.words.map((w) => w.word).join(", ")}`
+              : "Bu seviyede cümlesi olmayan kelime yok 🎉"}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, color: colors.textSecondary, marginRight: 4 }}>Kaç kelime:</span>
+          {[5, 10, 20].map((n) => (
+            <button
+              key={n}
+              onClick={() => setBatchSize(n)}
+              style={{
+                background: n === batchSize ? colors.primary : colors.surfaceLight,
+                border: `1px solid ${n === batchSize ? colors.primary : colors.border}`,
+                borderRadius: 6,
+                color: n === batchSize ? "#fff" : colors.textSecondary,
+                fontSize: 12,
+                fontWeight: n === batchSize ? 700 : 500,
+                padding: "4px 12px",
+                cursor: "pointer"
+              }}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={handleCopyBatch}
+            disabled={pending.words.length === 0}
+            style={{
+              marginLeft: "auto",
+              background: batchCopied ? colors.successBg : colors.primary,
+              border: "none",
+              borderRadius: 6,
+              color: batchCopied ? colors.success : "#fff",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "6px 14px",
+              cursor: pending.words.length === 0 ? "not-allowed" : "pointer",
+              opacity: pending.words.length === 0 ? 0.5 : 1
+            }}
+          >
+            {batchCopied ? "✓ Kopyalandı! AI cevabını aşağıya yapıştır" : `📋 ${pending.words.length} kelimeyle promptu kopyala`}
+          </button>
+        </div>
       </Card>
 
       <Card small>
@@ -464,7 +561,7 @@ function WordAdder() {
                 <span style={{
                   color: r.ok ? (r.status === "eklendi" ? colors.success : colors.textSecondary) : colors.error
                 }}>
-                  {r.ok ? (r.status === "eklendi" ? "✅ Eklendi" : "⏭️ Mevcut") : "❌ Hata"}
+                  {r.ok ? (r.status === "eklendi" ? "✅ Eklendi" : "🔄 Güncellendi") : "❌ Hata"}
                   {r.message && ` - ${r.message}`}
                 </span>
               </div>

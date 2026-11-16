@@ -61,3 +61,9 @@ Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt.
 ]
 
 Kelimeler: `;
+// Veritabanındaki (cümlesi henüz olmayan) kelimeler için hazır prompt: kelimeler mevcut
+// kaba anlamlarıyla birlikte yazılır, AI anlamı düzeltip 5 cümle üretir.
+export const buildPromptForWords = (level, words) =>
+  buildWordPrompt(level) +
+  "\n" +
+  words.map((w) => `${w.word} (mevcut anlam: ${w.meaning || "?"})`).join("\n");
