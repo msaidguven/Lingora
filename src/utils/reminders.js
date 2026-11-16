@@ -108,6 +108,12 @@ export async function syncReminders({ streakDays = 0, studiedToday = false } = {
         title: "Lingora",
         body,
         schedule: { at, allowWhileIdle: true },
+        // Tam zamanlı alarm İSTEME: varsayılan (true) Android 12+'da her kurulumda
+        // "Alarmlar ve hatırlatıcılar" ayar sayfasını açıyor; SCHEDULE_EXACT_ALARM
+        // izni manifestten kaldırıldığı için izin verilemiyor, geri dönünce ana sayfa
+        // tekrar kuruyor ve sayfa yine açılıyordu (1.0.3'teki döngü). Birkaç dakikalık
+        // sapma günlük hatırlatma için sorun değil.
+        isExactNotification: false,
       });
     }
     if (notifications.length) await LocalNotifications.schedule({ notifications });
