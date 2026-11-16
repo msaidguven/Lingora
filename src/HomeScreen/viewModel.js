@@ -262,7 +262,9 @@ export function useHomeViewModel() {
       if (error) throw error;
 
       if (!newWords || newWords.length === 0) {
-        alert("Tüm kelimeleri açtınız! 🎉");
+        // Kelime bitmiş olmayabilir: cümlesi eklenmemiş / anlamı onay bekleyen
+        // kelimeler öğrenciye verilmiyor (bkz. get_new_words).
+        alert("Şu an bu seviyede hazır yeni kelime yok. Yeni kelimeler eklendikçe burada açılacak.");
         setBuying(false);
         return;
       }
@@ -302,7 +304,7 @@ export function useHomeViewModel() {
       if (error) throw error;
 
       if (!newSentences || newSentences.length === 0) {
-        alert(`Bu seviyede (${userLevel}) açılacak cümle kalmadı! 🎉`);
+        alert(`Şu an bu seviyede (${userLevel}) hazır yeni cümle yok. Yeni cümleler eklendikçe burada açılacak.`);
         setBuying(false);
         return;
       }
