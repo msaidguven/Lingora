@@ -13,3 +13,4 @@ build
 tool/play_publish/venv
 tool/play_publish/__pycache__/
 .firebase/
+tool/.venv-kelime

@@ -94,6 +94,7 @@ def main():
     """)
     r = res[0]
     print(f"\n✓ {r['eklenen']} yeni kelime eklendi; {r['toplam'] - r['eklenen']} tanesi zaten vardı.")
+    print("Zorlukları güncelle: tool/.venv-kelime/bin/python tool/zorluk_hesapla.py --yaz")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,12 @@ Kısacası: 5 cümleyi yan yana okuyunca "hepsi aynı kalıbın kopyası" hissi 
 
 - Her cümle için Türkçe çeviri de ekle (en ve tr olarak)
 - Her cümle için level belirt; bu değer kelimenin level değeriyle AYNI olmalı
+- Her cümle için "difficulty" ver (1-10 tam sayı): cümlenin KENDİ SEVİYESİ İÇİNDEKİ zorluğu. 1 = bu seviyenin en kolay cümlesi, 10 = bu seviyenin en zor cümlesi (ama yine bu seviyenin sınırları içinde). Ölçüt:
+  - 1-3: seviyenin izin verdiği en kısa cümleler, en basit yapı (olumlu, geniş/şimdiki zaman), hedef kelime dışında yalnız en temel kelimeler.
+  - 4-6: orta uzunluk; olumsuz ya da soru biçimi, iki öğeli yapılar, yaygın kelimeler.
+  - 7-10: seviyenin üst sınırına yakın uzunluk; seviyenin izin verdiği en karmaşık yapılar (bağlaçlı cümlecik, farklı zaman, kalıp/phrasal verb), daha az sık kelimeler.
+  Kelimenin kendi "difficulty" değeri de aynı ölçekte (1-10, seviye içinde): 1 = seviyenin en sık kullanılan/kolay kelimesi.
+  5 cümlenin zorlukları birbirinden farklı ve kolaydan zora yayılmış olsun (ör. 2, 4, 5, 7, 9).
 - Her cümle için learning_notes array'i ekle: cümledeki önemli gramer yapısı, kalıp, deyim veya kullanım inceliğini açıklayan 1-2 kısa not (Türkçe). İngilizce öğrenmeye çalışan birisi için yardımcı olacak açıklamalar; kelime ve kullanım alanı, ayrıca neden ve niçin böyle kullanıldığı vb.
 - Doğru json formatında ver, parse ederken hata olmasın.
 
@@ -51,11 +57,11 @@ Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt.
     "synonyms": ["eş1", "eş2"],
     "antonyms": ["zıt1", "zıt2"],
     "examples": [
-      {"en": "English sentence 1 (context A, affirmative)", "tr": "Türkçe çeviri 1", "level": "${level}", "learning_notes": ["not1", "not2"]},
-      {"en": "English sentence 2 (context B, negative or different subject)", "tr": "Türkçe çeviri 2", "level": "${level}", "learning_notes": []},
-      {"en": "English sentence 3 (context C, question form)", "tr": "Türkçe çeviri 3", "level": "${level}", "learning_notes": []},
-      {"en": "English sentence 4 (context D, different tense/meaning)", "tr": "Türkçe çeviri 4", "level": "${level}", "learning_notes": []},
-      {"en": "English sentence 5 (context E, idiom/phrasal use if applicable)", "tr": "Türkçe çeviri 5", "level": "${level}", "learning_notes": []}
+      {"en": "English sentence 1 (context A, affirmative)", "tr": "Türkçe çeviri 1", "level": "${level}", "difficulty": 3, "learning_notes": ["not1", "not2"]},
+      {"en": "English sentence 2 (context B, negative or different subject)", "tr": "Türkçe çeviri 2", "level": "${level}", "difficulty": 3, "learning_notes": []},
+      {"en": "English sentence 3 (context C, question form)", "tr": "Türkçe çeviri 3", "level": "${level}", "difficulty": 3, "learning_notes": []},
+      {"en": "English sentence 4 (context D, different tense/meaning)", "tr": "Türkçe çeviri 4", "level": "${level}", "difficulty": 3, "learning_notes": []},
+      {"en": "English sentence 5 (context E, idiom/phrasal use if applicable)", "tr": "Türkçe çeviri 5", "level": "${level}", "difficulty": 3, "learning_notes": []}
     ]
   }
 ]

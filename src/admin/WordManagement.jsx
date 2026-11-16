@@ -50,6 +50,11 @@ export default function WordManagement({ onBack }) {
 // Anlam karşılaştırması: büyük/küçük harf, boşluk ve sıra farkı öneri sayılmaz.
 const splitMeaning = (m) =>
   (m || "").split(",").map((x) => x.trim()).filter(Boolean);
+// AI'ın verdiği 1-10 zorluk; geçersizse boş bırakılır (sıralamada sona düşer).
+const clampDifficulty = (d) => {
+  const n = Math.round(Number(d));
+  return Number.isFinite(n) && n >= 1 ? Math.min(10, n) : null;
+};
 const normalizeMeaning = (m) =>
   splitMeaning(m).map((x) => x.toLocaleLowerCase("tr-TR")).sort().join("|");
 
@@ -235,7 +240,6 @@ function WordAdder() {
               ...(item.type && { type: item.type }),
               ...(item.part_of_speech && { part_of_speech: item.part_of_speech }),
               ...(item.category && { category: item.category }),
-              ...(item.difficulty && { difficulty: item.difficulty }),
               ...(item.synonyms && { synonyms: item.synonyms }),
               ...(item.antonyms && { antonyms: item.antonyms }),
             })
@@ -273,6 +277,7 @@ function WordAdder() {
                       sentence_tr: example.tr,
                       level: example.level || item.level || "A1",
                       order_index: 0,
+                      difficulty: clampDifficulty(example.difficulty),
                       source: "manual",
                       is_approved: true,
                       learning_notes: example.learning_notes || [],
@@ -326,7 +331,7 @@ function WordAdder() {
               type: item.type || "word",
               part_of_speech: item.part_of_speech || [],
               category: item.category || [],
-              difficulty: item.difficulty || 1,
+              difficulty: clampDifficulty(item.difficulty) ?? 1,
               synonyms: item.synonyms || [],
               antonyms: item.antonyms || [],
             })
@@ -350,6 +355,7 @@ function WordAdder() {
                     sentence_tr: example.tr,
                     level: example.level || item.level || "A1",
                     order_index: 0,
+                    difficulty: clampDifficulty(example.difficulty),
                     source: "manual",
                     is_approved: true,
                     learning_notes: example.learning_notes || [],
@@ -1221,12 +1227,12 @@ function WordEditor() {
               </select>
             </div>
             <Input
-              label="Zorluk (1-5)"
+              label="Zorluk (seviye içi 1-10)"
               type="number"
               min={1}
-              max={5}
+              max={10}
               value={formData.difficulty}
-              onChange={(e) => handleFormChange("difficulty", Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+              onChange={(e) => handleFormChange("difficulty", Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
               disabled={!editing}
             />
             <Input
