@@ -10,8 +10,23 @@ import { buildWordPrompt, buildPromptForWords, WORD_LEVELS } from "./wordPrompt.
 export default function WordManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState("add");
 
+  const [pendingMeanings, setPendingMeanings] = useState(0);
+
+  const refreshPendingMeanings = useCallback(async () => {
+    const { count } = await supabase
+      .from("en_words")
+      .select("id", { count: "exact", head: true })
+      .not("suggested_meaning", "is", null);
+    setPendingMeanings(count || 0);
+  }, []);
+
+  useEffect(() => {
+    refreshPendingMeanings();
+  }, [refreshPendingMeanings, activeTab]);
+
   const tabs = [
     { id: "add", label: "Kelime Ekle", icon: "➕" },
+    { id: "review", label: `Anlam Onayı${pendingMeanings ? ` (${pendingMeanings})` : ""}`, icon: "🧐" },
     { id: "edit", label: "Kelime Düzenle", icon: "✏️" },
   ];
 
@@ -25,10 +40,18 @@ export default function WordManagement({ onBack }) {
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {activeTab === "add" ? <WordAdder /> : <WordEditor />}
+      {activeTab === "add" && <WordAdder />}
+      {activeTab === "review" && <MeaningReview onChanged={refreshPendingMeanings} />}
+      {activeTab === "edit" && <WordEditor />}
     </div>
   );
 }
+
+// Anlam karşılaştırması: büyük/küçük harf, boşluk ve sıra farkı öneri sayılmaz.
+const splitMeaning = (m) =>
+  (m || "").split(",").map((x) => x.trim()).filter(Boolean);
+const normalizeMeaning = (m) =>
+  splitMeaning(m).map((x) => x.toLocaleLowerCase("tr-TR")).sort().join("|");
 
 // ============================
 // KELİME EKLEME BİLEŞENİ
@@ -174,12 +197,13 @@ function WordAdder() {
     setLoading(true);
     setMessage(null);
     const resultList = [];
+    let suggestedCount = 0;
 
     for (const item of parsedData) {
       try {
         const { data: existing, error: checkError } = await supabase
           .from("en_words")
-          .select("id, word")
+          .select("id, word, meaning")
           .ilike("word", item.word.replace(/[%_\\]/g, "\\$&"))
           .limit(1)
           .maybeSingle();
@@ -195,12 +219,19 @@ function WordAdder() {
           wordId = existing.id;
           wordStatus = "zaten var";
 
-          // Listeden gelen kaba anlamı ve boş alanları AI'ın verdiğiyle güncelle
-          // (seviye korunur: kelimenin seviyesi listeden gelir).
+          // Anlam doğrudan değişmez: AI mevcut anlamı yanlış/eksik bulduysa önerisi
+          // "Anlam Onayı" paneline düşer, karar admin'in. Diğer boş alanlar AI'dan
+          // doldurulur; seviye korunur (kelimenin seviyesi listeden gelir).
+          const meaningChanged =
+            item.meaning_ok !== true && normalizeMeaning(item.meaning) !== normalizeMeaning(existing.meaning);
+          if (meaningChanged) suggestedCount++;
           const { error: updateError } = await supabase
             .from("en_words")
             .update({
-              meaning: item.meaning,
+              ...(meaningChanged && {
+                suggested_meaning: item.meaning,
+                meaning_note: item.meaning_note || null,
+              }),
               ...(item.type && { type: item.type }),
               ...(item.part_of_speech && { part_of_speech: item.part_of_speech }),
               ...(item.category && { category: item.category }),
@@ -379,6 +410,10 @@ function WordAdder() {
       if (totalExistingExamples > 0) {
         successMessage += `, ⏭️ ${totalExistingExamples} cümle zaten mevcut`;
       }
+    }
+
+    if (suggestedCount > 0) {
+      successMessage += `\n🧐 ${suggestedCount} kelimede anlam önerisi var → "Anlam Onayı" sekmesi`;
     }
 
     if (failCount === 0) {
@@ -589,6 +624,168 @@ function WordAdder() {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+
+// ============================
+// ANLAM ONAYI — AI'ın listedeki anlam için önerisi
+// ============================
+const REVIEW_PAGE = 20;
+
+function mergeMeanings(oldM, newM) {
+  const out = [];
+  const seen = new Set();
+  for (const part of [...splitMeaning(newM), ...splitMeaning(oldM)]) {
+    const key = part.toLocaleLowerCase("tr-TR");
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(part);
+    }
+  }
+  return out.join(", ");
+}
+
+function MeaningReview({ onChanged }) {
+  const [level, setLevel] = useState("all");
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [drafts, setDrafts] = useState({});
+  const [message, setMessage] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let q = supabase
+      .from("en_words")
+      .select("id, word, level, meaning, suggested_meaning, meaning_note", { count: "exact" })
+      .not("suggested_meaning", "is", null)
+      .order("level")
+      .order("word")
+      .limit(REVIEW_PAGE);
+    if (level !== "all") q = q.eq("level", level);
+    const { data, count, error } = await q;
+    if (error) setMessage({ type: "error", text: "Yüklenemedi: " + error.message });
+    setItems(data || []);
+    setTotal(count || 0);
+    setDrafts({});
+    setLoading(false);
+  }, [level]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const decide = async (item, action) => {
+    const draft = (drafts[item.id] ?? item.suggested_meaning).trim();
+    let meaning = item.meaning;
+    if (action === "new") meaning = draft;
+    else if (action === "both") meaning = mergeMeanings(item.meaning, draft);
+    if (!meaning) return;
+
+    setBusyId(item.id);
+    const { error } = await supabase
+      .from("en_words")
+      .update({ meaning, suggested_meaning: null, meaning_note: null })
+      .eq("id", item.id);
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: "error", text: `"${item.word}" kaydedilemedi: ${error.message}` });
+      return;
+    }
+    setItems((list) => list.filter((x) => x.id !== item.id));
+    setTotal((t) => Math.max(0, t - 1));
+    onChanged?.();
+  };
+
+  const btn = (bg, color) => ({
+    background: bg,
+    border: "none",
+    borderRadius: 6,
+    color,
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "6px 10px",
+    cursor: "pointer",
+  });
+
+  return (
+    <div>
+      <Message type={message?.type} text={message?.text} />
+
+      <Card small>
+        <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 10 }}>
+          AI'ın listedeki anlamı yanlış/eksik bulduğu kelimeler. Karar verene kadar kelime
+          öğrencilere gösterilmez. Öneriyi kutuda düzenleyebilirsin.
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {["all", ...WORD_LEVELS].map((lvl) => (
+            <button
+              key={lvl}
+              onClick={() => setLevel(lvl)}
+              style={{
+                ...btn(lvl === level ? colors.primary : colors.surfaceLight, lvl === level ? "#fff" : colors.textSecondary),
+                fontWeight: lvl === level ? 700 : 500,
+              }}
+            >
+              {lvl === "all" ? "Tümü" : lvl}
+            </button>
+          ))}
+          <span style={{ marginLeft: "auto", fontSize: 12, color: colors.textSecondary, alignSelf: "center" }}>
+            {total} bekleyen
+          </span>
+        </div>
+      </Card>
+
+      {loading ? (
+        <div style={{ fontSize: 12, color: colors.textSecondary, padding: 12 }}>Yükleniyor...</div>
+      ) : items.length === 0 ? (
+        <Card small>
+          <div style={{ fontSize: 13, color: colors.textSecondary }}>Bekleyen anlam önerisi yok 🎉</div>
+        </Card>
+      ) : (
+        items.map((item) => (
+          <Card small key={item.id}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: colors.text }}>{item.word}</span>
+              <Badge text={item.level} />
+            </div>
+            <div style={{ fontSize: 12, color: colors.textSecondary }}>Listedeki anlam</div>
+            <div style={{ fontSize: 13, color: colors.text, marginBottom: 8, textDecoration: "line-through", textDecorationColor: colors.error }}>
+              {item.meaning}
+            </div>
+            <div style={{ fontSize: 12, color: colors.textSecondary }}>AI önerisi</div>
+            <input
+              value={drafts[item.id] ?? item.suggested_meaning}
+              onChange={(e) => setDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
+              style={{ ...styles.input(), width: "100%", marginBottom: 6, color: colors.success, fontWeight: 600 }}
+            />
+            {item.meaning_note && (
+              <div style={{ fontSize: 12, color: colors.textSecondary, fontStyle: "italic", marginBottom: 8 }}>
+                💬 {item.meaning_note}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button disabled={busyId === item.id} onClick={() => decide(item, "new")} style={btn(colors.success, "#fff")}>
+                ✅ Yenisini kullan (eskisini sil)
+              </button>
+              <button disabled={busyId === item.id} onClick={() => decide(item, "both")} style={btn(colors.primary, "#fff")}>
+                ➕ İkisi de kalsın
+              </button>
+              <button disabled={busyId === item.id} onClick={() => decide(item, "reject")} style={btn(colors.surfaceLight, colors.error)}>
+                ✖ Reddet (eskisi kalsın)
+              </button>
+            </div>
+          </Card>
+        ))
+      )}
+      {!loading && total > items.length && (
+        <button onClick={load} style={{ ...btn(colors.surfaceLight, colors.text), width: "100%" }}>
+          Sıradaki {Math.min(REVIEW_PAGE, total - items.length)} öneriyi yükle
+        </button>
+      )}
     </div>
   );
 }

@@ -61,9 +61,25 @@ Eğer verilen kelimelerin anlamı verilmişse ama eksik yada hata varsa düzelt.
 ]
 
 Kelimeler: `;
-// Veritabanındaki (cümlesi henüz olmayan) kelimeler için hazır prompt: kelimeler mevcut
-// kaba anlamlarıyla birlikte yazılır, AI anlamı düzeltip 5 cümle üretir.
+// Veritabanındaki (cümlesi henüz olmayan) kelimeler için hazır prompt. Kelimeler listeden
+// gelen anlamlarıyla gönderilir; AI önce anlamı kontrol eder (meaning_ok / meaning_note),
+// sonra 5 cümle üretir. Yanlış/eksik bulunan anlam doğrudan yazılmaz: admin
+// "Anlam Onayı" panelinde karar verir.
+export const MEANING_CHECK_RULES = `
+
+ANLAM KONTROLÜ (cümlelerden ÖNCE yap):
+Her kelimenin yanında bir kelime listesinden gelen "mevcut anlam" var. Bu anlamlar otomatik sözlükten alındı; yanlış, eksik, nadir/eski anlamlarla dolu ya da hatalı olabilir.
+1. Kelimenin bu seviyedeki bir öğrenci için doğru ve yeterli Türkçe anlamlarını belirle: en çok kullanılan anlam önce, virgülle ayrılmış, en fazla 4 anlam. Nadir, eski, argo ya da çok teknik anlamları alma.
+2. Mevcut anlam doğru ve yeterliyse: "meaning_ok": true, "meaning" alanına mevcut anlamı AYNEN yaz, "meaning_note": "".
+3. Mevcut anlam yanlış, eksik, hatalı ya da gereksiz/nadir anlamlar içeriyorsa: "meaning_ok": false, "meaning" alanına SENİN önerdiğin doğru anlamı yaz, "meaning_note" alanına neyin yanlış olduğunu Türkçe tek kısa cümleyle yaz (ör. "'hayvan' sıfat olarak işaretlenmiş; 'konservelemek' nadir anlam, çıkarıldı").
+4. Cümleleri senin belirlediğin doğru anlama göre üret.
+Her kelime nesnesinde "meaning_ok" ve "meaning_note" alanları MUTLAKA olsun:
+{ "word": "...", "meaning": "...", "meaning_ok": false, "meaning_note": "...", "level": "...", ... diğer alanlar ve examples aynı ... }
+
+`;
+
 export const buildPromptForWords = (level, words) =>
-  buildWordPrompt(level) +
-  "\n" +
+  buildWordPrompt(level).replace(/Kelimeler: $/, "") +
+  MEANING_CHECK_RULES +
+  "Kelimeler:\n" +
   words.map((w) => `${w.word} (mevcut anlam: ${w.meaning || "?"})`).join("\n");
