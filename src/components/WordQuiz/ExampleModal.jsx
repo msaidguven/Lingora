@@ -55,6 +55,7 @@ Kelime: ${word}`;
         const { data: inserted, error } = await supabase
           .from("en_example_sentences")
           .insert({
+            word_id: word.id,
             sentence_en: item.sentence_en,
             sentence_tr: item.sentence_tr,
             order_index: i,

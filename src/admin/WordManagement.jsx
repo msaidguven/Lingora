@@ -174,12 +174,13 @@ function WordAdder() {
           if (item.examples && Array.isArray(item.examples) && item.examples.length > 0) {
             for (const example of item.examples) {
               if (example.en && example.tr) {
-                // ✅ word_id kontrolü KALDIRILDI
+                // Aynı kelimede aynı cümle iki kez eklenmesin
                 const { data: existingExample, error: exampleCheckError } = await supabase
                   .from("en_example_sentences")
                   .select("id")
+                  .eq("word_id", wordId)
                   .eq("sentence_en", example.en)
-                  .eq("level", example.level || item.level || "A1")
+                  .limit(1)
                   .maybeSingle();
 
                 if (exampleCheckError && exampleCheckError.code !== 'PGRST116') {
@@ -192,6 +193,7 @@ function WordAdder() {
                   const { error: insertExampleError } = await supabase
                     .from("en_example_sentences")
                     .insert({
+                      word_id: wordId,
                       sentence_en: example.en,
                       sentence_tr: example.tr,
                       level: example.level || item.level || "A1",
@@ -268,6 +270,7 @@ function WordAdder() {
                 const { error: insertExampleError } = await supabase
                   .from("en_example_sentences")
                   .insert({
+                    word_id: wordId,
                     sentence_en: example.en,
                     sentence_tr: example.tr,
                     level: example.level || item.level || "A1",
@@ -721,8 +724,7 @@ function WordEditor() {
     setMessage(null);
 
     try {
-      // Cümleler artık kelimeye bağlı değil (en_example_sentences.word_id yok);
-      // kelime silinince cümleler yerinde kalır.
+      // Kelimeye bağlı cümleler veritabanında cascade ile silinir.
       const { error: wordError } = await supabase
         .from("en_words")
         .delete()
