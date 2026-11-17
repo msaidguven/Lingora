@@ -145,8 +145,8 @@ def app_version() -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--track", default="internal",
-                    choices=["internal", "alpha", "beta", "production"],
-                    help="internal=dahili test, alpha=kapalı test, beta=açık test")
+                    help="internal=dahili test, alpha=kapalı test, beta=açık test, production; "
+                         "virgülle birden çok kanal: alpha,internal (aynı AAB hepsine atanır)")
     ap.add_argument("--metadata-only", action="store_true")
     ap.add_argument("--aab", default="android/app/build/outputs/bundle/release/app-release.aab")
     ap.add_argument("--status", default="completed", choices=["completed", "draft"])
@@ -154,6 +154,11 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--check", action="store_true")
     args = ap.parse_args()
+    tracks = [t.strip() for t in args.track.split(",") if t.strip()]
+    bad = [t for t in tracks if t not in ("internal", "alpha", "beta", "production")]
+    if not tracks or bad:
+        print(f"✗ Geçersiz kanal: {', '.join(bad) or args.track}")
+        return 2
 
     config = load_config()
     package = config["package_name"]
@@ -200,9 +205,10 @@ def main() -> int:
                 return 1
             print(f"\nAAB ({aab.stat().st_size / 1e6:.1f} MB, sürüm {app_version()}):")
             code = push_bundle(service, edit_id, package, aab)
-            print(f"\nKanal ({args.track}):")
-            push_track(service, edit_id, package, args.track, code, notes,
-                       args.status, app_version().split("+")[0])
+            for track in tracks:
+                print(f"\nKanal ({track}):")
+                push_track(service, edit_id, package, track, code, notes,
+                           args.status, app_version().split("+")[0])
 
         if args.dry_run:
             print("\n--dry-run: commit edilmedi, oturum iptal ediliyor.")

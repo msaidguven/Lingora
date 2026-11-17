@@ -7,7 +7,7 @@
 #   tool/yayinla.sh --metin                 # yalnız mağaza metni/görselleri güncelle
 #
 # Seçenekler:
-#   -k, --kanal KANAL   internal (varsayılan) | alpha (kapalı test) | beta | production
+#   -k, --kanal KANAL   internal (varsayılan) | alpha (kapalı test) | beta | production; virgülle birden çok: alpha,internal
 #   -n, --not METİN     sürüm notu (yoksa tool/play_publish/store_config.json)
 #   -s, --surum TÜR     patch (varsayılan) | minor | major | yok  (yalnız sürüm kodu yine artar)
 #   --taslak            sürümü taslak bırak (uygulama henüz hiç yayınlanmadıysa gerekli)
