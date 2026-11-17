@@ -18,6 +18,9 @@ export function useHomeViewModel() {
   const [dueCount, setDueCount] = useState(0);
   const [dueSentenceCount, setDueSentenceCount] = useState(0);
   const [mistakeCount, setMistakeCount] = useState(0);
+  // Havuzda alınabilecek hazır (cümlesi var, anlamı onaylı) yeni kelime/cümle sayısı
+  const [availableNewWords, setAvailableNewWords] = useState(null);
+  const [availableNewSentences, setAvailableNewSentences] = useState(null);
   const [userLevel, setUserLevel] = useState("A1");
   const [buying, setBuying] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -121,6 +124,8 @@ export function useHomeViewModel() {
         dueSentencesRes,
         dailyStatsRes,
         mistakesRes,
+        availWordsRes,
+        availSentencesRes,
       ] = await Promise.all([
         supabase
           .from("en_words")
@@ -165,6 +170,8 @@ export function useHomeViewModel() {
           .eq("user_id", user.id)
           .gt("total_wrong", 0)
           .lt("mastery_level", MISTAKE_MAX_MASTERY),
+        supabase.rpc("count_new_items", { p_kind: "word", p_level: level }),
+        supabase.rpc("count_new_items", { p_kind: "sentence", p_level: level }),
       ]);
 
       setTotalWords(totalRes.count || 0);
@@ -174,6 +181,9 @@ export function useHomeViewModel() {
       setDueCount(dueRes.count || 0);
       setDueSentenceCount(dueSentencesRes.count || 0);
       setMistakeCount(mistakesRes.count || 0);
+      // RPC hata verirse (null) düğme eskisi gibi yalnız kotaya bakar
+      setAvailableNewWords(availWordsRes.error ? null : availWordsRes.data);
+      setAvailableNewSentences(availSentencesRes.error ? null : availSentencesRes.data);
 
       const stats = dailyStatsRes.data;
       setDailyWordCorrect(stats?.word_correct || 0);
@@ -394,6 +404,8 @@ export function useHomeViewModel() {
     dueCount,
     dueSentenceCount,
     mistakeCount,
+    availableNewWords,
+    availableNewSentences,
     userLevel,
     buying,
     mounted,

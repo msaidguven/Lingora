@@ -140,6 +140,10 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
     remainingWordAllowance,
 
+    availableNewWords = null,
+
+    availableNewSentences = null,
+
     remainingSentenceAllowance,
 
     introItems = [],
@@ -739,6 +743,8 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
 
               remaining={remainingWordAllowance}
 
+              available={availableNewWords}
+
               buying={buying}
 
               watchingAd={watchingAdKind === "word"}
@@ -764,6 +770,8 @@ export default function HomeScreen({ onStartQuiz, onGoToLesson, onGoToAdminNotes
               quota={dailySentenceQuota}
 
               remaining={remainingSentenceAllowance}
+
+              available={availableNewSentences}
 
               buying={buying}
 
@@ -888,7 +896,7 @@ function HeroPracticeButton({ icon, label, count, accent, onClick }) {
 
 // hak tükendiğinde o türe özel reklam CTA'sı.
 
-function QuotaRow({ icon, label, accent, used, quota, remaining, buying, watchingAd, onTake, onWatchAd, batchNote }) {
+function QuotaRow({ icon, label, accent, used, quota, remaining, available = null, buying, watchingAd, onTake, onWatchAd, batchNote }) {
 
   const exhausted = remaining <= 0;
 
@@ -940,7 +948,11 @@ function QuotaRow({ icon, label, accent, used, quota, remaining, buying, watchin
 
 
 
-      {!exhausted ? (
+      {!exhausted && available === 0 ? (
+        <div className="rounded border border-dashed px-2 py-1.5 text-center text-[10.5px] text-[var(--lg-ink-muted)]" style={{ borderColor: `${accent}66` }}>
+          Şu an hazır yeni {label.toLowerCase()} yok — eklendikçe burada açılacak
+        </div>
+      ) : !exhausted ? (
 
         <button
 
@@ -954,7 +966,7 @@ function QuotaRow({ icon, label, accent, used, quota, remaining, buying, watchin
 
         >
 
-          {buying ? "Alınıyor…" : `+${Math.min(5, remaining)} ${label} Al`}
+          {buying ? "Alınıyor…" : `+${Math.min(5, remaining, available ?? 5)} ${label} Al`}
 
         </button>
 
